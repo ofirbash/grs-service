@@ -366,6 +366,10 @@ export default function JobsPage() {
       comment: findings?.comment || ''
     });
     
+    // If verbal findings exist with certificate_id, lock the form (view mode)
+    const hasExistingFindings = findings?.certificate_id ? true : false;
+    setVerbalEditMode(!hasExistingFindings);  // Edit mode if no existing findings
+    
     setStoneDialogOpen(true);
   };
 
