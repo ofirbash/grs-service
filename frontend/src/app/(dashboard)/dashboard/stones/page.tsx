@@ -148,7 +148,8 @@ export default function StonesPage() {
     setSelectedStone(stone);
     
     // Initialize structured findings from stone data
-    const findings = typeof stone.verbal_findings === 'object' ? stone.verbal_findings : {};
+    const vf = stone.verbal_findings;
+    const findings = (vf && typeof vf === 'object') ? vf as StructuredVerbalFindings : null;
     setStructuredFindings({
       certificate_id: findings?.certificate_id || '',
       weight: findings?.weight || stone.weight,
@@ -157,6 +158,10 @@ export default function StonesPage() {
       origin: findings?.origin || '',
       comment: findings?.comment || ''
     });
+    
+    // If verbal findings exist with certificate_id, lock the form (view mode)
+    const hasExistingFindings = !!(findings?.certificate_id);
+    setVerbalEditMode(!hasExistingFindings);  // Edit mode if no existing findings
     
     setDetailsOpen(true);
   };
