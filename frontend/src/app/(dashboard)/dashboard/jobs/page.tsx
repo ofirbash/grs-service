@@ -1716,7 +1716,7 @@ export default function JobsPage() {
                     <SearchableSelect
                       value={structuredFindings.identification || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, identification: value }))}
-                      disabled={!verbalEditMode}}
+                      disabled={!verbalEditMode}
                       options={dropdownSettings.identification.map(opt => ({ value: opt.value }))}
                       placeholder="Select identification..."
                       searchPlaceholder="Search identification..."
@@ -1730,6 +1730,7 @@ export default function JobsPage() {
                     <SearchableSelect
                       value={structuredFindings.color || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, color: value }))}
+                      disabled={!verbalEditMode}
                       options={dropdownSettings.color.map(opt => ({ value: opt.value }))}
                       placeholder="Select color..."
                       searchPlaceholder="Search color..."
@@ -1743,6 +1744,7 @@ export default function JobsPage() {
                     <SearchableSelect
                       value={structuredFindings.origin || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, origin: value }))}
+                      disabled={!verbalEditMode}
                       options={dropdownSettings.origin.map(opt => ({ value: opt.value }))}
                       placeholder="Select origin..."
                       searchPlaceholder="Search origin..."
@@ -1756,6 +1758,7 @@ export default function JobsPage() {
                     <SearchableSelect
                       value={structuredFindings.comment || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, comment: value }))}
+                      disabled={!verbalEditMode}
                       options={dropdownSettings.comment.map(opt => ({ value: opt.value }))}
                       placeholder="Select comment..."
                       searchPlaceholder="Search comment..."
@@ -1764,9 +1767,14 @@ export default function JobsPage() {
                   </div>
                 </div>
                 
+                {verbalEditMode && (
                 <Button
                   onClick={async () => {
                     if (!viewingStone) return;
+                    if (!structuredFindings.certificate_id) {
+                      alert('Certificate ID is required');
+                      return;
+                    }
                     setSavingStoneVerbal(true);
                     try {
                       await stonesApi.updateStructuredVerbal(viewingStone.id, structuredFindings);
@@ -1780,6 +1788,8 @@ export default function JobsPage() {
                       }
                       // Also update the main jobs list
                       fetchData();
+                      // Lock the form after saving
+                      setVerbalEditMode(false);
                     } catch (error) {
                       console.error('Failed to save verbal findings:', error);
                       alert('Failed to save verbal findings');
@@ -1787,7 +1797,7 @@ export default function JobsPage() {
                       setSavingStoneVerbal(false);
                     }
                   }}
-                  disabled={savingStoneVerbal}
+                  disabled={savingStoneVerbal || !structuredFindings.certificate_id}
                   className="bg-navy-800 hover:bg-navy-700 w-full"
                   data-testid="save-stone-verbal-button"
                 >
