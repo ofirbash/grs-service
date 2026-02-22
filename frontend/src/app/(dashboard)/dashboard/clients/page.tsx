@@ -395,6 +395,18 @@ export default function ClientsPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Additional notes about this client..."
+                className="border-navy-200 min-h-[80px]"
+                data-testid="client-notes-input"
+              />
+            </div>
           </div>
 
           <DialogFooter>
@@ -414,6 +426,131 @@ export default function ClientsPage() {
                 </>
               ) : (
                 'Add Client'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Client Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-navy-800">Edit Client</DialogTitle>
+            <DialogDescription>Update client information</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name *</Label>
+              <Input
+                id="edit-name"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                placeholder="Client name"
+                className="border-navy-200"
+                data-testid="edit-client-name-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email *</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editFormData.email}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                placeholder="client@example.com"
+                className="border-navy-200"
+                data-testid="edit-client-email-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={editFormData.phone}
+                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                placeholder="+1 234 567 8900"
+                className="border-navy-200"
+                data-testid="edit-client-phone-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-company">Company</Label>
+              <Input
+                id="edit-company"
+                value={editFormData.company}
+                onChange={(e) => setEditFormData({ ...editFormData, company: e.target.value })}
+                placeholder="Company name"
+                className="border-navy-200"
+                data-testid="edit-client-company-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-address">Address</Label>
+              <Input
+                id="edit-address"
+                value={editFormData.address}
+                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                placeholder="Client address"
+                className="border-navy-200"
+                data-testid="edit-client-address-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-branch">Branch *</Label>
+              <Select
+                value={editFormData.branch_id}
+                onValueChange={(value) => setEditFormData({ ...editFormData, branch_id: value })}
+              >
+                <SelectTrigger data-testid="edit-client-branch-select">
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-notes">Notes</Label>
+              <Textarea
+                id="edit-notes"
+                value={editFormData.notes}
+                onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                placeholder="Additional notes about this client..."
+                className="border-navy-200 min-h-[80px]"
+                data-testid="edit-client-notes-input"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateClient}
+              disabled={updating || !editFormData.name || !editFormData.email || !editFormData.branch_id}
+              className="bg-navy-800 hover:bg-navy-700"
+              data-testid="confirm-edit-client-button"
+            >
+              {updating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
               )}
             </Button>
           </DialogFooter>
