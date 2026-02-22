@@ -202,19 +202,23 @@ class GRSAPITester:
         """Test dropdown settings for verbal findings"""
         print(f"⚙️ Testing Dropdown Settings...")
         
-        dropdowns = ['identification', 'color', 'origin', 'comment']
-        all_passed = True
+        success, response, status_code = self.make_request('GET', '/settings/dropdowns')
         
-        for dropdown in dropdowns:
-            success, response, status_code = self.make_request('GET', f'/settings/dropdowns/{dropdown}')
+        if success:
+            expected_keys = ['identification', 'color', 'origin', 'comment']
+            has_all_keys = all(key in response for key in expected_keys)
             
-            if success and isinstance(response, list):
-                self.log_result(f"Dropdown {dropdown.title()}", True, f"Status: {status_code}, {len(response)} options")
+            if has_all_keys:
+                total_options = sum(len(response.get(key, [])) for key in expected_keys)
+                self.log_result("Dropdown Settings", True, f"Status: {status_code}, {total_options} total options")
+                return True
             else:
-                self.log_result(f"Dropdown {dropdown.title()}", False, f"Status: {status_code}, Response: {response}")
-                all_passed = False
-        
-        return all_passed
+                missing = [key for key in expected_keys if key not in response]
+                self.log_result("Dropdown Settings", False, f"Missing keys: {missing}")
+                return False
+        else:
+            self.log_result("Dropdown Settings", False, f"Status: {status_code}, Response: {response}")
+            return False
 
     def test_create_shipment(self):
         """Test creating a new shipment"""
