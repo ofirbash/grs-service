@@ -639,6 +639,27 @@ async def get_client(client_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Client not found")
     return ClientResponse(id=str(client["_id"]), **{k: v for k, v in client.items() if k != "_id"})
 
+@api_router.put("/clients/{client_id}", response_model=ClientResponse)
+async def update_client(client_id: str, client_update: ClientUpdate, user: dict = Depends(require_admin)):
+    """Update client details"""
+    client = await db.clients.find_one({"_id": ObjectId(client_id)})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    update_data = {k: v for k, v in client_update.dict().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data to update")
+    
+    update_data["updated_at"] = datetime.utcnow()
+    
+    await db.clients.update_one(
+        {"_id": ObjectId(client_id)},
+        {"$set": update_data}
+    )
+    
+    updated = await db.clients.find_one({"_id": ObjectId(client_id)})
+    return ClientResponse(id=str(updated["_id"]), **{k: v for k, v in updated.items() if k != "_id"})
+
 # ============== JOB ENDPOINTS ==============
 
 @api_router.post("/jobs", response_model=JobResponse)
