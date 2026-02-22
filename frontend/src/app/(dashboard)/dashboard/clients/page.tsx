@@ -250,6 +250,8 @@ export default function ClientsPage() {
                     <TableHead className="font-semibold text-navy-700">Phone</TableHead>
                     <TableHead className="font-semibold text-navy-700">Company</TableHead>
                     <TableHead className="font-semibold text-navy-700">Branch</TableHead>
+                    <TableHead className="font-semibold text-navy-700">Notes</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-16">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -287,6 +289,27 @@ export default function ClientsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-navy-600">{getBranchName(client.branch_id)}</TableCell>
+                      <TableCell className="text-navy-600 max-w-[200px]">
+                        {client.notes ? (
+                          <div className="flex items-center gap-2 truncate" title={client.notes}>
+                            <FileText className="h-4 w-4 text-navy-400 flex-shrink-0" />
+                            <span className="truncate">{client.notes}</span>
+                          </div>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditDialog(client)}
+                          className="h-8 w-8 p-0 hover:bg-navy-100"
+                          data-testid={`edit-client-${client.id}`}
+                        >
+                          <Pencil className="h-4 w-4 text-navy-600" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
