@@ -752,19 +752,6 @@ export default function ShipmentsPage() {
     return labels[type] || type.replace(/_/g, ' ');
   };
 
-  const formatJobStatus = (status: string) => {
-    const labels: Record<string, string> = {
-      stones_accepted: 'Stones Accepted',
-      sent_to_lab: 'Sent to Lab',
-      verbal_uploaded: 'Verbal Uploaded',
-      stones_returned: 'Stones Returned',
-      certificates_scanned: 'Cert. Scanned',
-      certificates_sent: 'Cert. Sent',
-      done: 'Done',
-    };
-    return labels[status] || status.replace(/_/g, ' ');
-  };
-
   const toggleJobSelection = (jobId: string) => {
     setSelectedJobs((prev) =>
       prev.includes(jobId) ? prev.filter((id) => id !== jobId) : [...prev, jobId]
