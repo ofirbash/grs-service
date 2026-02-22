@@ -94,7 +94,7 @@ class GRSAPITester:
         success, response, status_code = self.make_request('GET', '/dashboard/stats')
         
         if success:
-            expected_keys = ['total_jobs', 'total_clients', 'total_value', 'total_fees']
+            expected_keys = ['total_jobs', 'total_clients', 'total_value', 'total_fee']
             has_all_keys = all(key in response for key in expected_keys)
             
             if has_all_keys:
