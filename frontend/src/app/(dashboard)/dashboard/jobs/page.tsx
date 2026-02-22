@@ -266,7 +266,6 @@ export default function JobsPage() {
   // Nested Stone dialog (opens on top of job dialog)
   const [stoneDialogOpen, setStoneDialogOpen] = useState(false);
   const [viewingStone, setViewingStone] = useState<Stone | null>(null);
-  const [stoneVerbalFindings, setStoneVerbalFindings] = useState('');
   const [savingStoneVerbal, setSavingStoneVerbal] = useState(false);
   const [uploadingCertScan, setUploadingCertScan] = useState(false);
   const [viewCertScanOpen, setViewCertScanOpen] = useState(false);
@@ -1400,7 +1399,7 @@ export default function JobsPage() {
                         
                         return Array.from(groups.entries())
                           .sort(([a], [b]) => a - b)
-                          .map(([groupNum, stones], idx) => (
+                          .map(([groupNum, stones]) => (
                             <React.Fragment key={groupNum}>
                               {/* Group header row */}
                               <TableRow className="bg-navy-800">
