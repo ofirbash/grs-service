@@ -269,6 +269,7 @@ export default function JobsPage() {
   const [savingStoneVerbal, setSavingStoneVerbal] = useState(false);
   const [uploadingCertScan, setUploadingCertScan] = useState(false);
   const [viewCertScanOpen, setViewCertScanOpen] = useState(false);
+  const [verbalEditMode, setVerbalEditMode] = useState(false);
   const certScanInputRef = useRef<HTMLInputElement>(null);
   
   // Structured verbal findings
