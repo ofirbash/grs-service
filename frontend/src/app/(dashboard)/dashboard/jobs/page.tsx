@@ -1754,7 +1754,7 @@ export default function JobsPage() {
                       placeholder="Enter certificate ID..."
                       value={structuredFindings.certificate_id || ''}
                       onChange={(e) => setStructuredFindings(prev => ({ ...prev, certificate_id: e.target.value }))}
-                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-200 text-gray-600 cursor-not-allowed opacity-70' : 'bg-white'}`}
                       disabled={!verbalEditMode}
                       data-testid="verbal-certificate-id"
                     />
@@ -1772,7 +1772,7 @@ export default function JobsPage() {
                       placeholder="Weight..."
                       value={structuredFindings.weight || ''}
                       onChange={(e) => setStructuredFindings(prev => ({ ...prev, weight: parseFloat(e.target.value) || 0 }))}
-                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-200 text-gray-600 cursor-not-allowed opacity-70' : 'bg-white'}`}
                       disabled={!verbalEditMode}
                       data-testid="verbal-weight"
                     />
