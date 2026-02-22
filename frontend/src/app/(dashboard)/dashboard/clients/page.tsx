@@ -67,6 +67,21 @@ export default function ClientsPage() {
     company: '',
     address: '',
     branch_id: '',
+    notes: '',
+  });
+
+  // Edit client dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [updating, setUpdating] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    address: '',
+    branch_id: '',
+    notes: '',
   });
 
   useEffect(() => {
