@@ -2283,10 +2283,6 @@ async def update_pricing_config(data: PricingUpdateRequest, user: dict = Depends
     )
     
     return {"message": "Pricing configuration updated successfully"}
-        )
-        for b in PRICING_BRACKETS
-    ]
-    return PricingConfigResponse(brackets=brackets, color_stability_fee=COLOR_STABILITY_FEE)
 
 # ============== USERS MANAGEMENT (Super Admin) ==============
 
