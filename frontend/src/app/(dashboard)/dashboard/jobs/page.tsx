@@ -1350,7 +1350,24 @@ export default function JobsPage() {
                         Add Stone
                       </Button>
                     )}
-                    {selectedStones.length >= 2 && (
+                    {selectedStones.length >= 1 && areAllSelectedStonesGrouped() && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleUngroupStones}
+                        disabled={savingGroup}
+                        data-testid="ungroup-stones-button"
+                        className="border-red-300 text-red-700 hover:bg-red-50"
+                      >
+                        {savingGroup ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Link2 className="h-4 w-4 mr-1" />
+                        )}
+                        Ungroup {selectedStones.length} Stone{selectedStones.length > 1 ? 's' : ''}
+                      </Button>
+                    )}
+                    {selectedStones.length >= 2 && !anySelectedStoneGrouped() && (
                       <Button
                         variant="outline"
                         size="sm"
