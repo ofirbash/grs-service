@@ -2234,15 +2234,55 @@ async def generate_shipment_pdf(job_id: str, user: dict = Depends(require_admin)
 
 # ============== PRICING CONFIG ENDPOINT ==============
 
-@api_router.get("/pricing", response_model=PricingConfigResponse)
+class PricingUpdateRequest(BaseModel):
+    brackets: List[dict]
+    color_stability_fee: float
+    service_types: List[str] = ["Express", "Normal", "Recheck"]
+
+@api_router.get("/pricing")
 async def get_pricing_config(user: dict = Depends(get_current_user)):
+    """Get pricing configuration from database or defaults"""
+    pricing = await db.pricing_config.find_one({"type": "pricing"})
+    
+    if pricing:
+        return {
+            "brackets": pricing.get("brackets", []),
+            "color_stability_fee": pricing.get("color_stability_fee", COLOR_STABILITY_FEE),
+            "service_types": pricing.get("service_types", ["Express", "Normal", "Recheck"])
+        }
+    
+    # Return defaults
     brackets = [
-        PricingBracket(
-            min_value=b["min"],
-            max_value=b["max"],
-            express_fee=b["express"],
-            normal_fee=b["normal"],
-            recheck_fee=b["recheck"]
+        {
+            "min_value": b["min"],
+            "max_value": b["max"],
+            "express_fee": b["express"],
+            "normal_fee": b["normal"],
+            "recheck_fee": b["recheck"]
+        }
+        for b in PRICING_BRACKETS
+    ]
+    return {
+        "brackets": brackets,
+        "color_stability_fee": COLOR_STABILITY_FEE,
+        "service_types": ["Express", "Normal", "Recheck"]
+    }
+
+@api_router.put("/pricing")
+async def update_pricing_config(data: PricingUpdateRequest, user: dict = Depends(require_admin)):
+    """Update pricing configuration"""
+    await db.pricing_config.update_one(
+        {"type": "pricing"},
+        {"$set": {
+            "brackets": data.brackets,
+            "color_stability_fee": data.color_stability_fee,
+            "service_types": data.service_types,
+            "updated_at": datetime.utcnow()
+        }},
+        upsert=True
+    )
+    
+    return {"message": "Pricing configuration updated successfully"}
         )
         for b in PRICING_BRACKETS
     ]
