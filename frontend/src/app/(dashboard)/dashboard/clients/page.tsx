@@ -112,12 +112,44 @@ export default function ClientsPage() {
     try {
       await clientsApi.create(formData);
       setCreateDialogOpen(false);
-      setFormData({ name: '', email: '', phone: '', company: '', address: '', branch_id: '' });
+      setFormData({ name: '', email: '', phone: '', company: '', address: '', branch_id: '', notes: '' });
       fetchData();
     } catch (error) {
       console.error('Failed to create client:', error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const openEditDialog = (client: Client) => {
+    setEditingClient(client);
+    setEditFormData({
+      name: client.name,
+      email: client.email,
+      phone: client.phone || '',
+      company: client.company || '',
+      address: client.address || '',
+      branch_id: client.branch_id,
+      notes: client.notes || '',
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateClient = async () => {
+    if (!editingClient || !editFormData.name || !editFormData.email || !editFormData.branch_id) {
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      await clientsApi.update(editingClient.id, editFormData);
+      setEditDialogOpen(false);
+      setEditingClient(null);
+      fetchData();
+    } catch (error) {
+      console.error('Failed to update client:', error);
+    } finally {
+      setUpdating(false);
     }
   };
 
