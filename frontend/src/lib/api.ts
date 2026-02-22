@@ -220,6 +220,8 @@ export const clientsApi = {
     name: string;
     email: string;
     phone?: string;
+    secondary_email?: string;
+    secondary_phone?: string;
     company?: string;
     address?: string;
     branch_id: string;
@@ -232,6 +234,8 @@ export const clientsApi = {
     name?: string;
     email?: string;
     phone?: string;
+    secondary_email?: string;
+    secondary_phone?: string;
     company?: string;
     address?: string;
     branch_id?: string;
