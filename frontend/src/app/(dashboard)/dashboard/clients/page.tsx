@@ -495,94 +495,128 @@ export default function ClientsPage() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Name *</Label>
-              <Input
-                id="edit-name"
-                value={editFormData.name}
-                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                placeholder="Client name"
-                className="border-navy-200"
-                data-testid="edit-client-name-input"
-              />
+            {/* Row 1: Name & Company */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="edit-name" className="text-sm">Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  placeholder="Client name"
+                  className="border-navy-200"
+                  data-testid="edit-client-name-input"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-company" className="text-sm">Company</Label>
+                <Input
+                  id="edit-company"
+                  value={editFormData.company}
+                  onChange={(e) => setEditFormData({ ...editFormData, company: e.target.value })}
+                  placeholder="Company name"
+                  className="border-navy-200"
+                  data-testid="edit-client-company-input"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-email">Email *</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={editFormData.email}
-                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                placeholder="client@example.com"
-                className="border-navy-200"
-                data-testid="edit-client-email-input"
-              />
+            {/* Row 2: Primary Email & Phone */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="edit-email" className="text-sm">Primary Email *</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                  placeholder="client@example.com"
+                  className="border-navy-200"
+                  data-testid="edit-client-email-input"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-phone" className="text-sm">Primary Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={editFormData.phone}
+                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                  placeholder="+1 234 567 8900"
+                  className="border-navy-200"
+                  data-testid="edit-client-phone-input"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-phone">Phone</Label>
-              <Input
-                id="edit-phone"
-                value={editFormData.phone}
-                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                placeholder="+1 234 567 8900"
-                className="border-navy-200"
-                data-testid="edit-client-phone-input"
-              />
+            {/* Row 3: Secondary Email & Phone */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="edit-secondary-email" className="text-sm">Secondary Email</Label>
+                <Input
+                  id="edit-secondary-email"
+                  type="email"
+                  value={editFormData.secondary_email}
+                  onChange={(e) => setEditFormData({ ...editFormData, secondary_email: e.target.value })}
+                  placeholder="secondary@example.com"
+                  className="border-navy-200"
+                  data-testid="edit-client-secondary-email-input"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-secondary-phone" className="text-sm">Secondary Phone</Label>
+                <Input
+                  id="edit-secondary-phone"
+                  value={editFormData.secondary_phone}
+                  onChange={(e) => setEditFormData({ ...editFormData, secondary_phone: e.target.value })}
+                  placeholder="+1 234 567 8901"
+                  className="border-navy-200"
+                  data-testid="edit-client-secondary-phone-input"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-company">Company</Label>
-              <Input
-                id="edit-company"
-                value={editFormData.company}
-                onChange={(e) => setEditFormData({ ...editFormData, company: e.target.value })}
-                placeholder="Company name"
-                className="border-navy-200"
-                data-testid="edit-client-company-input"
-              />
+            {/* Row 4: Branch & Address */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="edit-branch" className="text-sm">Branch *</Label>
+                <Select
+                  value={editFormData.branch_id}
+                  onValueChange={(value) => setEditFormData({ ...editFormData, branch_id: value })}
+                >
+                  <SelectTrigger data-testid="edit-client-branch-select">
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-address" className="text-sm">Address</Label>
+                <Input
+                  id="edit-address"
+                  value={editFormData.address}
+                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                  placeholder="Client address"
+                  className="border-navy-200"
+                  data-testid="edit-client-address-input"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-address">Address</Label>
-              <Input
-                id="edit-address"
-                value={editFormData.address}
-                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                placeholder="Client address"
-                className="border-navy-200"
-                data-testid="edit-client-address-input"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-branch">Branch *</Label>
-              <Select
-                value={editFormData.branch_id}
-                onValueChange={(value) => setEditFormData({ ...editFormData, branch_id: value })}
-              >
-                <SelectTrigger data-testid="edit-client-branch-select">
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  {branches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-notes">Notes</Label>
+            {/* Row 5: Notes */}
+            <div className="space-y-1">
+              <Label htmlFor="edit-notes" className="text-sm">Notes</Label>
               <Textarea
                 id="edit-notes"
                 value={editFormData.notes}
                 onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
                 placeholder="Additional notes about this client..."
-                className="border-navy-200 min-h-[80px]"
+                className="border-navy-200 min-h-[60px]"
                 data-testid="edit-client-notes-input"
               />
             </div>
