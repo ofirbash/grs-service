@@ -1459,8 +1459,8 @@ export default function JobsPage() {
                           .sort(([a], [b]) => a - b)
                           .map(([groupNum, stones]) => (
                             <React.Fragment key={groupNum}>
-                              {/* Group header row */}
-                              <TableRow className="bg-navy-800">
+                              {/* Group header row - no hover effect */}
+                              <TableRow className="bg-navy-800 hover:bg-navy-800">
                                 <TableCell colSpan={8} className="py-2">
                                   <div className="flex items-center justify-between text-white">
                                     <span className="font-medium flex items-center gap-2">
