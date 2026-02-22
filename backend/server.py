@@ -154,6 +154,16 @@ class ClientCreate(BaseModel):
     company: Optional[str] = None
     address: Optional[str] = None
     branch_id: str
+    notes: Optional[str] = None
+
+class ClientUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    address: Optional[str] = None
+    branch_id: Optional[str] = None
+    notes: Optional[str] = None
 
 class ClientResponse(BaseModel):
     id: str
@@ -163,6 +173,7 @@ class ClientResponse(BaseModel):
     company: Optional[str] = None
     address: Optional[str] = None
     branch_id: str
+    notes: Optional[str] = None
     created_at: datetime
 
 # Stone Models
