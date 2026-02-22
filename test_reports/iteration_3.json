@@ -1,0 +1,95 @@
+{
+  "summary": "Comprehensive testing of stacked/nested modals feature completed. All features working correctly: clicking stones in Job dialog opens Stone dialog on top, clicking jobs in Shipment dialog opens Job dialog on top, 3-level stacking (Shipment->Job->Stone) works, all Stone dialog fields present and functional.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dialog console warnings", "issues": ["Minor React warning: Missing Description or aria-describedby for DialogContent - cosmetic only, no impact on functionality"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_3.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only testing)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin_email": "admin@bashari.com",
+    "admin_password": "admin123"
+  },
+  "seed_data_creation": "None - used existing data (Job #17 with 3 stones: 2 grouped in Cert 1, 1 ungrouped)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Stacked modal feature fully working. Job #17 has 3 stones for testing: EM11100J1703 (ungrouped Emerald), PA1100J1701 and PA1100J1702 (grouped in Certificate 1 as Pair). Shipment #3 has 3 jobs including Job #17.",
+  "test_flows_completed": [
+    {
+      "feature": "Jobs page - Click ungrouped stone row",
+      "result": "PASS",
+      "details": "Stone dialog opens on top of Job dialog showing stone info, verbal findings textarea, certificate scan upload"
+    },
+    {
+      "feature": "Jobs page - Click grouped stone row",
+      "result": "PASS",
+      "details": "Stone dialog opens showing Certificate Group badge, group warning message about scan applying to all stones in group"
+    },
+    {
+      "feature": "Shipments page - Shipment dialog to Job dialog",
+      "result": "PASS",
+      "details": "Clicking job row in shipment opens Job dialog stacked on top of Shipment dialog"
+    },
+    {
+      "feature": "3-level stack: Shipment -> Job -> Stone",
+      "result": "PASS",
+      "details": "Stone dialog opens correctly as third level, all fields and buttons functional"
+    },
+    {
+      "feature": "Stone dialog - Type, Weight, Shape display",
+      "result": "PASS",
+      "details": "All stone properties correctly displayed in info grid"
+    },
+    {
+      "feature": "Stone dialog - Value and Fee display",
+      "result": "PASS",
+      "details": "Value and Fee correctly displayed with formatting"
+    },
+    {
+      "feature": "Stone dialog - Certificate Group field",
+      "result": "PASS",
+      "details": "Shows 'Group X' for grouped stones, '-' for ungrouped stones"
+    },
+    {
+      "feature": "Stone dialog - Verbal Findings textarea",
+      "result": "PASS",
+      "details": "Textarea present with data-testid='stone-verbal-findings-input', accepts text input, Save button enables when modified"
+    },
+    {
+      "feature": "Stone dialog - Certificate Scan Upload button",
+      "result": "PASS",
+      "details": "Upload Scan button present and clickable"
+    },
+    {
+      "feature": "Stone dialog - Group warning for grouped stones",
+      "result": "PASS",
+      "details": "Warning message 'This stone is part of Certificate Group X. Uploading a scan will apply to all stones in this group.' displays for grouped stones"
+    }
+  ],
+  "screenshots_taken": [
+    "01_job_dialog_with_stones.png - Job #17 dialog showing stones table with grouped and ungrouped stones",
+    "02_ungrouped_stone_dialog.png - Stone dialog for ungrouped stone",
+    "03_grouped_stone_dialog.png - Stone dialog for grouped stone with warning",
+    "04_ungrouped_stone_dialog.png - Verified ungrouped stone click",
+    "05_shipment_dialog.png - Shipment #3 dialog with jobs list",
+    "06_job_on_shipment.png - Job dialog stacked on Shipment dialog",
+    "07_3level_stone_dialog.png - 3-level stack with Stone dialog",
+    "08_verbal_findings_test.png - Verbal findings textarea with test input",
+    "09_ungrouped_stone_verified.png - Ungrouped stone showing '-' for cert group"
+  ]
+}
