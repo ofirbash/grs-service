@@ -118,7 +118,7 @@ export default function ClientsPage() {
     try {
       await clientsApi.create(formData);
       setCreateDialogOpen(false);
-      setFormData({ name: '', email: '', phone: '', company: '', address: '', branch_id: '', notes: '' });
+      setFormData({ name: '', email: '', phone: '', secondary_email: '', secondary_phone: '', company: '', address: '', branch_id: '', notes: '' });
       fetchData();
     } catch (error) {
       console.error('Failed to create client:', error);
@@ -133,6 +133,8 @@ export default function ClientsPage() {
       name: client.name,
       email: client.email,
       phone: client.phone || '',
+      secondary_email: client.secondary_email || '',
+      secondary_phone: client.secondary_phone || '',
       company: client.company || '',
       address: client.address || '',
       branch_id: client.branch_id,
