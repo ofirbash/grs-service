@@ -1660,20 +1660,37 @@ export default function JobsPage() {
                     <FileText className="h-5 w-5" />
                     Verbal Findings
                   </Label>
-                  {typeof viewingStone.verbal_findings === 'object' && viewingStone.verbal_findings?.certificate_id && (
-                    <Badge variant="success">Completed</Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {typeof viewingStone.verbal_findings === 'object' && viewingStone.verbal_findings?.certificate_id && (
+                      <>
+                        <Badge variant="success">Completed</Badge>
+                        {!verbalEditMode && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setVerbalEditMode(true)}
+                            className="h-7 text-xs"
+                            data-testid="edit-verbal-button"
+                          >
+                            <Pencil className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   {/* Certificate ID */}
                   <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Certificate ID</Label>
+                    <Label className="text-sm text-navy-600">Certificate ID *</Label>
                     <Input
                       placeholder="Enter certificate ID..."
                       value={structuredFindings.certificate_id || ''}
                       onChange={(e) => setStructuredFindings(prev => ({ ...prev, certificate_id: e.target.value }))}
-                      className="border-navy-200"
+                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      disabled={!verbalEditMode}
                       data-testid="verbal-certificate-id"
                     />
                   </div>
@@ -1687,7 +1704,8 @@ export default function JobsPage() {
                       placeholder="Weight..."
                       value={structuredFindings.weight || ''}
                       onChange={(e) => setStructuredFindings(prev => ({ ...prev, weight: parseFloat(e.target.value) || 0 }))}
-                      className="border-navy-200"
+                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      disabled={!verbalEditMode}
                       data-testid="verbal-weight"
                     />
                   </div>
@@ -1698,6 +1716,7 @@ export default function JobsPage() {
                     <SearchableSelect
                       value={structuredFindings.identification || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, identification: value }))}
+                      disabled={!verbalEditMode}}
                       options={dropdownSettings.identification.map(opt => ({ value: opt.value }))}
                       placeholder="Select identification..."
                       searchPlaceholder="Search identification..."
