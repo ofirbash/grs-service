@@ -39,6 +39,25 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ All services running (backend, frontend, MongoDB)
 - ✅ **Full E2E testing passed: 100% success rate**
 
+### Session: Feb 22, 2026 - Feature Enhancements
+**Client Enhancements:**
+- ✅ Added Edit functionality for existing clients (PUT /api/clients/{id})
+- ✅ Added Phone field to client profiles  
+- ✅ Added Notes field for client remarks
+- ✅ Edit dialog with all client fields (name, email, phone, company, address, branch, notes)
+
+**Stone Verbal Findings Improvements:**
+- ✅ Certificate ID now mandatory in verbal findings (asterisk indicator)
+- ✅ Verbal findings form locks after saving (view mode with disabled inputs)
+- ✅ Edit button appears when findings are locked - unlocks for modification
+- ✅ SearchableSelect component updated with disabled state support
+
+**Job Stone Grouping Improvements:**
+- ✅ Already grouped stones show "Ungroup X Stones" button (red styling)
+- ✅ Ungrouped stones show "Group X Stones for Certificate" button
+- ✅ Fixed blinking header on grouped stones (added hover:bg-navy-800 to prevent flickering)
+- ✅ Added PUT /api/jobs/{job_id}/ungroup-stones endpoint
+
 ### Phase 1: Frontend Rebuild (Complete) - Feb 19, 2026
 - ✅ Removed Expo/React Native frontend (rejected by user)
 - ✅ Created new Next.js 14 project with App Router
