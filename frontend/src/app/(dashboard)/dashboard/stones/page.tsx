@@ -40,6 +40,8 @@ import {
   Eye,
   Link2,
   Check,
+  Pencil,
+  Lock,
 } from 'lucide-react';
 
 interface StructuredVerbalFindings {
