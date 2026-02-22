@@ -48,6 +48,7 @@ import {
   Diamond,
   Check,
   Eye,
+  Lock,
 } from 'lucide-react';
 
 interface StructuredVerbalFindings {
