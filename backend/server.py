@@ -151,6 +151,8 @@ class ClientCreate(BaseModel):
     name: str
     email: EmailStr
     phone: Optional[str] = None
+    secondary_email: Optional[EmailStr] = None
+    secondary_phone: Optional[str] = None
     company: Optional[str] = None
     address: Optional[str] = None
     branch_id: str
@@ -160,6 +162,8 @@ class ClientUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
+    secondary_email: Optional[EmailStr] = None
+    secondary_phone: Optional[str] = None
     company: Optional[str] = None
     address: Optional[str] = None
     branch_id: Optional[str] = None
@@ -170,6 +174,8 @@ class ClientResponse(BaseModel):
     name: str
     email: str
     phone: Optional[str] = None
+    secondary_email: Optional[str] = None
+    secondary_phone: Optional[str] = None
     company: Optional[str] = None
     address: Optional[str] = None
     branch_id: str
