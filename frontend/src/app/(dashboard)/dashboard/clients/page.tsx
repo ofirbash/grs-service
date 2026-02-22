@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -29,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, Plus, Search, Loader2, Mail, Phone, Building } from 'lucide-react';
+import { Users, Plus, Search, Loader2, Mail, Phone, Building, Pencil, FileText } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -39,6 +40,7 @@ interface Client {
   company?: string;
   address?: string;
   branch_id: string;
+  notes?: string;
   created_at: string;
 }
 
