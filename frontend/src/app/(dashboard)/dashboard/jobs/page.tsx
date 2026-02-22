@@ -1717,23 +1717,30 @@ export default function JobsPage() {
                     Verbal Findings
                   </Label>
                   <div className="flex items-center gap-2">
-                    {typeof viewingStone.verbal_findings === 'object' && viewingStone.verbal_findings?.certificate_id && (
-                      <>
-                        <Badge variant="success">Completed</Badge>
-                        {!verbalEditMode && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setVerbalEditMode(true)}
-                            className="h-7 text-xs"
-                            data-testid="edit-verbal-button"
-                          >
-                            <Pencil className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
-                        )}
-                      </>
-                    )}
+                    {(() => {
+                      const vf = viewingStone.verbal_findings;
+                      const hasFindings = vf && typeof vf === 'object' && (vf as StructuredVerbalFindings).certificate_id;
+                      if (hasFindings) {
+                        return (
+                          <>
+                            <Badge variant="success">Completed</Badge>
+                            {!verbalEditMode && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setVerbalEditMode(true)}
+                                className="h-7 text-xs"
+                                data-testid="edit-verbal-button"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
                 
