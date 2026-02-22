@@ -1813,6 +1813,7 @@ export default function JobsPage() {
                     </>
                   )}
                 </Button>
+                )}
               </div>
 
               {/* Certificate Scan */}
