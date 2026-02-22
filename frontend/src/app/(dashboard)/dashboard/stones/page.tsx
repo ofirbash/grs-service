@@ -113,6 +113,7 @@ export default function StonesPage() {
     origin: '',
     comment: ''
   });
+  const [verbalEditMode, setVerbalEditMode] = useState(false);
   
   // View certificate scan
   const [viewCertOpen, setViewCertOpen] = useState(false);
