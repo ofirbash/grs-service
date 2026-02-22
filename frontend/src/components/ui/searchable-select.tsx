@@ -11,6 +11,7 @@ interface SearchableSelectProps {
   placeholder?: string;
   searchPlaceholder?: string;
   className?: string;
+  disabled?: boolean;
   "data-testid"?: string;
 }
 
@@ -21,6 +22,7 @@ export function SearchableSelect({
   placeholder = "Select...",
   searchPlaceholder = "Search...",
   className,
+  disabled = false,
   "data-testid": dataTestId,
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
@@ -83,12 +85,14 @@ export function SearchableSelect({
       {/* Trigger Button */}
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={() => !disabled && setOpen(!open)}
+        disabled={disabled}
         className={cn(
           "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
           "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
           "disabled:cursor-not-allowed disabled:opacity-50",
-          "border-navy-200"
+          "border-navy-200",
+          disabled && "bg-gray-100"
         )}
         data-testid={dataTestId}
       >
