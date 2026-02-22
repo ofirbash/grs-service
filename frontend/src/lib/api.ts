@@ -267,6 +267,45 @@ export const branchesApi = {
     const response = await api.post('/branches', data);
     return response.data;
   },
+  update: async (id: string, data: {
+    name?: string;
+    code?: string;
+    address?: string;
+    return_address?: string;
+    phone?: string;
+    email?: string;
+  }) => {
+    const response = await api.put(`/branches/${id}`, data);
+    return response.data;
+  },
+};
+
+// Settings API
+export const settingsApi = {
+  getDropdowns: async () => {
+    const response = await api.get('/settings/dropdowns');
+    return response.data;
+  },
+  updateDropdownField: async (fieldName: string, options: Array<{ value: string; stone_types: string[] }>) => {
+    const response = await api.put(`/settings/dropdowns/${fieldName}`, options);
+    return response.data;
+  },
+  initializeDropdowns: async () => {
+    const response = await api.post('/settings/dropdowns/initialize');
+    return response.data;
+  },
+  getPricing: async () => {
+    const response = await api.get('/pricing');
+    return response.data;
+  },
+  updatePricing: async (data: {
+    brackets: Array<{ min_value: number; max_value: number; express_fee: number; normal_fee: number; recheck_fee: number }>;
+    color_stability_fee: number;
+    service_types: string[];
+  }) => {
+    const response = await api.put('/pricing', data);
+    return response.data;
+  },
 };
 
 // Dashboard API
