@@ -1729,7 +1729,7 @@ export default function JobsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setVerbalEditMode(true)}
-                                className="h-7 text-xs"
+                                className="h-7 text-xs border-navy-300 hover:bg-navy-100"
                                 data-testid="edit-verbal-button"
                               >
                                 <Pencil className="h-3 w-3 mr-1" />
@@ -1743,6 +1743,14 @@ export default function JobsPage() {
                     })()}
                   </div>
                 </div>
+                
+                {/* Lock indicator when not in edit mode */}
+                {!verbalEditMode && viewingStone.verbal_findings && typeof viewingStone.verbal_findings === 'object' && (viewingStone.verbal_findings as StructuredVerbalFindings).certificate_id && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-sm text-amber-800 flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    Form is locked. Click &quot;Edit&quot; to make changes.
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   {/* Certificate ID */}
