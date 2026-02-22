@@ -236,8 +236,8 @@ class GRSAPITester:
         
         success, response, status_code = self.make_request('POST', '/shipments', shipment_data)
         
-        if success and '_id' in response:
-            shipment_id = response['_id']
+        if success and ('_id' in response or 'id' in response):
+            shipment_id = response.get('_id') or response.get('id')
             self.log_result("Create Shipment", True, f"Status: {status_code}, ID: {shipment_id}")
             return True, shipment_id
         else:
