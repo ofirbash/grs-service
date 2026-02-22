@@ -933,6 +933,31 @@ async def group_stones_for_certificate(job_id: str, group_update: StoneGroupUpda
     
     return {"message": f"Grouped {len(group_update.stone_ids)} stones into certificate group {group_update.group_number}"}
 
+class StoneUngroupUpdate(BaseModel):
+    stone_ids: List[str]
+
+@api_router.put("/jobs/{job_id}/ungroup-stones")
+async def ungroup_stones(job_id: str, ungroup_update: StoneUngroupUpdate, user: dict = Depends(require_admin)):
+    """Remove stones from their certificate group"""
+    job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Remove the certificate_group for selected stones
+    stones = job.get("stones", [])
+    ungrouped_count = 0
+    for stone in stones:
+        if stone["id"] in ungroup_update.stone_ids:
+            stone["certificate_group"] = None
+            ungrouped_count += 1
+    
+    await db.jobs.update_one(
+        {"_id": ObjectId(job_id)},
+        {"$set": {"stones": stones, "updated_at": datetime.utcnow()}}
+    )
+    
+    return {"message": f"Ungrouped {ungrouped_count} stones"}
+
 class MemoUpload(BaseModel):
     filename: str
     file_data: str  # Base64 encoded or URL
