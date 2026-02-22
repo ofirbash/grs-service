@@ -1747,7 +1747,9 @@ export default function JobsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {/* Certificate ID */}
                   <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Certificate ID *</Label>
+                    <Label className="text-sm text-navy-600">
+                      Certificate ID <span className="text-red-500 font-bold">*</span>
+                    </Label>
                     <Input
                       placeholder="Enter certificate ID..."
                       value={structuredFindings.certificate_id || ''}
@@ -1756,6 +1758,9 @@ export default function JobsPage() {
                       disabled={!verbalEditMode}
                       data-testid="verbal-certificate-id"
                     />
+                    {verbalEditMode && !structuredFindings.certificate_id && (
+                      <p className="text-xs text-red-500">Required field</p>
+                    )}
                   </div>
                   
                   {/* Weight */}
