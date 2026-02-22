@@ -455,22 +455,59 @@ export default function StonesPage() {
                     <FileText className="h-5 w-5" />
                     Verbal Findings
                   </Label>
-                  {typeof selectedStone.verbal_findings === 'object' && selectedStone.verbal_findings?.certificate_id && (
-                    <Badge variant="success">Completed</Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const vf = selectedStone.verbal_findings;
+                      const hasFindings = vf && typeof vf === 'object' && (vf as StructuredVerbalFindings).certificate_id;
+                      if (hasFindings) {
+                        return (
+                          <>
+                            <Badge variant="success">Completed</Badge>
+                            {!verbalEditMode && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setVerbalEditMode(true)}
+                                className="h-7 text-xs border-navy-300 hover:bg-navy-100"
+                                data-testid="edit-verbal-button"
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                Edit
+                              </Button>
+                            )}
+                          </>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
                 </div>
+                
+                {/* Lock indicator when not in edit mode */}
+                {!verbalEditMode && selectedStone.verbal_findings && typeof selectedStone.verbal_findings === 'object' && (selectedStone.verbal_findings as StructuredVerbalFindings).certificate_id && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-sm text-amber-800 flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    Form is locked. Click &quot;Edit&quot; to make changes.
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                   {/* Certificate ID */}
                   <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Certificate ID</Label>
+                    <Label className="text-sm text-navy-600">
+                      Certificate ID <span className="text-red-500 font-bold">*</span>
+                    </Label>
                     <Input
                       placeholder="Enter certificate ID..."
                       value={structuredFindings.certificate_id || ''}
                       onChange={(e) => setStructuredFindings(prev => ({ ...prev, certificate_id: e.target.value }))}
-                      className="border-navy-200"
+                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-200 text-gray-600 cursor-not-allowed opacity-70' : 'bg-white'}`}
+                      disabled={!verbalEditMode}
                       data-testid="verbal-certificate-id"
                     />
+                    {verbalEditMode && !structuredFindings.certificate_id && (
+                      <p className="text-xs text-red-500">Required field</p>
+                    )}
                   </div>
                   
                   {/* Weight */}
@@ -482,7 +519,8 @@ export default function StonesPage() {
                       placeholder="Weight..."
                       value={structuredFindings.weight || ''}
                       onChange={(e) => setStructuredFindings(prev => ({ ...prev, weight: parseFloat(e.target.value) || 0 }))}
-                      className="border-navy-200"
+                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-200 text-gray-600 cursor-not-allowed opacity-70' : 'bg-white'}`}
+                      disabled={!verbalEditMode}
                       data-testid="verbal-weight"
                     />
                   </div>
@@ -493,6 +531,7 @@ export default function StonesPage() {
                     <SearchableSelect
                       value={structuredFindings.identification || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, identification: value }))}
+                      disabled={!verbalEditMode}
                       options={dropdownSettings.identification.map(opt => ({ value: opt.value }))}
                       placeholder="Select identification..."
                       searchPlaceholder="Search identification..."
@@ -506,6 +545,7 @@ export default function StonesPage() {
                     <SearchableSelect
                       value={structuredFindings.color || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, color: value }))}
+                      disabled={!verbalEditMode}
                       options={dropdownSettings.color.map(opt => ({ value: opt.value }))}
                       placeholder="Select color..."
                       searchPlaceholder="Search color..."
@@ -519,6 +559,7 @@ export default function StonesPage() {
                     <SearchableSelect
                       value={structuredFindings.origin || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, origin: value }))}
+                      disabled={!verbalEditMode}
                       options={dropdownSettings.origin.map(opt => ({ value: opt.value }))}
                       placeholder="Select origin..."
                       searchPlaceholder="Search origin..."
@@ -532,6 +573,7 @@ export default function StonesPage() {
                     <SearchableSelect
                       value={structuredFindings.comment || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, comment: value }))}
+                      disabled={!verbalEditMode}
                       options={dropdownSettings.comment.map(opt => ({ value: opt.value }))}
                       placeholder="Select comment..."
                       searchPlaceholder="Search comment..."
@@ -540,9 +582,10 @@ export default function StonesPage() {
                   </div>
                 </div>
                 
+                {verbalEditMode && (
                 <Button
                   onClick={handleSaveVerbalFindings}
-                  disabled={savingVerbal}
+                  disabled={savingVerbal || !structuredFindings.certificate_id}
                   className="bg-navy-800 hover:bg-navy-700 w-full"
                   data-testid="save-verbal-button"
                 >
@@ -557,6 +600,8 @@ export default function StonesPage() {
                       Save Verbal Findings
                     </>
                   )}
+                </Button>
+                )}
                 </Button>
               </div>
 
