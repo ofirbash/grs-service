@@ -4,7 +4,7 @@ import { useAuthStore } from '@/lib/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Settings, User, Shield, Building } from 'lucide-react';
+import { Settings, User, Shield } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
