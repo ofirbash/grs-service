@@ -170,6 +170,10 @@ export default function StonesPage() {
 
   const handleSaveVerbalFindings = async () => {
     if (!selectedStone) return;
+    if (!structuredFindings.certificate_id) {
+      alert('Certificate ID is required');
+      return;
+    }
     
     setSavingVerbal(true);
     try {
@@ -179,6 +183,8 @@ export default function StonesPage() {
         s.id === selectedStone.id ? { ...s, verbal_findings: structuredFindings } : s
       ));
       setSelectedStone(prev => prev ? { ...prev, verbal_findings: structuredFindings } : null);
+      // Lock the form after successful save
+      setVerbalEditMode(false);
     } catch (error) {
       console.error('Failed to save verbal findings:', error);
       alert('Failed to save verbal findings');
