@@ -1163,13 +1163,21 @@ async def get_dropdown_settings(user: dict = Depends(get_current_user)):
     }
 
 @api_router.put("/settings/dropdowns/{field_name}")
-async def update_dropdown_settings(field_name: str, options: List[str] = Body(...), user: dict = Depends(require_admin)):
-    """Update dropdown options for a specific field"""
+async def update_dropdown_settings(field_name: str, options: List[dict] = Body(...), user: dict = Depends(require_admin)):
+    """Update dropdown options for a specific field with stone type mapping"""
     if field_name not in ["identification", "color", "origin", "comment"]:
         raise HTTPException(status_code=400, detail="Invalid field name")
     
-    # Convert simple strings to DropdownOption format
-    dropdown_options = [{"value": opt, "stone_types": ["all"]} for opt in options]
+    # Validate and format options
+    dropdown_options = []
+    for opt in options:
+        if isinstance(opt, str):
+            dropdown_options.append({"value": opt, "stone_types": ["all"]})
+        elif isinstance(opt, dict):
+            dropdown_options.append({
+                "value": opt.get("value", ""),
+                "stone_types": opt.get("stone_types", ["all"])
+            })
     
     # Upsert the settings
     await db.dropdown_settings.update_one(
