@@ -693,6 +693,42 @@ export default function JobsPage() {
     }
   };
 
+  const handleUngroupStones = async () => {
+    if (!selectedJob || selectedStones.length === 0) return;
+
+    setSavingGroup(true);
+    try {
+      // Call API to ungroup stones
+      await jobsApi.ungroupStones(selectedJob.id, selectedStones);
+      
+      // Refresh the job data
+      fetchData();
+      const updatedJobs = await jobsApi.getAll();
+      const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
+      if (updated) setSelectedJob(updated);
+      
+      setSelectedStones([]);
+    } catch (error) {
+      console.error('Failed to ungroup stones:', error);
+    } finally {
+      setSavingGroup(false);
+    }
+  };
+
+  // Check if all selected stones are already grouped (same group)
+  const areAllSelectedStonesGrouped = () => {
+    if (!selectedJob || selectedStones.length === 0) return false;
+    const selectedStoneObjects = selectedJob.stones.filter(s => selectedStones.includes(s.id));
+    return selectedStoneObjects.every(s => s.certificate_group !== undefined && s.certificate_group !== null);
+  };
+
+  // Check if any selected stone is already in a group (to prevent re-grouping)
+  const anySelectedStoneGrouped = () => {
+    if (!selectedJob || selectedStones.length === 0) return false;
+    const selectedStoneObjects = selectedJob.stones.filter(s => selectedStones.includes(s.id));
+    return selectedStoneObjects.some(s => s.certificate_group !== undefined && s.certificate_group !== null);
+  };
+
   const handleAddStoneToJob = async () => {
     if (!selectedJob) return;
     if (!newStone.stone_type || !newStone.weight || !newStone.value) {
