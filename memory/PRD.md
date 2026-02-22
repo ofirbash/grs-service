@@ -39,17 +39,26 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ All services running (backend, frontend, MongoDB)
 - ✅ **Full E2E testing passed: 100% success rate**
 
-### Session: Feb 22, 2026 - Feature Enhancements
+### Session: Feb 22, 2026 - Feature Enhancements (v2)
 **Client Enhancements:**
 - ✅ Added Edit functionality for existing clients (PUT /api/clients/{id})
-- ✅ Added Phone field to client profiles  
+- ✅ Added Secondary Email field to client profiles
+- ✅ Added Secondary Phone field to client profiles
 - ✅ Added Notes field for client remarks
-- ✅ Edit dialog with all client fields (name, email, phone, company, address, branch, notes)
+- ✅ Reorganized form into compact 2-column grid layout:
+  - Row 1: Name | Company
+  - Row 2: Primary Email | Primary Phone  
+  - Row 3: Secondary Email | Secondary Phone
+  - Row 4: Branch | Address
+  - Row 5: Notes (full width)
+- ✅ Dialog made wider (max-w-2xl) and scrollable
 
 **Stone Verbal Findings Improvements:**
-- ✅ Certificate ID now mandatory in verbal findings (asterisk indicator)
-- ✅ Verbal findings form locks after saving (view mode with disabled inputs)
-- ✅ Edit button appears when findings are locked - unlocks for modification
+- ✅ Certificate ID now mandatory with red asterisk (*) indicator
+- ✅ "Required field" validation message shown under empty Certificate ID
+- ✅ Verbal findings form locks after saving (view mode with disabled/greyed inputs)
+- ✅ "Completed" badge (green) appears next to Verbal Findings header when saved
+- ✅ "Edit" button appears next to Completed badge to unlock form
 - ✅ SearchableSelect component updated with disabled state support
 
 **Job Stone Grouping Improvements:**
