@@ -329,89 +329,135 @@ export default function ClientsPage() {
 
       {/* Create Client Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800">Add New Client</DialogTitle>
             <DialogDescription>Add a new client to your database</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Client name"
-                className="border-navy-200"
-                data-testid="client-name-input"
-              />
+            {/* Row 1: Name & Company */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="name" className="text-sm">Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Client name"
+                  className="border-navy-200"
+                  data-testid="client-name-input"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="company" className="text-sm">Company</Label>
+                <Input
+                  id="company"
+                  value={formData.company}
+                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                  placeholder="Company name"
+                  className="border-navy-200"
+                  data-testid="client-company-input"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="client@example.com"
-                className="border-navy-200"
-                data-testid="client-email-input"
-              />
+            {/* Row 2: Primary Email & Phone */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="email" className="text-sm">Primary Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="client@example.com"
+                  className="border-navy-200"
+                  data-testid="client-email-input"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="phone" className="text-sm">Primary Phone</Label>
+                <Input
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="+1 234 567 8900"
+                  className="border-navy-200"
+                  data-testid="client-phone-input"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="+1 234 567 8900"
-                className="border-navy-200"
-                data-testid="client-phone-input"
-              />
+            {/* Row 3: Secondary Email & Phone */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="secondary_email" className="text-sm">Secondary Email</Label>
+                <Input
+                  id="secondary_email"
+                  type="email"
+                  value={formData.secondary_email}
+                  onChange={(e) => setFormData({ ...formData, secondary_email: e.target.value })}
+                  placeholder="secondary@example.com"
+                  className="border-navy-200"
+                  data-testid="client-secondary-email-input"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="secondary_phone" className="text-sm">Secondary Phone</Label>
+                <Input
+                  id="secondary_phone"
+                  value={formData.secondary_phone}
+                  onChange={(e) => setFormData({ ...formData, secondary_phone: e.target.value })}
+                  placeholder="+1 234 567 8901"
+                  className="border-navy-200"
+                  data-testid="client-secondary-phone-input"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="company">Company</Label>
-              <Input
-                id="company"
-                value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                placeholder="Company name"
-                className="border-navy-200"
-                data-testid="client-company-input"
-              />
+            {/* Row 4: Branch & Address */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="branch" className="text-sm">Branch *</Label>
+                <Select
+                  value={formData.branch_id}
+                  onValueChange={(value) => setFormData({ ...formData, branch_id: value })}
+                >
+                  <SelectTrigger data-testid="client-branch-select">
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="address" className="text-sm">Address</Label>
+                <Input
+                  id="address"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Client address"
+                  className="border-navy-200"
+                  data-testid="client-address-input"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="branch">Branch *</Label>
-              <Select
-                value={formData.branch_id}
-                onValueChange={(value) => setFormData({ ...formData, branch_id: value })}
-              >
-                <SelectTrigger data-testid="client-branch-select">
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  {branches.map((branch) => (
-                    <SelectItem key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+            {/* Row 5: Notes */}
+            <div className="space-y-1">
+              <Label htmlFor="notes" className="text-sm">Notes</Label>
               <Textarea
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 placeholder="Additional notes about this client..."
-                className="border-navy-200 min-h-[80px]"
+                className="border-navy-200 min-h-[60px]"
                 data-testid="client-notes-input"
               />
             </div>
@@ -442,7 +488,7 @@ export default function ClientsPage() {
 
       {/* Edit Client Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800">Edit Client</DialogTitle>
             <DialogDescription>Update client information</DialogDescription>
