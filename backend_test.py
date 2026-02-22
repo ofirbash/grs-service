@@ -225,10 +225,12 @@ class GRSAPITester:
         print(f"📦 Testing Create Shipment...")
         
         shipment_data = {
+            "shipment_type": "stones_for_testing",
+            "courier": "UPS",
+            "source_address": "Israel Office",
+            "destination_address": "HK Lab",
             "tracking_number": f"TEST-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            "client_name": "Test Client",
-            "destination": "Test Destination",
-            "status": "pending",
+            "job_ids": [],
             "notes": "Test shipment created by automated test"
         }
         
