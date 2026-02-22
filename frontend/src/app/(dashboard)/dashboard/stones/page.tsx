@@ -608,7 +608,6 @@ export default function StonesPage() {
                   )}
                 </Button>
                 )}
-                </Button>
               </div>
 
               {/* Certificate Scan */}
