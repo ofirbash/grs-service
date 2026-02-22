@@ -356,7 +356,10 @@ export default function JobsPage() {
     setViewingStone(stone);
     
     // Initialize structured findings from stone data
-    const findings = typeof stone.verbal_findings === 'object' ? stone.verbal_findings : {};
+    // verbal_findings can be: undefined, null, string, or object
+    const vf = stone.verbal_findings;
+    const findings = (vf && typeof vf === 'object') ? vf as StructuredVerbalFindings : null;
+    
     setStructuredFindings({
       certificate_id: findings?.certificate_id || '',
       weight: findings?.weight || stone.weight,  // Default to stone's weight
@@ -367,7 +370,7 @@ export default function JobsPage() {
     });
     
     // If verbal findings exist with certificate_id, lock the form (view mode)
-    const hasExistingFindings = findings?.certificate_id ? true : false;
+    const hasExistingFindings = !!(findings?.certificate_id);
     setVerbalEditMode(!hasExistingFindings);  // Edit mode if no existing findings
     
     setStoneDialogOpen(true);
