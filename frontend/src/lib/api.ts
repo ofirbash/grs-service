@@ -219,8 +219,21 @@ export const clientsApi = {
     company?: string;
     address?: string;
     branch_id: string;
+    notes?: string;
   }) => {
     const response = await api.post('/clients', data);
+    return response.data;
+  },
+  update: async (id: string, data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+    address?: string;
+    branch_id?: string;
+    notes?: string;
+  }) => {
+    const response = await api.put(`/clients/${id}`, data);
     return response.data;
   },
 };
