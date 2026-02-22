@@ -131,6 +131,10 @@ export const jobsApi = {
     const response = await api.put(`/jobs/${id}/group-stones`, { stone_ids, group_number });
     return response.data;
   },
+  ungroupStones: async (id: string, stone_ids: string[]) => {
+    const response = await api.put(`/jobs/${id}/ungroup-stones`, { stone_ids });
+    return response.data;
+  },
   uploadMemo: async (id: string, filename: string, file_data: string) => {
     const response = await api.put(`/jobs/${id}/memo`, { filename, file_data });
     return response.data;
