@@ -311,8 +311,11 @@ export const cloudinaryApi = {
   
   uploadFile: async (file: File, folder: string = 'uploads'): Promise<{ url: string; public_id: string }> => {
     // Determine resource type based on file type
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
     const isImage = file.type.startsWith('image/');
     const resourceType = isImage ? 'image' : 'raw';
+    
+    console.log(`Uploading file: ${file.name}, type: ${file.type}, resourceType: ${resourceType}`);
     
     // Get signature from backend
     const sig = await cloudinaryApi.getSignature(folder, resourceType);
@@ -327,16 +330,21 @@ export const cloudinaryApi = {
     
     // Upload directly to Cloudinary
     const uploadUrl = `https://api.cloudinary.com/v1_1/${sig.cloud_name}/${resourceType}/upload`;
+    console.log(`Upload URL: ${uploadUrl}`);
+    
     const uploadResponse = await fetch(uploadUrl, {
       method: 'POST',
       body: formData,
     });
     
     if (!uploadResponse.ok) {
-      throw new Error('Failed to upload file to Cloudinary');
+      const errorText = await uploadResponse.text();
+      console.error('Cloudinary upload error:', errorText);
+      throw new Error(`Failed to upload file to Cloudinary: ${errorText}`);
     }
     
     const result = await uploadResponse.json();
+    console.log('Cloudinary upload result:', result);
     return {
       url: result.secure_url,
       public_id: result.public_id,
