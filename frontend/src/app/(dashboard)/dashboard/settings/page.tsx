@@ -102,6 +102,7 @@ export default function SettingsPage() {
     comment: [],
   });
   const [selectedField, setSelectedField] = useState<typeof DROPDOWN_FIELDS[number]>('identification');
+  const [dropdownSearchTerm, setDropdownSearchTerm] = useState('');
   const [editingOption, setEditingOption] = useState<DropdownOption | null>(null);
   const [newOptionValue, setNewOptionValue] = useState('');
   const [newOptionStoneTypes, setNewOptionStoneTypes] = useState<string[]>(['all']);
