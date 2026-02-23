@@ -178,7 +178,7 @@ export default function SettingsPage() {
       setNewOptionValue('');
       setNewOptionStoneTypes(['all']);
       setAddOptionDialogOpen(false);
-      toast.success('Option added successfully');
+      ;
     } catch (error) {
       console.error('Failed to add option:', error);
       alert('Failed to add option');
@@ -197,7 +197,7 @@ export default function SettingsPage() {
       await settingsApi.updateDropdownField(selectedField, updatedOptions);
       setDropdowns({ ...dropdowns, [selectedField]: updatedOptions });
       setEditingOption(null);
-      toast.success('Option updated successfully');
+      ;
     } catch (error) {
       console.error('Failed to update option:', error);
       alert('Failed to update option');
@@ -215,7 +215,7 @@ export default function SettingsPage() {
     try {
       await settingsApi.updateDropdownField(selectedField, updatedOptions);
       setDropdowns({ ...dropdowns, [selectedField]: updatedOptions });
-      toast.success('Option deleted successfully');
+      ;
     } catch (error) {
       console.error('Failed to delete option:', error);
       alert('Failed to delete option');
@@ -274,10 +274,10 @@ export default function SettingsPage() {
     try {
       if (editingBranch) {
         await branchesApi.update(editingBranch.id, branchForm);
-        toast.success('Branch updated successfully');
+        ;
       } else {
         await branchesApi.create(branchForm);
-        toast.success('Branch created successfully');
+        ;
       }
       setBranchDialogOpen(false);
       fetchAllData();
@@ -306,7 +306,7 @@ export default function SettingsPage() {
       await settingsApi.updatePricing(pricingForm);
       setPricing({ ...pricingForm });
       setEditingPricing(false);
-      toast.success('Pricing updated successfully');
+      ;
     } catch (error) {
       console.error('Failed to save pricing:', error);
       alert('Failed to save pricing');
