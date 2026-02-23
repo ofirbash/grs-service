@@ -2045,7 +2045,8 @@ export default function JobsPage() {
           </DialogHeader>
           <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ minHeight: '500px', maxHeight: '75vh' }}>
             {selectedJob?.signed_memo_url && (
-              selectedJob.signed_memo_url.startsWith('data:application/pdf') ? (
+              selectedJob.signed_memo_url.startsWith('data:application/pdf') || 
+              selectedJob.signed_memo_url.toLowerCase().endsWith('.pdf') ? (
                 <iframe
                   src={selectedJob.signed_memo_url}
                   className="w-full h-full rounded-lg"
