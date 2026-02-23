@@ -772,31 +772,22 @@ export default function JobsPage() {
 
     setUploading(true);
     try {
-      // For now, store as base64 - in production would upload to cloud storage
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          await jobsApi.uploadMemo(selectedJob.id, file.name, reader.result as string);
-          fetchData();
-          const updatedJobs = await jobsApi.getAll();
-          const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
-          if (updated) setSelectedJob(updated);
-        } catch (error) {
-          console.error('Failed to upload memo:', error);
-          alert('Failed to upload memo. Please try again.');
-        } finally {
-          setUploading(false);
-          // Reset file input so the same file can be selected again
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-        }
-      };
-      reader.readAsDataURL(file);
+      // Upload to Cloudinary
+      const folder = `memos/${selectedJob.id}`;
+      const { url } = await cloudinaryApi.uploadFile(file, folder);
+      
+      // Save URL to backend
+      await jobsApi.uploadMemo(selectedJob.id, file.name, url);
+      fetchData();
+      const updatedJobs = await jobsApi.getAll();
+      const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
+      if (updated) setSelectedJob(updated);
     } catch (error) {
-      console.error('Failed to read file:', error);
+      console.error('Failed to upload memo:', error);
+      alert('Failed to upload memo. Please try again.');
+    } finally {
       setUploading(false);
-      // Reset file input
+      // Reset file input so the same file can be selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
