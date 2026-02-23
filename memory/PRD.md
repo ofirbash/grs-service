@@ -220,7 +220,7 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ **Backend Cloudinary Endpoints**
   - Signature generation endpoint for secure direct uploads
   - Delete endpoint for file removal
-  - Folder validation (certificates/, memos/, uploads/)
+  - Folder validation (certificates/, memos/, uploads/, invoices/)
 - ✅ **Frontend Cloudinary Integration**
   - cloudinaryApi in api.ts with uploadFile() and deleteFile() functions
   - Direct upload to Cloudinary (bypasses server for file data)
@@ -228,12 +228,18 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ **Updated Pages**
   - Jobs page: Memo upload now uses Cloudinary
   - Jobs page: Certificate scan upload now uses Cloudinary
+  - Jobs page: Lab Invoice upload (admin only) - NEW
   - Stones page: Certificate scan upload now uses Cloudinary
   - Shipments page: Memo and certificate scan uploads use Cloudinary
 - ✅ **Display Support**
   - PDF detection for both base64 prefix and .pdf extension
   - Images display from Cloudinary URLs
   - Backward compatible with legacy base64 data
+- ✅ **Lab Invoice Feature (Admin Only)**
+  - New field: lab_invoice_url, lab_invoice_filename on Job model
+  - Upload/View buttons in Job details dialog
+  - Marked as "Admin Only" with warning "not visible to customers"
+  - Stored in Cloudinary invoices/ folder
 
 ---
 
