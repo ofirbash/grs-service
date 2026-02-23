@@ -154,7 +154,7 @@ export default function SettingsPage() {
       setPricingForm(pricingData);
     } catch (error) {
       console.error('Failed to fetch settings:', error);
-      toast.error('Failed to load settings');
+      alert('Failed to load settings');
     } finally {
       setLoading(false);
     }
@@ -181,7 +181,7 @@ export default function SettingsPage() {
       toast.success('Option added successfully');
     } catch (error) {
       console.error('Failed to add option:', error);
-      toast.error('Failed to add option');
+      alert('Failed to add option');
     } finally {
       setSavingDropdown(false);
     }
@@ -200,7 +200,7 @@ export default function SettingsPage() {
       toast.success('Option updated successfully');
     } catch (error) {
       console.error('Failed to update option:', error);
-      toast.error('Failed to update option');
+      alert('Failed to update option');
     } finally {
       setSavingDropdown(false);
     }
@@ -218,7 +218,7 @@ export default function SettingsPage() {
       toast.success('Option deleted successfully');
     } catch (error) {
       console.error('Failed to delete option:', error);
-      toast.error('Failed to delete option');
+      alert('Failed to delete option');
     } finally {
       setSavingDropdown(false);
     }
@@ -266,7 +266,7 @@ export default function SettingsPage() {
 
   const handleSaveBranch = async () => {
     if (!branchForm.name || !branchForm.code || !branchForm.address || !branchForm.return_address) {
-      toast.error('Please fill in all required fields');
+      alert('Please fill in all required fields');
       return;
     }
 
@@ -283,7 +283,7 @@ export default function SettingsPage() {
       fetchAllData();
     } catch (error) {
       console.error('Failed to save branch:', error);
-      toast.error('Failed to save branch');
+      alert('Failed to save branch');
     } finally {
       setSavingBranch(false);
     }
@@ -309,7 +309,7 @@ export default function SettingsPage() {
       toast.success('Pricing updated successfully');
     } catch (error) {
       console.error('Failed to save pricing:', error);
-      toast.error('Failed to save pricing');
+      alert('Failed to save pricing');
     } finally {
       setSavingPricing(false);
     }
@@ -335,7 +335,7 @@ export default function SettingsPage() {
 
   const removeBracket = (index: number) => {
     if (pricingForm.brackets.length <= 1) {
-      toast.error('At least one pricing bracket is required');
+      alert('At least one pricing bracket is required');
       return;
     }
     const newBrackets = pricingForm.brackets.filter((_, i) => i !== index);
