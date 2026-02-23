@@ -24,7 +24,7 @@ const allNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['super_admin', 'branch_admin', 'customer'] },
   { name: 'Shipments', href: '/dashboard/shipments', icon: Package, roles: ['super_admin', 'branch_admin'] },
   { name: 'Jobs', href: '/dashboard/jobs', icon: Briefcase, roles: ['super_admin', 'branch_admin', 'customer'] },
-  { name: 'Stones', href: '/dashboard/stones', icon: Diamond, roles: ['super_admin', 'branch_admin'] },
+  { name: 'Stones', href: '/dashboard/stones', icon: Diamond, roles: ['super_admin', 'branch_admin', 'customer'] },
   { name: 'Clients', href: '/dashboard/clients', icon: Users, roles: ['super_admin', 'branch_admin'] },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['super_admin', 'branch_admin'] },
 ];
