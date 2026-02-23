@@ -1860,39 +1860,37 @@ export default function ShipmentsPage() {
 
                       setUploadingCert(true);
                       try {
-                        const reader = new FileReader();
-                        reader.onload = async (event) => {
-                          const base64 = event.target?.result as string;
-                          
-                          if (selectedStone.certificate_group) {
-                            await stonesApi.uploadGroupCertificateScan(
-                              selectedJob.id,
-                              selectedStone.certificate_group,
-                              file.name,
-                              base64
-                            );
-                            // Update all stones in the group
-                            const updatedStones = selectedJob.stones?.map(s => 
-                              s.certificate_group === selectedStone.certificate_group
-                                ? { ...s, certificate_scan_url: base64 }
-                                : s
-                            );
-                            setSelectedJob({ ...selectedJob, stones: updatedStones });
-                          } else {
-                            await stonesApi.uploadCertificateScan(selectedStone.id, file.name, base64);
-                            const updatedStones = selectedJob.stones?.map(s => 
-                              s.id === selectedStone.id ? { ...s, certificate_scan_url: base64 } : s
-                            );
-                            setSelectedJob({ ...selectedJob, stones: updatedStones });
-                          }
-                          
-                          setSelectedStone({ ...selectedStone, certificate_scan_url: base64 });
-                          setUploadingCert(false);
-                        };
-                        reader.readAsDataURL(file);
+                        // Upload to Cloudinary
+                        const folder = `certificates/${selectedJob.id}`;
+                        const { url } = await cloudinaryApi.uploadFile(file, folder);
+                        
+                        if (selectedStone.certificate_group) {
+                          await stonesApi.uploadGroupCertificateScan(
+                            selectedJob.id,
+                            selectedStone.certificate_group,
+                            file.name,
+                            url
+                          );
+                          // Update all stones in the group
+                          const updatedStones = selectedJob.stones?.map(s => 
+                            s.certificate_group === selectedStone.certificate_group
+                              ? { ...s, certificate_scan_url: url }
+                              : s
+                          );
+                          setSelectedJob({ ...selectedJob, stones: updatedStones });
+                        } else {
+                          await stonesApi.uploadCertificateScan(selectedStone.id, file.name, url);
+                          const updatedStones = selectedJob.stones?.map(s => 
+                            s.id === selectedStone.id ? { ...s, certificate_scan_url: url } : s
+                          );
+                          setSelectedJob({ ...selectedJob, stones: updatedStones });
+                        }
+                        
+                        setSelectedStone({ ...selectedStone, certificate_scan_url: url });
                       } catch (error) {
                         console.error('Failed to upload certificate scan:', error);
                         alert('Failed to upload certificate scan');
+                      } finally {
                         setUploadingCert(false);
                       }
                       
