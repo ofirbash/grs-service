@@ -1941,7 +1941,7 @@ export default function JobsPage() {
                   </div>
                 </div>
                 
-                {verbalEditMode && (
+                {isAdmin && verbalEditMode && (
                 <Button
                   onClick={async () => {
                     if (!viewingStone) return;
