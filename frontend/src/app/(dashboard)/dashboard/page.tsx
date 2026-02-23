@@ -223,6 +223,7 @@ export default function DashboardPage() {
                   <div
                     key={job.id}
                     className="p-4 hover:bg-navy-50 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/dashboard/jobs?jobId=${job.id}`)}
                     data-testid={`job-row-${job.job_number}`}
                   >
                     <div className="flex items-center justify-between">
