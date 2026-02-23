@@ -1550,7 +1550,23 @@ export default function JobsPage() {
                             <TableCell>{stone.shape}</TableCell>
                             <TableCell>${stone.value.toLocaleString()}</TableCell>
                             <TableCell>${stone.fee.toLocaleString()}</TableCell>
-                            <TableCell className="text-navy-400">-</TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              {stone.certificate_scan_url ? (
+                                <button
+                                  onClick={() => {
+                                    setViewingStone(stone);
+                                    setViewCertScanOpen(true);
+                                  }}
+                                  className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
+                                  title="View Certificate Scan"
+                                  data-testid={`view-cert-${stone.id}`}
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </button>
+                              ) : (
+                                <span className="text-navy-400">-</span>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       
