@@ -219,10 +219,10 @@ export default function DashboardPage() {
             ) : (
               <div className="divide-y divide-navy-100">
                 {recentJobs.map((job) => (
-                  <div
+                  <Link
                     key={job.id}
-                    className="p-4 hover:bg-navy-50 transition-colors cursor-pointer"
-                    onClick={() => router.push(`/dashboard/jobs?jobId=${job.id}`)}
+                    href={`/dashboard/jobs?jobId=${job.id}`}
+                    className="block p-4 hover:bg-navy-50 transition-colors cursor-pointer"
                     data-testid={`job-row-${job.job_number}`}
                   >
                     <div className="flex items-center justify-between">
@@ -243,7 +243,7 @@ export default function DashboardPage() {
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
