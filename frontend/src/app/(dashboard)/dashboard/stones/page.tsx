@@ -199,41 +199,39 @@ export default function StonesPage() {
 
     setUploadingCert(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64 = event.target?.result as string;
-        
-        // Check if stone is in a certificate group
-        if (selectedStone.certificate_group) {
-          // Upload for entire group
-          await stonesApi.uploadGroupCertificateScan(
-            selectedStone.job_id,
-            selectedStone.certificate_group,
-            file.name,
-            base64
-          );
-          // Update all stones in the group locally
-          setStones(prev => prev.map(s => 
-            s.job_id === selectedStone.job_id && s.certificate_group === selectedStone.certificate_group
-              ? { ...s, certificate_scan_url: base64 }
-              : s
-          ));
-        } else {
-          // Upload for single stone
-          await stonesApi.uploadCertificateScan(selectedStone.id, file.name, base64);
-          // Update local state
-          setStones(prev => prev.map(s => 
-            s.id === selectedStone.id ? { ...s, certificate_scan_url: base64 } : s
-          ));
-        }
-        
-        setSelectedStone(prev => prev ? { ...prev, certificate_scan_url: base64 } : null);
-        setUploadingCert(false);
-      };
-      reader.readAsDataURL(file);
+      // Upload to Cloudinary
+      const folder = `certificates/${selectedStone.job_id}`;
+      const { url } = await cloudinaryApi.uploadFile(file, folder);
+      
+      // Check if stone is in a certificate group
+      if (selectedStone.certificate_group) {
+        // Upload for entire group - save URL to backend
+        await stonesApi.uploadGroupCertificateScan(
+          selectedStone.job_id,
+          selectedStone.certificate_group,
+          file.name,
+          url
+        );
+        // Update all stones in the group locally
+        setStones(prev => prev.map(s => 
+          s.job_id === selectedStone.job_id && s.certificate_group === selectedStone.certificate_group
+            ? { ...s, certificate_scan_url: url }
+            : s
+        ));
+      } else {
+        // Upload for single stone - save URL to backend
+        await stonesApi.uploadCertificateScan(selectedStone.id, file.name, url);
+        // Update local state
+        setStones(prev => prev.map(s => 
+          s.id === selectedStone.id ? { ...s, certificate_scan_url: url } : s
+        ));
+      }
+      
+      setSelectedStone(prev => prev ? { ...prev, certificate_scan_url: url } : null);
     } catch (error) {
       console.error('Failed to upload certificate scan:', error);
       alert('Failed to upload certificate scan');
+    } finally {
       setUploadingCert(false);
     }
     
