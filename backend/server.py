@@ -779,17 +779,22 @@ async def get_jobs(
     
     if user["role"] == "customer":
         # Customers only see jobs for their associated client
-        client = await db.clients.find_one({"email": user["email"]})
-        if client:
-            query["client_id"] = str(client["_id"])
+        user_client_id = user.get("client_id")
+        if user_client_id:
+            query["client_id"] = user_client_id
         else:
-            return []
+            # Fallback: try to find client by email
+            client = await db.clients.find_one({"email": user["email"]})
+            if client:
+                query["client_id"] = str(client["_id"])
+            else:
+                return []  # No client associated, return empty
     elif user["role"] == "branch_admin":
         query["branch_id"] = user.get("branch_id")
     
     if branch_id and user["role"] == "super_admin":
         query["branch_id"] = branch_id
-    if client_id:
+    if client_id and user["role"] != "customer":  # Customers can't override client filter
         query["client_id"] = client_id
     if status:
         query["status"] = status
