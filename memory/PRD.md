@@ -210,6 +210,30 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ Notification system (MOCKED - no Twilio/SMTP)
 - ✅ Stone grouping for certificates API
 - ✅ Memo upload API
+- ✅ **Cloudinary Integration** (Feb 23, 2026)
+  - GET /api/cloudinary/signature - Generate secure upload signatures
+  - POST /api/cloudinary/delete - Delete files from Cloudinary
+  - Files stored in Cloudinary folders: certificates/, memos/, uploads/
+  - Backward compatible - legacy base64 URLs still display correctly
+
+### Phase 8: Cloud File Storage - Cloudinary (Complete) - Feb 23, 2026
+- ✅ **Backend Cloudinary Endpoints**
+  - Signature generation endpoint for secure direct uploads
+  - Delete endpoint for file removal
+  - Folder validation (certificates/, memos/, uploads/)
+- ✅ **Frontend Cloudinary Integration**
+  - cloudinaryApi in api.ts with uploadFile() and deleteFile() functions
+  - Direct upload to Cloudinary (bypasses server for file data)
+  - URL saved to backend after successful upload
+- ✅ **Updated Pages**
+  - Jobs page: Memo upload now uses Cloudinary
+  - Jobs page: Certificate scan upload now uses Cloudinary
+  - Stones page: Certificate scan upload now uses Cloudinary
+  - Shipments page: Memo and certificate scan uploads use Cloudinary
+- ✅ **Display Support**
+  - PDF detection for both base64 prefix and .pdf extension
+  - Images display from Cloudinary URLs
+  - Backward compatible with legacy base64 data
 
 ---
 
