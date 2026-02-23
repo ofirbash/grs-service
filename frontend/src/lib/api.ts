@@ -300,4 +300,56 @@ export const dashboardApi = {
   },
 };
 
+// Cloudinary Upload API
+export const cloudinaryApi = {
+  getSignature: async (folder: string = 'uploads', resourceType: 'image' | 'raw' = 'image') => {
+    const response = await api.get('/cloudinary/signature', {
+      params: { folder, resource_type: resourceType }
+    });
+    return response.data;
+  },
+  
+  uploadFile: async (file: File, folder: string = 'uploads'): Promise<{ url: string; public_id: string }> => {
+    // Determine resource type based on file type
+    const isImage = file.type.startsWith('image/');
+    const resourceType = isImage ? 'image' : 'raw';
+    
+    // Get signature from backend
+    const sig = await cloudinaryApi.getSignature(folder, resourceType);
+    
+    // Create form data for Cloudinary
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', sig.api_key);
+    formData.append('timestamp', sig.timestamp.toString());
+    formData.append('signature', sig.signature);
+    formData.append('folder', sig.folder);
+    
+    // Upload directly to Cloudinary
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${sig.cloud_name}/${resourceType}/upload`;
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!uploadResponse.ok) {
+      throw new Error('Failed to upload file to Cloudinary');
+    }
+    
+    const result = await uploadResponse.json();
+    return {
+      url: result.secure_url,
+      public_id: result.public_id,
+    };
+  },
+  
+  deleteFile: async (publicId: string, resourceType: 'image' | 'raw' = 'image') => {
+    const response = await api.post('/cloudinary/delete', {
+      public_id: publicId,
+      resource_type: resourceType,
+    });
+    return response.data;
+  },
+};
+
 export default api;
