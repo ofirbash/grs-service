@@ -119,9 +119,11 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - Tab 3: Pricing - Configure service fees and value brackets
 - ✅ **Verbal Dropdowns Tab Features**
   - Field selector dropdown to switch between Identification, Color, Origin, Comment
+  - **Search/filter input** - instant filtering of options as you type
   - Table of options with Value and Stone Types columns
   - Add/Edit/Delete options with inline editing
   - Stone type badges with click-to-toggle filtering (all, Emerald, Sapphire, Ruby, etc.)
+  - Shows filtered count vs total count when searching
 - ✅ **Branches Tab Features**
   - Table displaying all branches with Name, Code, Address, Return Address, Contact
   - Add Branch dialog with all required fields
