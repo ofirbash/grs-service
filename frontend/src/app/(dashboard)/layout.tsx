@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore, useSidebarStore } from '@/lib/store';
@@ -19,13 +19,14 @@ import {
   Diamond,
 } from 'lucide-react';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Shipments', href: '/dashboard/shipments', icon: Package },
-  { name: 'Jobs', href: '/dashboard/jobs', icon: Briefcase },
-  { name: 'Stones', href: '/dashboard/stones', icon: Diamond },
-  { name: 'Clients', href: '/dashboard/clients', icon: Users },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+// Base navigation - filtered based on role
+const allNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['super_admin', 'branch_admin', 'customer'] },
+  { name: 'Shipments', href: '/dashboard/shipments', icon: Package, roles: ['super_admin', 'branch_admin'] },
+  { name: 'Jobs', href: '/dashboard/jobs', icon: Briefcase, roles: ['super_admin', 'branch_admin', 'customer'] },
+  { name: 'Stones', href: '/dashboard/stones', icon: Diamond, roles: ['super_admin', 'branch_admin'] },
+  { name: 'Clients', href: '/dashboard/clients', icon: Users, roles: ['super_admin', 'branch_admin'] },
+  { name: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['super_admin', 'branch_admin'] },
 ];
 
 export default function DashboardLayout({
@@ -38,6 +39,12 @@ export default function DashboardLayout({
   const { isAuthenticated, user, logout } = useAuthStore();
   const { isCollapsed, toggleSidebar } = useSidebarStore();
   const [mounted, setMounted] = useState(false);
+
+  // Filter navigation based on user role
+  const navigation = useMemo(() => {
+    const userRole = user?.role || 'customer';
+    return allNavigation.filter(item => item.roles.includes(userRole));
+  }, [user?.role]);
 
   useEffect(() => {
     setMounted(true);
