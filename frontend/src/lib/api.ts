@@ -190,22 +190,6 @@ export const stonesApi = {
   },
 };
 
-// Settings API (Dropdown values for verbal findings)
-export const settingsApi = {
-  getDropdowns: async () => {
-    const response = await api.get('/settings/dropdowns');
-    return response.data;
-  },
-  updateDropdown: async (fieldName: string, options: string[]) => {
-    const response = await api.put(`/settings/dropdowns/${fieldName}`, options);
-    return response.data;
-  },
-  initializeDropdowns: async () => {
-    const response = await api.post('/settings/dropdowns/initialize');
-    return response.data;
-  },
-};
-
 // Clients API
 export const clientsApi = {
   getAll: async (branch_id?: string) => {
