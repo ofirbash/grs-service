@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 class GRSAPITester:
-    def __init__(self, base_url="https://logistics-hub-421.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://lab-logistics-hub-1.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0

@@ -7,7 +7,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://logistics-hub-421.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://lab-logistics-hub-1.preview.emergentagent.com')
 BASE_URL = BASE_URL.rstrip('/')
 
 
