@@ -309,9 +309,19 @@ export default function JobsPage() {
 
   // Handle opening a specific job from URL parameter
   useEffect(() => {
+    // Support both jobId (from dashboard) and job (job number)
+    const jobId = searchParams.get('jobId');
     const jobNumber = searchParams.get('job');
-    if (jobNumber && jobs.length > 0) {
-      const job = jobs.find(j => j.job_number === parseInt(jobNumber));
+    
+    if (jobs.length > 0) {
+      let job: Job | undefined;
+      
+      if (jobId) {
+        job = jobs.find(j => j.id === jobId);
+      } else if (jobNumber) {
+        job = jobs.find(j => j.job_number === parseInt(jobNumber));
+      }
+      
       if (job) {
         setSelectedJob(job);
         setEditFormData({ notes: job.notes || '', status: job.status });
