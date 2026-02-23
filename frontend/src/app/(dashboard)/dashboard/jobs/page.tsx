@@ -1321,37 +1321,42 @@ export default function JobsPage() {
                 </div>
               )}
 
-              {/* Signed Memo Section */}
+              {/* Signed Memo Section - Admin Only for Upload */}
               <div className="border-t pt-4">
                 <Label className="text-base font-semibold flex items-center gap-2">
                   <Upload className="h-4 w-4" />
                   Signed Memo
                 </Label>
                 <div className="mt-2 flex items-center gap-3">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleMemoUpload}
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    className="hidden"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    data-testid="upload-memo-button"
-                  >
-                    {uploading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4 mr-2" />
-                        {selectedJob.signed_memo_url ? 'Replace Memo' : 'Upload Memo'}
-                      </>
-                    )}
+                  {isAdmin && (
+                    <>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleMemoUpload}
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        className="hidden"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        data-testid="upload-memo-button"
+                      >
+                        {uploading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-2" />
+                            {selectedJob.signed_memo_url ? 'Replace Memo' : 'Upload Memo'}
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
                   </Button>
                   
                   {selectedJob.signed_memo_url && (
