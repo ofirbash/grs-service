@@ -592,7 +592,7 @@ export default function StonesPage() {
                   </div>
                 </div>
                 
-                {verbalEditMode && (
+                {isAdmin && verbalEditMode && (
                 <Button
                   onClick={handleSaveVerbalFindings}
                   disabled={savingVerbal || !structuredFindings.certificate_id}
