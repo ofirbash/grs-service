@@ -2455,9 +2455,14 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     if user["role"] == "branch_admin":
         query["branch_id"] = user.get("branch_id")
     elif user["role"] == "customer":
-        client = await db.clients.find_one({"email": user["email"]})
-        if client:
-            query["client_id"] = str(client["_id"])
+        # Use client_id from user record, fallback to email lookup
+        user_client_id = user.get("client_id")
+        if user_client_id:
+            query["client_id"] = user_client_id
+        else:
+            client = await db.clients.find_one({"email": user["email"]})
+            if client:
+                query["client_id"] = str(client["_id"])
     
     total_jobs = await db.jobs.count_documents(query)
     active_jobs = await db.jobs.count_documents({**query, "status": {"$nin": ["delivered"]}})
@@ -2483,11 +2488,16 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     status_result = await db.jobs.aggregate(status_pipeline).to_list(20)
     status_breakdown = {s["_id"]: s["count"] for s in status_result}
     
-    # Total clients count
+    # Total clients count - only for admins
     client_query = {}
     if user["role"] == "branch_admin":
         client_query["branch_id"] = user.get("branch_id")
-    total_clients = await db.clients.count_documents(client_query)
+    
+    # Customers see 1 (their own client), admins see all
+    if user["role"] == "customer":
+        total_clients = 1
+    else:
+        total_clients = await db.clients.count_documents(client_query)
     
     return {
         "total_jobs": total_jobs,
