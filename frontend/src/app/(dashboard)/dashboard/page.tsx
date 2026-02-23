@@ -33,6 +33,7 @@ interface RecentJob {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentShipments, setRecentShipments] = useState<RecentShipment[]>([]);
   const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
