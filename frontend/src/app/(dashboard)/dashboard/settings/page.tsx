@@ -418,22 +418,40 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Field Selector */}
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Select Field</Label>
-                  <Select value={selectedField} onValueChange={(v) => setSelectedField(v as typeof DROPDOWN_FIELDS[number])}>
-                    <SelectTrigger className="w-48" data-testid="dropdown-field-select">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DROPDOWN_FIELDS.map((field) => (
-                        <SelectItem key={field} value={field}>
-                          {field.charAt(0).toUpperCase() + field.slice(1)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {/* Field Selector and Search */}
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end justify-between">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium">Select Field</Label>
+                    <Select value={selectedField} onValueChange={(v) => {
+                      setSelectedField(v as typeof DROPDOWN_FIELDS[number]);
+                      setDropdownSearchTerm('');
+                    }}>
+                      <SelectTrigger className="w-48" data-testid="dropdown-field-select">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DROPDOWN_FIELDS.map((field) => (
+                          <SelectItem key={field} value={field}>
+                            {field.charAt(0).toUpperCase() + field.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium">Search Options</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-navy-400" />
+                      <Input
+                        placeholder="Filter options..."
+                        value={dropdownSearchTerm}
+                        onChange={(e) => setDropdownSearchTerm(e.target.value)}
+                        className="pl-10 w-64 border-navy-200"
+                        data-testid="dropdown-search-input"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <Button
                   onClick={() => setAddOptionDialogOpen(true)}
