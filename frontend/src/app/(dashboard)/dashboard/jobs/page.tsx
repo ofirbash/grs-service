@@ -2068,6 +2068,7 @@ export default function JobsPage() {
                     className="hidden"
                     id="cert-upload-jobs"
                   />
+                  {isAdmin && (
                   <Button
                     variant="outline"
                     onClick={() => certScanInputRef.current?.click()}
@@ -2086,6 +2087,7 @@ export default function JobsPage() {
                       </>
                     )}
                   </Button>
+                  )}
                   
                   {viewingStone.certificate_scan_url && (
                     <Button
