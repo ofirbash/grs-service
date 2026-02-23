@@ -391,8 +391,9 @@ export default function JobsPage() {
     });
     
     // If verbal findings exist with certificate_id, lock the form (view mode)
+    // Customers never get edit mode
     const hasExistingFindings = !!(findings?.certificate_id);
-    setVerbalEditMode(!hasExistingFindings);  // Edit mode if no existing findings
+    setVerbalEditMode(isAdmin && !hasExistingFindings);  // Edit mode only for admin if no existing findings
     
     setStoneDialogOpen(true);
   };
