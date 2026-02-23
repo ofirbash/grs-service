@@ -646,6 +646,10 @@ async def create_client(client: ClientCreate, user: dict = Depends(require_admin
 
 @api_router.get("/clients", response_model=List[ClientResponse])
 async def get_clients(branch_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    # Customers cannot view clients list
+    if user["role"] == "customer":
+        return []
+    
     query = {}
     if branch_id:
         query["branch_id"] = branch_id
@@ -657,6 +661,12 @@ async def get_clients(branch_id: Optional[str] = None, user: dict = Depends(get_
 
 @api_router.get("/clients/{client_id}", response_model=ClientResponse)
 async def get_client(client_id: str, user: dict = Depends(get_current_user)):
+    # Customers can only view their own client
+    if user["role"] == "customer":
+        user_client_id = user.get("client_id")
+        if not user_client_id or user_client_id != client_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+    
     client = await db.clients.find_one({"_id": ObjectId(client_id)})
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
