@@ -2032,7 +2032,7 @@ async def get_job_documents(job_id: str, user: dict = Depends(get_current_user))
 
 # ============== CLOUDINARY UPLOAD ENDPOINTS ==============
 
-ALLOWED_FOLDER_PREFIXES = ("certificates", "memos", "uploads")
+ALLOWED_FOLDER_PREFIXES = ("certificates", "memos", "uploads", "invoices")
 
 @api_router.get("/cloudinary/signature")
 async def generate_cloudinary_signature(
