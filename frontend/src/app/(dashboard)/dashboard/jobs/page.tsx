@@ -1223,15 +1223,17 @@ export default function JobsPage() {
                     <FileText className="h-4 w-4 mr-1" />
                     Print
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditMode(!editMode)}
-                    data-testid="edit-job-button"
-                  >
-                    <Pencil className="h-4 w-4 mr-1" />
-                    {editMode ? 'Cancel Edit' : 'Edit'}
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditMode(!editMode)}
+                      data-testid="edit-job-button"
+                    >
+                      <Pencil className="h-4 w-4 mr-1" />
+                      {editMode ? 'Cancel Edit' : 'Edit'}
+                    </Button>
+                  )}
                 </div>
               )}
             </DialogTitle>
