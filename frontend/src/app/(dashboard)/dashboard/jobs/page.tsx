@@ -879,14 +879,16 @@ export default function JobsPage() {
           <h2 className="text-2xl font-bold text-navy-900">Jobs</h2>
           <p className="text-navy-600">Manage gemstone testing jobs</p>
         </div>
-        <Button
-          onClick={() => setCreateDialogOpen(true)}
-          className="bg-navy-800 hover:bg-navy-700"
-          data-testid="create-job-button"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Job
-        </Button>
+        {isAdmin && (
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            className="bg-navy-800 hover:bg-navy-700"
+            data-testid="create-job-button"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create Job
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
