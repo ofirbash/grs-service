@@ -1357,7 +1357,6 @@ export default function JobsPage() {
                       </Button>
                     </>
                   )}
-                  </Button>
                   
                   {selectedJob.signed_memo_url && (
                     <Button
