@@ -241,6 +241,30 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - Marked as "Admin Only" with warning "not visible to customers"
   - Stored in Cloudinary invoices/ folder
 
+### Phase 9: Customer Role & Access Control (Complete) - Feb 23, 2026
+- ✅ **Customer Role Implementation**
+  - Added `customer` role alongside `super_admin` and `branch_admin`
+  - Customer accounts linked to a specific client via `client_id`
+  - Test account: `customer@test.com` / `customer123`
+- ✅ **Backend Access Control**
+  - Jobs, Stones, Shipments endpoints filter by `client_id` for customer role
+  - Clients page restricted to admin only
+  - Settings page restricted to admin only
+  - Dashboard stats filtered for customer role
+- ✅ **Frontend Navigation Restrictions**
+  - Customer sidebar shows: Dashboard, Jobs, Stones only
+  - Admin sidebar shows all options including Clients and Settings
+- ✅ **Verbal Findings Access Control**
+  - Customers can VIEW verbal findings but cannot EDIT
+  - Edit button hidden from customers (both Jobs and Stones pages)
+  - Save button hidden from customers
+  - All form fields disabled for customers
+  - Certificate Scan upload button hidden from customers
+- ✅ **Dashboard Job Navigation**
+  - Recent Jobs in dashboard are clickable
+  - Click navigates to `/dashboard/jobs?jobId={id}` with modal auto-open
+  - Works for both admin and customer roles
+
 ---
 
 ## Prioritized Backlog
