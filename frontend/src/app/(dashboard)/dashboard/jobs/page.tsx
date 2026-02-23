@@ -514,68 +514,61 @@ export default function JobsPage() {
       return;
     }
 
-    // Organize stones into certificate groups
-    const certificateGroups = organizeStonesIntoGroups(job.stones);
+    // Separate ungrouped and grouped stones
+    const ungroupedStones = job.stones.filter(s => !s.certificate_group);
+    const groupedStonesMap = new Map<number, Stone[]>();
+    job.stones.filter(s => s.certificate_group).forEach(s => {
+      const group = s.certificate_group!;
+      if (!groupedStonesMap.has(group)) groupedStonesMap.set(group, []);
+      groupedStonesMap.get(group)!.push(s);
+    });
     
     // Generate certificate summary
-    const certSummaryItems = certificateGroups
-      .filter(g => g.groupNumber !== null)
-      .map(g => `Certificate ${g.groupNumber}: ${g.stones.length} stone${g.stones.length > 1 ? 's' : ''} (${g.label})`)
+    const certSummaryItems = Array.from(groupedStonesMap.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([groupNum, stones]) => `Certificate ${groupNum}: ${stones.length} stone${stones.length > 1 ? 's' : ''} (${getCertificateLabel(stones.length)})`)
       .join(', ');
     
-    const ungroupedCount = certificateGroups.filter(g => g.groupNumber === null).length;
-    const certSummary = certSummaryItems + (ungroupedCount > 0 ? `, ${ungroupedCount} ungrouped` : '');
+    const certSummary = certSummaryItems + (ungroupedStones.length > 0 ? `, ${ungroupedStones.length} ungrouped` : '');
 
-    // Generate HTML for each certificate group
-    const certificateGroupsHtml = certificateGroups.map(group => {
-      const groupTitle = group.groupNumber !== null 
-        ? `Certificate ${group.groupNumber} - ${group.label} (${group.stones.length} stone${group.stones.length > 1 ? 's' : ''})`
-        : `Ungrouped Stone`;
-      
-      const stonesRows = group.stones.map((stone, idx) => `
-        <tr>
-          <td>${idx + 1}</td>
-          <td>${stone.sku}</td>
-          <td>${stone.stone_type}</td>
-          <td>${stone.weight} ct</td>
-          <td>${stone.shape}</td>
-          <td>$${stone.value.toLocaleString()}</td>
-          <td>$${stone.fee.toLocaleString()}</td>
-        </tr>
-      `).join('');
+    // Generate ungrouped stones rows
+    let rowIndex = 1;
+    const ungroupedRows = ungroupedStones.map((stone) => `
+      <tr>
+        <td>${rowIndex++}</td>
+        <td>${stone.sku}</td>
+        <td>${stone.stone_type}</td>
+        <td>${stone.weight} ct</td>
+        <td>${stone.shape}</td>
+        <td>$${stone.value.toLocaleString()}</td>
+        <td>$${stone.fee.toLocaleString()}</td>
+      </tr>
+    `).join('');
 
-      const groupTotalValue = group.stones.reduce((sum, s) => sum + s.value, 0);
-      const groupTotalFee = group.stones.reduce((sum, s) => sum + s.fee, 0);
-
-      return `
-        <div class="certificate-group">
-          <h4 class="group-title ${group.groupNumber !== null ? 'grouped' : 'ungrouped'}">${groupTitle}</h4>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>SKU</th>
-                <th>Type</th>
-                <th>Weight</th>
-                <th>Shape</th>
-                <th>Value</th>
-                <th>Fee</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${stonesRows}
-            </tbody>
-            <tfoot>
-              <tr class="group-total">
-                <td colspan="5" style="text-align: right;"><strong>Group Total:</strong></td>
-                <td><strong>$${groupTotalValue.toLocaleString()}</strong></td>
-                <td><strong>$${groupTotalFee.toLocaleString()}</strong></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      `;
-    }).join('');
+    // Generate grouped stones rows with separator headers
+    const groupedRows = Array.from(groupedStonesMap.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([groupNum, stones]) => {
+        const groupHeader = `
+          <tr class="group-separator">
+            <td colspan="7">
+              <strong>Certificate ${groupNum}</strong> - ${getCertificateLabel(stones.length)} (${stones.length} stone${stones.length > 1 ? 's' : ''})
+            </td>
+          </tr>
+        `;
+        const stoneRows = stones.map((stone) => `
+          <tr class="grouped-row">
+            <td>${rowIndex++}</td>
+            <td>${stone.sku}</td>
+            <td>${stone.stone_type}</td>
+            <td>${stone.weight} ct</td>
+            <td>${stone.shape}</td>
+            <td>$${stone.value.toLocaleString()}</td>
+            <td>$${stone.fee.toLocaleString()}</td>
+          </tr>
+        `).join('');
+        return groupHeader + stoneRows;
+      }).join('');
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -596,12 +589,10 @@ export default function JobsPage() {
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
           th { background: #102a43; color: white; }
-          tr:nth-child(even) { background: #f9f9f9; }
-          .certificate-group { margin: 15px 0; padding: 15px; border: 2px solid #102a43; border-radius: 8px; }
-          .group-title { margin: 0 0 10px 0; padding: 8px 12px; border-radius: 4px; font-size: 14px; }
-          .group-title.grouped { background: #102a43; color: white; }
-          .group-title.ungrouped { background: #e2e8f0; color: #486581; }
-          .group-total { background: #f0f4f8; }
+          tr:nth-child(even):not(.group-separator) { background: #f9f9f9; }
+          .group-separator { background: #334e68 !important; color: white; }
+          .group-separator td { padding: 6px 8px; border-color: #334e68; }
+          .grouped-row { background: #f8fafc; }
           .cert-summary { background: #fef3c7; padding: 12px; border-radius: 6px; margin: 10px 0; }
           .cert-summary strong { color: #92400e; }
           .totals { margin-top: 20px; text-align: right; padding: 15px; background: #102a43; color: white; border-radius: 6px; }
@@ -609,7 +600,6 @@ export default function JobsPage() {
           .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ccc; text-align: center; color: #627d98; font-size: 12px; }
           @media print { 
             body { padding: 20px; }
-            .certificate-group { page-break-inside: avoid; }
           }
         </style>
       </head>
@@ -649,16 +639,34 @@ export default function JobsPage() {
           </div>
         </div>
         
+        ${groupedStonesMap.size > 0 ? `
         <div class="section">
           <h3>Certificate Summary</h3>
           <div class="cert-summary">
-            <strong>Certificates:</strong> ${certSummary || 'No certificates defined yet'}
+            <strong>Certificates:</strong> ${certSummary}
           </div>
         </div>
+        ` : ''}
         
         <div class="section">
-          <h3>Stones by Certificate</h3>
-          ${certificateGroupsHtml}
+          <h3>Stones</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>SKU</th>
+                <th>Type</th>
+                <th>Weight</th>
+                <th>Shape</th>
+                <th>Value</th>
+                <th>Fee</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ungroupedRows}
+              ${groupedRows}
+            </tbody>
+          </table>
           
           <div class="totals">
             <div class="item"><strong>Total Stones:</strong> ${job.total_stones}</div>
