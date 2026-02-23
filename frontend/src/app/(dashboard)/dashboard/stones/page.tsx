@@ -470,7 +470,7 @@ export default function StonesPage() {
                         return (
                           <>
                             <Badge variant="success">Completed</Badge>
-                            {!verbalEditMode && (
+                            {isAdmin && !verbalEditMode && (
                               <Button
                                 variant="outline"
                                 size="sm"
