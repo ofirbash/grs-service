@@ -1005,6 +1005,25 @@ async def upload_signed_memo(job_id: str, memo: MemoUpload, user: dict = Depends
     
     return {"message": "Memo uploaded successfully", "filename": memo.filename}
 
+@api_router.put("/jobs/{job_id}/lab-invoice")
+async def upload_lab_invoice(job_id: str, memo: MemoUpload, user: dict = Depends(require_admin)):
+    """Upload a lab invoice document to a job (admin only)"""
+    job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Store the lab invoice URL
+    await db.jobs.update_one(
+        {"_id": ObjectId(job_id)},
+        {"$set": {
+            "lab_invoice_url": memo.file_data,
+            "lab_invoice_filename": memo.filename,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    return {"message": "Lab invoice uploaded successfully", "filename": memo.filename}
+
 class AddStoneRequest(BaseModel):
     stone_type: str
     weight: float
