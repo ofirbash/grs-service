@@ -128,6 +128,7 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     branch_id: Optional[str] = None
+    client_id: Optional[str] = None  # For customer role - links to their client
     phone: Optional[str] = None
     email_verified: bool = False
     two_factor_enabled: bool = False
