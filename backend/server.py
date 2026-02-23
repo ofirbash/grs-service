@@ -279,6 +279,8 @@ class JobResponse(BaseModel):
     shipment_info: Optional[Dict[str, Any]] = None
     signed_memo_url: Optional[str] = None
     signed_memo_filename: Optional[str] = None
+    lab_invoice_url: Optional[str] = None
+    lab_invoice_filename: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
