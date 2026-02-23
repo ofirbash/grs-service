@@ -45,8 +45,6 @@ import {
   DollarSign,
   AlertCircle,
 } from 'lucide-react';
-import { toast } from 'sonner';
-
 // Types
 interface DropdownOption {
   value: string;
