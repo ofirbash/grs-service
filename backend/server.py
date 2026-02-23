@@ -2007,7 +2007,7 @@ async def get_job_documents(job_id: str, user: dict = Depends(get_current_user))
 
 # ============== CLOUDINARY UPLOAD ENDPOINTS ==============
 
-ALLOWED_FOLDERS = ("certificates/", "memos/", "uploads/")
+ALLOWED_FOLDER_PREFIXES = ("certificates", "memos", "uploads")
 
 @api_router.get("/cloudinary/signature")
 async def generate_cloudinary_signature(
@@ -2019,8 +2019,9 @@ async def generate_cloudinary_signature(
     resource_type: 'image' for images, 'raw' for PDFs and other files
     folder: destination folder (certificates, memos, uploads)
     """
-    # Validate folder
-    if not any(folder.startswith(f) for f in ALLOWED_FOLDERS):
+    # Validate folder - accepts both 'uploads' and 'uploads/' prefixes
+    folder_base = folder.split('/')[0] if '/' in folder else folder.rstrip('/')
+    if folder_base not in ALLOWED_FOLDER_PREFIXES:
         raise HTTPException(status_code=400, detail="Invalid folder path")
     
     timestamp = int(time.time())
