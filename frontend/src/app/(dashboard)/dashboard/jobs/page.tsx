@@ -2012,7 +2012,8 @@ export default function JobsPage() {
           </DialogHeader>
           <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ minHeight: '500px', maxHeight: '75vh' }}>
             {viewingStone?.certificate_scan_url && (
-              viewingStone.certificate_scan_url.startsWith('data:application/pdf') ? (
+              viewingStone.certificate_scan_url.startsWith('data:application/pdf') || 
+              viewingStone.certificate_scan_url.toLowerCase().endsWith('.pdf') ? (
                 <iframe
                   src={viewingStone.certificate_scan_url}
                   className="w-full h-full rounded-lg"
