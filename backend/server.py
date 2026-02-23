@@ -2005,6 +2005,62 @@ async def get_job_documents(job_id: str, user: dict = Depends(get_current_user))
     
     return job.get("documents", [])
 
+# ============== CLOUDINARY UPLOAD ENDPOINTS ==============
+
+ALLOWED_FOLDERS = ("certificates/", "memos/", "uploads/")
+
+@api_router.get("/cloudinary/signature")
+async def generate_cloudinary_signature(
+    resource_type: str = Query("image", enum=["image", "raw"]),
+    folder: str = Query("uploads"),
+    user: dict = Depends(require_admin)
+):
+    """Generate a signed upload signature for Cloudinary.
+    resource_type: 'image' for images, 'raw' for PDFs and other files
+    folder: destination folder (certificates, memos, uploads)
+    """
+    # Validate folder
+    if not any(folder.startswith(f) for f in ALLOWED_FOLDERS):
+        raise HTTPException(status_code=400, detail="Invalid folder path")
+    
+    timestamp = int(time.time())
+    params = {
+        "timestamp": timestamp,
+        "folder": folder,
+    }
+    
+    signature = cloudinary.utils.api_sign_request(
+        params,
+        os.getenv("CLOUDINARY_API_SECRET")
+    )
+    
+    return {
+        "signature": signature,
+        "timestamp": timestamp,
+        "cloud_name": os.getenv("CLOUDINARY_CLOUD_NAME"),
+        "api_key": os.getenv("CLOUDINARY_API_KEY"),
+        "folder": folder,
+        "resource_type": resource_type
+    }
+
+class CloudinaryDeleteRequest(BaseModel):
+    public_id: str
+    resource_type: str = "image"  # image or raw
+
+@api_router.post("/cloudinary/delete")
+async def delete_cloudinary_file(request: CloudinaryDeleteRequest, user: dict = Depends(require_admin)):
+    """Delete a file from Cloudinary"""
+    try:
+        result = cloudinary.uploader.destroy(
+            request.public_id, 
+            resource_type=request.resource_type,
+            invalidate=True
+        )
+        return {"message": "File deleted", "result": result}
+    except Exception as e:
+        logger.error(f"Cloudinary delete error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
+
 # ============== PDF GENERATION ENDPOINTS ==============
 
 def download_logo():
