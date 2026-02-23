@@ -139,6 +139,10 @@ export const jobsApi = {
     const response = await api.put(`/jobs/${id}/memo`, { filename, file_data });
     return response.data;
   },
+  uploadLabInvoice: async (id: string, filename: string, file_data: string) => {
+    const response = await api.put(`/jobs/${id}/lab-invoice`, { filename, file_data });
+    return response.data;
+  },
   update: async (id: string, data: { notes?: string; status?: string }) => {
     const response = await api.put(`/jobs/${id}`, data);
     return response.data;
