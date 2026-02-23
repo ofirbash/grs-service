@@ -1099,9 +1099,19 @@ async def add_stone_to_job(job_id: str, stone: AddStoneRequest, user: dict = Dep
 # ==================== STONES ENDPOINTS ====================
 
 @api_router.get("/stones")
-async def get_all_stones(user: dict = Depends(require_admin)):
+async def get_all_stones(user: dict = Depends(get_current_user)):
     """Get all stones across all jobs with job info"""
-    jobs = await db.jobs.find().to_list(1000)
+    query = {}
+    
+    # Filter for customers - only their client's jobs
+    if user["role"] == "customer":
+        user_client_id = user.get("client_id")
+        if user_client_id:
+            query["client_id"] = user_client_id
+        else:
+            return []
+    
+    jobs = await db.jobs.find(query).to_list(1000)
     all_stones = []
     
     for job in jobs:
