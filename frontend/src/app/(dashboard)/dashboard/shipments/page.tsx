@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from 'react';
-import { shipmentsApi, jobsApi, stonesApi, settingsApi } from '@/lib/api';
+import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
