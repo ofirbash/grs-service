@@ -188,6 +188,8 @@ const SERVICE_TYPES = ['Express', 'Normal', 'Recheck'];
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'branch_admin';
   const [jobs, setJobs] = useState<Job[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
