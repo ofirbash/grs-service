@@ -112,6 +112,28 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ Added "received" status to valid job statuses list
 - ✅ Fixed StoneResponse model to include certificate_group field
 
+### Phase 7: Admin Settings Page (Complete) - Feb 23, 2026
+- ✅ **Multi-Tab Settings Page**
+  - Tab 1: Verbal Dropdowns - Manage dropdown options (Identification, Color, Origin, Comment) with stone type filtering
+  - Tab 2: Branches - CRUD for office locations with address, return address, phone, email
+  - Tab 3: Pricing - Configure service fees and value brackets
+- ✅ **Verbal Dropdowns Tab Features**
+  - Field selector dropdown to switch between Identification, Color, Origin, Comment
+  - Table of options with Value and Stone Types columns
+  - Add/Edit/Delete options with inline editing
+  - Stone type badges with click-to-toggle filtering (all, Emerald, Sapphire, Ruby, etc.)
+- ✅ **Branches Tab Features**
+  - Table displaying all branches with Name, Code, Address, Return Address, Contact
+  - Add Branch dialog with all required fields
+  - Edit Branch button for each row
+  - Super Admin only can add/edit branches
+- ✅ **Pricing Tab Features**
+  - Color Stability Test Fee display and editing
+  - Value Brackets table with Min/Max Value, Express/Normal/Recheck fees
+  - Edit Pricing mode with editable inputs
+  - Add/Remove bracket functionality
+  - Available Service Types display
+
 ### Phase 4: UX Enhancements (Complete) - Feb 21, 2026
 - ✅ **Stacked/Nested Modals Feature**
   - Click job in Shipment details → Job dialog opens on top
