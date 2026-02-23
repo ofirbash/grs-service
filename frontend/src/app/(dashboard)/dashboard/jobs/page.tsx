@@ -1458,7 +1458,7 @@ export default function JobsPage() {
                         Ungroup {selectedStones.length} Stone{selectedStones.length > 1 ? 's' : ''}
                       </Button>
                     )}
-                    {selectedStones.length >= 2 && !anySelectedStoneGrouped() && (
+                    {isAdmin && selectedStones.length >= 2 && !anySelectedStoneGrouped() && (
                       <Button
                         variant="outline"
                         size="sm"
