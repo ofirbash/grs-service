@@ -2151,6 +2151,42 @@ export default function JobsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Lab Invoice Dialog */}
+      <Dialog open={viewLabInvoiceOpen} onOpenChange={setViewLabInvoiceOpen}>
+        <DialogContent className="max-w-5xl max-h-[95vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Lab Invoice - Job #{selectedJob?.job_number}
+              <Badge variant="secondary" className="bg-amber-100 text-amber-800">Admin Only</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ minHeight: '500px', maxHeight: '75vh' }}>
+            {selectedJob?.lab_invoice_url && (
+              selectedJob.lab_invoice_url.startsWith('data:application/pdf') || 
+              selectedJob.lab_invoice_url.toLowerCase().endsWith('.pdf') ? (
+                <iframe
+                  src={selectedJob.lab_invoice_url}
+                  className="w-full h-full rounded-lg"
+                  style={{ minHeight: '500px', maxHeight: '75vh' }}
+                  title={`Lab Invoice for Job ${selectedJob.job_number}`}
+                />
+              ) : (
+                <img
+                  src={selectedJob.lab_invoice_url}
+                  alt={`Lab Invoice for Job ${selectedJob.job_number}`}
+                  className="max-w-full max-h-[70vh] object-contain"
+                />
+              )
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewLabInvoiceOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
