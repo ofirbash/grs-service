@@ -326,6 +326,9 @@ export const cloudinaryApi = {
     formData.append('timestamp', sig.timestamp.toString());
     formData.append('signature', sig.signature);
     formData.append('folder', sig.folder);
+    if (sig.type) {
+      formData.append('type', sig.type);
+    }
     
     // Upload directly to Cloudinary
     const uploadUrl = `https://api.cloudinary.com/v1_1/${sig.cloud_name}/${resourceType}/upload`;
