@@ -370,3 +370,4 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - `/app/test_reports/iteration_6.json` - Nested job modal full features & group cert scan fix (Feb 22, 2026)
   - `/app/test_reports/iteration_7.json` - Memo upload bug fix (Feb 22, 2026)
   - `/app/test_reports/iteration_11.json` - Admin Settings page (Feb 23, 2026)
+  - `/app/test_reports/iteration_12.json` - Cloudinary integration (Feb 23, 2026)
