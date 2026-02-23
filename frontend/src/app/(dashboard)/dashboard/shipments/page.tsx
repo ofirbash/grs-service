@@ -255,34 +255,28 @@ export default function ShipmentsPage() {
 
     setUploadingMemo(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          await jobsApi.uploadMemo(selectedJob.id, file.name, reader.result as string);
-          // Refresh shipment jobs to get the updated memo URL
-          if (selectedShipment) {
-            const allJobs = await jobsApi.getAll();
-            const jobs = allJobs.filter((j: Job) => selectedShipment.job_ids.includes(j.id));
-            setShipmentJobs(jobs);
-            // Update the selected job with the new memo URL
-            const updatedJob = jobs.find((j: Job) => j.id === selectedJob.id);
-            if (updatedJob) setSelectedJob(updatedJob);
-          }
-        } catch (error) {
-          console.error('Failed to upload memo:', error);
-          alert('Failed to upload memo. Please try again.');
-        } finally {
-          setUploadingMemo(false);
-          // Reset file input so the same file can be selected again
-          if (memoInputRef.current) {
-            memoInputRef.current.value = '';
-          }
-        }
-      };
-      reader.readAsDataURL(file);
+      // Upload to Cloudinary
+      const folder = `memos/${selectedJob.id}`;
+      const { url } = await cloudinaryApi.uploadFile(file, folder);
+      
+      // Save URL to backend
+      await jobsApi.uploadMemo(selectedJob.id, file.name, url);
+      
+      // Refresh shipment jobs to get the updated memo URL
+      if (selectedShipment) {
+        const allJobs = await jobsApi.getAll();
+        const jobs = allJobs.filter((j: Job) => selectedShipment.job_ids.includes(j.id));
+        setShipmentJobs(jobs);
+        // Update the selected job with the new memo URL
+        const updatedJob = jobs.find((j: Job) => j.id === selectedJob.id);
+        if (updatedJob) setSelectedJob(updatedJob);
+      }
     } catch (error) {
-      console.error('Failed to read file:', error);
+      console.error('Failed to upload memo:', error);
+      alert('Failed to upload memo. Please try again.');
+    } finally {
       setUploadingMemo(false);
+      // Reset file input so the same file can be selected again
       if (memoInputRef.current) {
         memoInputRef.current.value = '';
       }
