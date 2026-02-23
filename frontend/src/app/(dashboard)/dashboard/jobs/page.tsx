@@ -194,6 +194,7 @@ export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const labInvoiceInputRef = useRef<HTMLInputElement>(null);
 
   // Create job dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
