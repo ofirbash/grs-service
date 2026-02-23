@@ -295,6 +295,10 @@ export default function JobsPage() {
   // Memo upload
   const [uploading, setUploading] = useState(false);
   const [viewMemoOpen, setViewMemoOpen] = useState(false);
+  
+  // Lab Invoice upload (admin only)
+  const [uploadingLabInvoice, setUploadingLabInvoice] = useState(false);
+  const [viewLabInvoiceOpen, setViewLabInvoiceOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
