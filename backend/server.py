@@ -1540,6 +1540,10 @@ async def get_shipments(
     courier: Optional[str] = None,
     user: dict = Depends(get_current_user)
 ):
+    # Customers cannot view shipments
+    if user["role"] == "customer":
+        return []
+    
     query = {}
     if status:
         query["status"] = status
