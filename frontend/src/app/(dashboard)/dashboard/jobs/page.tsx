@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi } from '@/lib/api';
+import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi, cloudinaryApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
