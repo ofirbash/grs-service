@@ -311,7 +311,6 @@ export const cloudinaryApi = {
   
   uploadFile: async (file: File, folder: string = 'uploads'): Promise<{ url: string; public_id: string }> => {
     // Determine resource type based on file type
-    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
     const isImage = file.type.startsWith('image/');
     const resourceType = isImage ? 'image' : 'raw';
     
