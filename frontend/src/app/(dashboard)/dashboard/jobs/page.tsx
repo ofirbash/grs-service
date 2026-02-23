@@ -1822,7 +1822,7 @@ export default function JobsPage() {
                         return (
                           <>
                             <Badge variant="success">Completed</Badge>
-                            {!verbalEditMode && (
+                            {isAdmin && !verbalEditMode && (
                               <Button
                                 variant="outline"
                                 size="sm"
