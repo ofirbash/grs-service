@@ -474,14 +474,22 @@ export default function SettingsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dropdowns[selectedField].length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-navy-500">
-                          No options configured for this field
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      dropdowns[selectedField].map((option, index) => (
+                    {(() => {
+                      const filteredOptions = dropdowns[selectedField].filter(option =>
+                        option.value.toLowerCase().includes(dropdownSearchTerm.toLowerCase())
+                      );
+                      
+                      if (filteredOptions.length === 0) {
+                        return (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-8 text-navy-500">
+                              {dropdownSearchTerm ? `No options matching "${dropdownSearchTerm}"` : 'No options configured for this field'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+                      
+                      return filteredOptions.map((option, index) => (
                         <TableRow key={`${option.value}-${index}`} className="hover:bg-navy-50">
                           <TableCell className="font-medium text-navy-800">
                             {editingOption?.value === option.value ? (
@@ -578,14 +586,17 @@ export default function SettingsPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
+                      ));
+                    })()}
                   </TableBody>
                 </Table>
               </div>
 
               <p className="text-sm text-navy-500">
-                Total: {dropdowns[selectedField].length} options
+                {dropdownSearchTerm 
+                  ? `Showing ${dropdowns[selectedField].filter(o => o.value.toLowerCase().includes(dropdownSearchTerm.toLowerCase())).length} of ${dropdowns[selectedField].length} options`
+                  : `Total: ${dropdowns[selectedField].length} options`
+                }
               </p>
             </CardContent>
           </Card>
