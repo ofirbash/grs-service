@@ -85,6 +85,8 @@ interface DropdownSettings {
 }
 
 export default function StonesPage() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'branch_admin';
   const [stones, setStones] = useState<Stone[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
