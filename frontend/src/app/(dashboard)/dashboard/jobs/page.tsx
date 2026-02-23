@@ -1373,52 +1373,54 @@ export default function JobsPage() {
               </div>
 
               {/* Lab Invoice Section - Admin Only */}
-              <div className="space-y-2 border-t pt-4">
-                <Label className="text-base font-semibold flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Lab Invoice
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">Admin Only</Badge>
-                </Label>
-                <p className="text-sm text-navy-500">Internal document - not visible to customers</p>
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={labInvoiceInputRef}
-                    type="file"
-                    onChange={handleLabInvoiceUpload}
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    className="hidden"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => labInvoiceInputRef.current?.click()}
-                    disabled={uploadingLabInvoice}
-                    data-testid="upload-lab-invoice-button"
-                  >
-                    {uploadingLabInvoice ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4 mr-2" />
-                        {selectedJob.lab_invoice_url ? 'Replace Invoice' : 'Upload Invoice'}
-                      </>
-                    )}
-                  </Button>
-                  
-                  {selectedJob.lab_invoice_url && (
+              {isAdmin && (
+                <div className="space-y-2 border-t pt-4">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Lab Invoice
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">Admin Only</Badge>
+                  </Label>
+                  <p className="text-sm text-navy-500">Internal document - not visible to customers</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={labInvoiceInputRef}
+                      type="file"
+                      onChange={handleLabInvoiceUpload}
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      className="hidden"
+                    />
                     <Button
                       variant="outline"
-                      onClick={() => setViewLabInvoiceOpen(true)}
-                      data-testid="view-lab-invoice-button"
+                      onClick={() => labInvoiceInputRef.current?.click()}
+                      disabled={uploadingLabInvoice}
+                      data-testid="upload-lab-invoice-button"
                     >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Invoice
+                      {uploadingLabInvoice ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          {selectedJob.lab_invoice_url ? 'Replace Invoice' : 'Upload Invoice'}
+                        </>
+                      )}
                     </Button>
-                  )}
+                    
+                    {selectedJob.lab_invoice_url && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setViewLabInvoiceOpen(true)}
+                        data-testid="view-lab-invoice-button"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Invoice
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Stones Table with Certificate Grouping */}
               <div className="space-y-4 border-t pt-4">
@@ -1428,7 +1430,7 @@ export default function JobsPage() {
                     Stones ({selectedJob.stones.length} total)
                   </Label>
                   <div className="flex items-center gap-2">
-                    {editMode && (
+                    {editMode && isAdmin && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1439,7 +1441,7 @@ export default function JobsPage() {
                         Add Stone
                       </Button>
                     )}
-                    {selectedStones.length >= 1 && areAllSelectedStonesGrouped() && (
+                    {isAdmin && selectedStones.length >= 1 && areAllSelectedStonesGrouped() && (
                       <Button
                         variant="outline"
                         size="sm"
