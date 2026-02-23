@@ -801,6 +801,33 @@ export default function JobsPage() {
     }
   };
 
+  const handleLabInvoiceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedJob) return;
+
+    setUploadingLabInvoice(true);
+    try {
+      // Upload to Cloudinary
+      const folder = `invoices/${selectedJob.id}`;
+      const { url } = await cloudinaryApi.uploadFile(file, folder);
+      
+      // Save URL to backend
+      await jobsApi.uploadLabInvoice(selectedJob.id, file.name, url);
+      fetchData();
+      const updatedJobs = await jobsApi.getAll();
+      const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
+      if (updated) setSelectedJob(updated);
+    } catch (error) {
+      console.error('Failed to upload lab invoice:', error);
+      alert('Failed to upload lab invoice. Please try again.');
+    } finally {
+      setUploadingLabInvoice(false);
+      if (labInvoiceInputRef.current) {
+        labInvoiceInputRef.current.value = '';
+      }
+    }
+  };
+
   const toggleStoneSelection = (stoneId: string) => {
     setSelectedStones(prev => 
       prev.includes(stoneId) 
