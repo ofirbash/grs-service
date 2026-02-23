@@ -112,6 +112,8 @@ interface Job {
     status: string;
   };
   signed_memo_url?: string;
+  lab_invoice_url?: string;
+  lab_invoice_filename?: string;
   created_at: string;
 }
 
