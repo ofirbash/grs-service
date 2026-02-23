@@ -908,6 +908,8 @@ async def get_job(job_id: str, user: dict = Depends(get_current_user)):
         shipment_info=shipment_info,
         signed_memo_url=job.get("signed_memo_url"),
         signed_memo_filename=job.get("signed_memo_filename"),
+        lab_invoice_url=job.get("lab_invoice_url"),
+        lab_invoice_filename=job.get("lab_invoice_filename"),
         created_at=job["created_at"],
         updated_at=job["updated_at"]
     )
