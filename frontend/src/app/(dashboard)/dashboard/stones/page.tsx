@@ -165,8 +165,11 @@ export default function StonesPage() {
     });
     
     // If verbal findings exist with certificate_id, lock the form (view mode)
+    // Customers never get edit mode
     const hasExistingFindings = !!(findings?.certificate_id);
-    setVerbalEditMode(!hasExistingFindings);  // Edit mode if no existing findings
+    const userRole = user?.role;
+    const userIsAdmin = userRole === 'super_admin' || userRole === 'branch_admin';
+    setVerbalEditMode(userIsAdmin && !hasExistingFindings);  // Edit mode only for admin if no existing findings
     
     setDetailsOpen(true);
   };
