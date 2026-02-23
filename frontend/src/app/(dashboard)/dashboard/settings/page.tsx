@@ -44,7 +44,9 @@ import {
   Building,
   DollarSign,
   AlertCircle,
+  Search,
 } from 'lucide-react';
+
 // Types
 interface DropdownOption {
   value: string;
