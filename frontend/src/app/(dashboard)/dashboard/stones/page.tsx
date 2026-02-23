@@ -637,32 +637,36 @@ export default function StonesPage() {
                 )}
 
                 <div className="flex items-center gap-2">
-                  <input
-                    ref={certInputRef}
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleCertificateUpload}
-                    className="hidden"
-                    id="cert-upload"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => certInputRef.current?.click()}
-                    disabled={uploadingCert}
-                    data-testid="upload-cert-button"
-                  >
-                    {uploadingCert ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4 mr-2" />
-                        {selectedStone.certificate_scan_url ? 'Replace Scan' : 'Upload Scan'}
-                      </>
-                    )}
-                  </Button>
+                  {isAdmin && (
+                    <>
+                      <input
+                        ref={certInputRef}
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={handleCertificateUpload}
+                        className="hidden"
+                        id="cert-upload"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => certInputRef.current?.click()}
+                        disabled={uploadingCert}
+                        data-testid="upload-cert-button"
+                      >
+                        {uploadingCert ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-2" />
+                            {selectedStone.certificate_scan_url ? 'Replace Scan' : 'Upload Scan'}
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
                   
                   {selectedStone.certificate_scan_url && (
                     <Button
