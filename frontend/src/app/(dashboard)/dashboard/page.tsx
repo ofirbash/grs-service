@@ -130,30 +130,30 @@ export default function DashboardPage() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'warning',
-      in_transit: 'default',
-      delivered: 'success',
+      draft: 'secondary',
       stones_accepted: 'secondary',
       sent_to_lab: 'default',
       verbal_uploaded: 'default',
       stones_returned: 'warning',
-      certificates_scanned: 'success',
-      certificates_sent: 'success',
+      cert_uploaded: 'success',
+      cert_returned: 'success',
       done: 'success',
-      received: 'secondary',
+      pending: 'warning',
+      in_transit: 'default',
+      delivered: 'success',
     };
     return colors[status] || 'secondary';
   };
 
   const formatJobStatus = (status: string) => {
     const labels: Record<string, string> = {
-      received: 'Received',
+      draft: 'Draft',
       stones_accepted: 'Stones Accepted',
       sent_to_lab: 'Sent to Lab',
       verbal_uploaded: 'Verbal Uploaded',
       stones_returned: 'Stones Returned',
-      certificates_scanned: 'Cert. Scanned',
-      certificates_sent: 'Cert. Sent',
+      cert_uploaded: 'Cert. Uploaded',
+      cert_returned: 'Cert. Returned',
       done: 'Done',
     };
     return labels[status] || status.replace('_', ' ');
