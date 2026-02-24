@@ -675,7 +675,13 @@ export default function JobsPage() {
       // Refresh selected job
       const updatedJobs = await jobsApi.getAll();
       const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
-      if (updated) setSelectedJob(updated);
+      if (updated) {
+        setSelectedJob(updated);
+        // Refresh notification statuses after status change
+        if (user?.role === 'super_admin' || user?.role === 'branch_admin') {
+          fetchNotificationStatuses(updated.id);
+        }
+      }
     } catch (error) {
       console.error('Failed to update job:', error);
     }
