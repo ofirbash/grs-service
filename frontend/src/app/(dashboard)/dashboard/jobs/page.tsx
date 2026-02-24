@@ -1235,8 +1235,19 @@ export default function JobsPage() {
                       <TableCell className="text-navy-600 font-medium" onClick={() => openJobDetails(job)}>
                         ${job.total_value.toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-navy-600 font-medium" onClick={() => openJobDetails(job)}>
-                        ${job.total_fee.toLocaleString()}
+                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
+                        {(() => {
+                          const totalActual = job.stones.reduce((sum, s) => sum + (s.actual_fee ?? s.fee), 0);
+                          const hasDifferentActual = job.stones.some(s => s.actual_fee !== undefined && s.actual_fee !== s.fee);
+                          return (
+                            <div className="space-y-0.5">
+                              <p className="font-medium">${job.total_fee.toLocaleString()}</p>
+                              {hasDifferentActual && (
+                                <p className="text-xs text-green-600">Actual: ${totalActual.toLocaleString()}</p>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell onClick={() => openJobDetails(job)}>
                         {getStatusBadge(job.status)}
