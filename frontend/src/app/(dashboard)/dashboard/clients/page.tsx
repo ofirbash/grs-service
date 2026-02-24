@@ -116,7 +116,19 @@ export default function ClientsPage() {
 
     setCreating(true);
     try {
-      await clientsApi.create(formData);
+      // Convert empty strings to undefined for optional fields
+      const cleanedData = {
+        name: formData.name,
+        email: formData.email,
+        branch_id: formData.branch_id,
+        phone: formData.phone || undefined,
+        secondary_email: formData.secondary_email || undefined,
+        secondary_phone: formData.secondary_phone || undefined,
+        company: formData.company || undefined,
+        address: formData.address || undefined,
+        notes: formData.notes || undefined,
+      };
+      await clientsApi.create(cleanedData);
       setCreateDialogOpen(false);
       setFormData({ name: '', email: '', phone: '', secondary_email: '', secondary_phone: '', company: '', address: '', branch_id: '', notes: '' });
       fetchData();
