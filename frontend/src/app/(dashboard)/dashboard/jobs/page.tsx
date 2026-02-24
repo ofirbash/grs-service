@@ -56,6 +56,7 @@ import {
   CheckCircle2,
   Receipt,
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 interface StructuredVerbalFindings {
   certificate_id?: string;
