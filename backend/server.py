@@ -218,6 +218,7 @@ class StoneResponse(BaseModel):
     value: float
     color_stability_test: bool
     fee: float
+    actual_fee: Optional[float] = None
     position: int
     certificate_group: Optional[int] = None
     verbal_findings: Optional[Union[str, Dict[str, Any]]] = None  # Can be string or structured dict
