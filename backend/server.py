@@ -288,6 +288,8 @@ class JobResponse(BaseModel):
     signed_memo_filename: Optional[str] = None
     lab_invoice_url: Optional[str] = None
     lab_invoice_filename: Optional[str] = None
+    invoice_url: Optional[str] = None
+    invoice_filename: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
