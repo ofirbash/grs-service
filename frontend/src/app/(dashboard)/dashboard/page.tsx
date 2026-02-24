@@ -90,9 +90,6 @@ interface Shipment {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'branch_admin';
-  
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentShipments, setRecentShipments] = useState<Shipment[]>([]);
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
