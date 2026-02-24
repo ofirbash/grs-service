@@ -62,6 +62,8 @@ interface Stone {
   shape: string;
   value: number;
   fee: number;
+  actual_fee?: number;
+  color_stability_test?: boolean;
   position: number;
   certificate_group?: number;
   verbal_findings?: string | StructuredVerbalFindings;
