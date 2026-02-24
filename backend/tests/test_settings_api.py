@@ -9,7 +9,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('NEXT_PUBLIC_API_URL', 'https://grs-lab-erp.preview.emergentagent.com/api')
+BASE_URL = os.environ.get('NEXT_PUBLIC_API_URL', 'https://erp-stone-system.preview.emergentagent.com/api')
 
 # Test credentials
 ADMIN_EMAIL = "admin@bashari.com"
