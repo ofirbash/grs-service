@@ -2071,27 +2071,27 @@ def generate_verbal_results_table_html(stones: list, verbal_findings: list) -> s
         
         rows += f"""
         <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="padding: 12px; text-align: left;">{stone.get('sku', 'N/A')}</td>
-            <td style="padding: 12px; text-align: left;">{stone.get('stone_type', 'N/A')}</td>
-            <td style="padding: 12px; text-align: left;">{stone.get('weight', 0)} ct</td>
-            <td style="padding: 12px; text-align: left;">{cert_id}</td>
-            <td style="padding: 12px; text-align: left;">{identification}</td>
-            <td style="padding: 12px; text-align: left;">{color}</td>
-            <td style="padding: 12px; text-align: left;">{origin}</td>
-            <td style="padding: 12px; text-align: left;">{treatment}</td>
+            <td style="padding: 10px; text-align: center;">{stone.get('sku', 'N/A')}</td>
+            <td style="padding: 10px; text-align: center;">{stone.get('stone_type', 'N/A')}</td>
+            <td style="padding: 10px; text-align: center;">{stone.get('weight', 0)} ct</td>
+            <td style="padding: 10px; text-align: center;">{cert_id}</td>
+            <td style="padding: 10px; text-align: center;">{identification}</td>
+            <td style="padding: 10px; text-align: center;">{color}</td>
+            <td style="padding: 10px; text-align: center;">{origin}</td>
+            <td style="padding: 10px; text-align: center;">{treatment}</td>
         </tr>"""
     return f"""
-    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+    <table style="width: 100%; max-width: 900px; border-collapse: collapse; margin: 20px auto; font-size: 13px;">
         <thead>
             <tr style="background-color: #102a43; color: white;">
-                <th style="padding: 12px; text-align: left;">SKU</th>
-                <th style="padding: 12px; text-align: left;">Type</th>
-                <th style="padding: 12px; text-align: left;">Weight</th>
-                <th style="padding: 12px; text-align: left;">Cert. ID</th>
-                <th style="padding: 12px; text-align: left;">Identification</th>
-                <th style="padding: 12px; text-align: left;">Color</th>
-                <th style="padding: 12px; text-align: left;">Origin</th>
-                <th style="padding: 12px; text-align: left;">Treatment</th>
+                <th style="padding: 10px; text-align: center;">SKU</th>
+                <th style="padding: 10px; text-align: center;">Type</th>
+                <th style="padding: 10px; text-align: center;">Weight</th>
+                <th style="padding: 10px; text-align: center;">Cert. ID</th>
+                <th style="padding: 10px; text-align: center;">Identification</th>
+                <th style="padding: 10px; text-align: center;">Color</th>
+                <th style="padding: 10px; text-align: center;">Origin</th>
+                <th style="padding: 10px; text-align: center;">Treatment</th>
             </tr>
         </thead>
         <tbody>{rows}</tbody>
