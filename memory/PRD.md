@@ -293,6 +293,15 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - Click navigates to `/dashboard/jobs?jobId={id}` with modal auto-open
   - Works for both admin and customer roles
 
+### Phase 11: UI/UX Refinements - Unified Edit Mode (Complete) - Feb 24, 2026
+- ✅ **Email Notification Refresh**: Notifications refresh immediately after job status change without closing/reopening the modal
+- ✅ **Actual Fee Display in Stones List**: Job modal stone table shows "Actual: $XXX" for stones with fees differing from estimated
+- ✅ **Unified Edit Mode (Jobs Page)**: Stone detail dialog opens locked; single "Edit" button enables all fields (verbal findings + actual fee + color stability); single "Save Changes" saves everything
+- ✅ **Unified Edit Mode (Stones Page)**: Same unified edit behavior with combined save for verbal findings and fees
+- ✅ **Null Actual Fee Bug Fix**: Fixed crash when stones had null actual_fee values (changed `!== undefined` to `!= null`)
+- ✅ **Lock Indicator**: Shows "Click Edit to modify fees and verbal findings" when fields are locked on both pages
+- ✅ **Removed Redundant Edit Buttons**: Cleaned up duplicate edit buttons in verbal findings section headers
+
 ---
 
 ## Prioritized Backlog
