@@ -385,7 +385,7 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## Known Issues
 1. **Platform Preview Bug**: The Emergent platform "Preview" button shows an Expo QR code. Workaround: Use direct URL to access the app.
-2. **Notification System**: Currently mocked - no actual SMS/Email sent
+2. **Resend Email Limitation**: Free tier Resend accounts with default sender (onboarding@resend.dev) can only send emails to the account owner's email. Domain verification required at resend.com/domains for production use.
 
 ---
 
@@ -402,6 +402,7 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - `/app/test_reports/iteration_11.json` - Admin Settings page (Feb 23, 2026)
   - `/app/test_reports/iteration_12.json` - Cloudinary integration (Feb 23, 2026)
   - `/app/test_reports/iteration_13.json` - Customer access control & dashboard navigation (Feb 23, 2026)
+  - `/app/test_reports/iteration_15.json` - 5-Stage Email Notification System (Feb 24, 2026)
 
 ---
 
