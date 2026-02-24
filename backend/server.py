@@ -1990,29 +1990,41 @@ def generate_stones_table_html(stones: list, include_fees: bool = False) -> str:
     </table>"""
 
 def generate_verbal_results_table_html(stones: list, verbal_findings: list) -> str:
-    """Generate HTML table for verbal results"""
+    """Generate HTML table for verbal results with full verbal data per stone"""
     rows = ""
     for stone in stones:
         vf = next((v for v in verbal_findings if v.get("stone_id") == stone.get("id")), None)
+        
+        # Get verbal data or defaults
+        identification = vf.get('identification', 'Pending') if vf else 'Pending'
+        color = vf.get('color', '-') if vf else '-'
+        origin = vf.get('origin', '-') if vf else '-'
+        treatment = vf.get('treatment', '-') if vf else '-'
+        comment = vf.get('comment', '') if vf else ''
+        
         rows += f"""
         <tr style="border-bottom: 1px solid #e5e7eb;">
             <td style="padding: 12px; text-align: left;">{stone.get('sku', 'N/A')}</td>
-            <td style="padding: 12px; text-align: left;">{vf.get('identification', 'Pending') if vf else 'Pending'}</td>
+            <td style="padding: 12px; text-align: left;">{stone.get('stone_type', 'N/A')}</td>
             <td style="padding: 12px; text-align: left;">{stone.get('weight', 0)} ct</td>
-            <td style="padding: 12px; text-align: left;">{vf.get('color', 'N/A') if vf else 'N/A'}</td>
-            <td style="padding: 12px; text-align: left;">{vf.get('origin', 'N/A') if vf else 'N/A'}</td>
-            <td style="padding: 12px; text-align: left;">{vf.get('comment', '') if vf else ''}</td>
+            <td style="padding: 12px; text-align: left;">{identification}</td>
+            <td style="padding: 12px; text-align: left;">{color}</td>
+            <td style="padding: 12px; text-align: left;">{origin}</td>
+            <td style="padding: 12px; text-align: left;">{treatment}</td>
+            <td style="padding: 12px; text-align: left; font-size: 12px;">{comment}</td>
         </tr>"""
     return f"""
     <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
         <thead>
             <tr style="background-color: #102a43; color: white;">
                 <th style="padding: 12px; text-align: left;">SKU</th>
+                <th style="padding: 12px; text-align: left;">Type</th>
+                <th style="padding: 12px; text-align: left;">Weight</th>
                 <th style="padding: 12px; text-align: left;">Identification</th>
-                <th style="padding: 12px; text-align: left;">Carat Weight</th>
                 <th style="padding: 12px; text-align: left;">Color</th>
                 <th style="padding: 12px; text-align: left;">Origin</th>
-                <th style="padding: 12px; text-align: left;">Comment</th>
+                <th style="padding: 12px; text-align: left;">Treatment</th>
+                <th style="padding: 12px; text-align: left;">Comments</th>
             </tr>
         </thead>
         <tbody>{rows}</tbody>
