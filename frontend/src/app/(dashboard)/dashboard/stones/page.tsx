@@ -210,6 +210,54 @@ export default function StonesPage() {
     }
   };
 
+  const handleSaveFees = async () => {
+    if (!selectedStone) return;
+    
+    setSavingFees(true);
+    try {
+      const updateData: { actual_fee?: number; color_stability_test?: boolean } = {};
+      
+      // Only include actual_fee if it's a valid number
+      if (actualFee !== '') {
+        updateData.actual_fee = parseFloat(actualFee);
+      }
+      
+      // Only include color_stability_test if it's different from current
+      if (colorStabilityTest !== selectedStone.color_stability_test) {
+        updateData.color_stability_test = colorStabilityTest;
+      }
+      
+      await stonesApi.updateFees(selectedStone.id, updateData);
+      
+      // Update local state
+      setStones(prev => prev.map(s => 
+        s.id === selectedStone.id 
+          ? { 
+              ...s, 
+              actual_fee: updateData.actual_fee ?? s.actual_fee,
+              color_stability_test: updateData.color_stability_test ?? s.color_stability_test,
+              // Update fee if color stability changed
+              fee: updateData.color_stability_test !== undefined && updateData.color_stability_test !== s.color_stability_test
+                ? (updateData.color_stability_test ? s.fee + 50 : s.fee - 50)
+                : s.fee
+            } 
+          : s
+      ));
+      setSelectedStone(prev => prev ? { 
+        ...prev, 
+        actual_fee: updateData.actual_fee ?? prev.actual_fee,
+        color_stability_test: updateData.color_stability_test ?? prev.color_stability_test 
+      } : null);
+      
+      alert('Fees updated successfully');
+    } catch (error) {
+      console.error('Failed to save fees:', error);
+      alert('Failed to save fees');
+    } finally {
+      setSavingFees(false);
+    }
+  };
+
   const handleCertificateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedStone) return;
