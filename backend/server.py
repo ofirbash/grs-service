@@ -745,7 +745,76 @@ async def create_client(client: ClientCreate, user: dict = Depends(require_admin
         "created_at": datetime.utcnow()
     }
     result = await db.clients.insert_one(client_doc)
-    return ClientResponse(id=str(result.inserted_id), **client.dict(), created_at=client_doc["created_at"])
+    client_id = str(result.inserted_id)
+    
+    # Auto-create customer user account if no user with this email exists
+    email_lower = client.email.lower()
+    existing_user = await db.users.find_one({"email": email_lower})
+    if not existing_user:
+        setup_token = str(uuid.uuid4())
+        user_doc = {
+            "email": email_lower,
+            "password_hash": "",  # No password yet - must be set via setup link
+            "full_name": client.name,
+            "role": "customer",
+            "branch_id": client.branch_id,
+            "client_id": client_id,
+            "phone": client.phone,
+            "email_verified": False,
+            "verification_token": None,
+            "two_factor_enabled": False,
+            "two_factor_secret": None,
+            "setup_token": setup_token,
+            "setup_token_created_at": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        await db.users.insert_one(user_doc)
+        
+        # Send setup email via Resend
+        if resend.api_key and FRONTEND_URL:
+            try:
+                setup_url = f"{FRONTEND_URL}/setup-password?token={setup_token}"
+                html_body = f"""
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="background: #102a43; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+                        <h1 style="color: #f0b429; margin: 0; font-size: 24px;">GRS Global</h1>
+                        <p style="color: #bcccdc; margin: 5px 0 0;">Lab Logistics & ERP System</p>
+                    </div>
+                    <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+                        <h2 style="color: #102a43; margin-top: 0;">Welcome, {client.name}!</h2>
+                        <p style="color: #334e68; line-height: 1.6;">
+                            Your account has been created on the GRS Global system. You can now track your gemstone testing jobs, view stone details, and stay updated on your orders.
+                        </p>
+                        <p style="color: #334e68; line-height: 1.6;">
+                            Please click the button below to set up your password and access your account:
+                        </p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="{setup_url}" style="background: #102a43; color: #f0b429; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
+                                Set Up Your Password
+                            </a>
+                        </div>
+                        <p style="color: #627d98; font-size: 13px; line-height: 1.5;">
+                            This link will expire in 30 days. If you have any questions, please contact your account manager.
+                        </p>
+                        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+                        <p style="color: #9fb3c8; font-size: 12px; text-align: center;">
+                            GRS Global Lab Logistics & ERP System
+                        </p>
+                    </div>
+                </div>
+                """
+                resend.Emails.send({
+                    "from": SENDER_EMAIL,
+                    "to": [email_lower],
+                    "subject": "Welcome to GRS Global - Set Up Your Account",
+                    "html": html_body,
+                })
+                logger.info(f"Setup email sent to {email_lower}")
+            except Exception as e:
+                logger.error(f"Failed to send setup email to {email_lower}: {e}")
+    
+    return ClientResponse(id=client_id, **client.dict(), created_at=client_doc["created_at"])
 
 @api_router.get("/clients", response_model=List[ClientResponse])
 async def get_clients(branch_id: Optional[str] = None, user: dict = Depends(get_current_user)):
