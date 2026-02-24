@@ -301,12 +301,17 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - None currently
 
 ### P1 - High Priority
-- [ ] Real notification system (Twilio SMS, SMTP email)
+- [ ] SMS notifications (Twilio integration)
+- [ ] Domain verification for Resend email (production use)
+- [ ] Legacy data migration from CSV/database
 
 ### P2 - Medium Priority
 - [x] Verbal findings entry and display (Implemented in Stone Dialog)
 - [x] Document upload for certificate scans (Implemented in Stone Dialog)
-- [ ] Cloud storage for uploaded files (currently base64 in MongoDB)
+- [x] Cloud storage for uploaded files (Cloudinary integration - Feb 23, 2026)
+- [x] Email notifications with Resend (Feb 24, 2026)
+- [ ] Backend refactoring (split server.py into modular routers)
+- [ ] Frontend refactoring (decompose large page components)
 
 ### P3 - Low Priority / Future
 - [ ] Mobile responsive improvements
