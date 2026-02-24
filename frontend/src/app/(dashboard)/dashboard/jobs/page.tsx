@@ -50,6 +50,10 @@ import {
   Check,
   Eye,
   Lock,
+  Mail,
+  Send,
+  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface StructuredVerbalFindings {
