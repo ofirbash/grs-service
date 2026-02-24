@@ -1945,10 +1945,14 @@ class SendEmailRequest(BaseModel):
     recipient_email: str
     custom_message: Optional[str] = None
 
-def generate_stones_table_html(stones: list) -> str:
-    """Generate HTML table for stones"""
+def generate_stones_table_html(stones: list, include_fees: bool = False) -> str:
+    """Generate HTML table for stones. Optionally include fees column."""
     rows = ""
+    total_fee = 0
     for stone in stones:
+        fee = stone.get('fee', 0)
+        total_fee += fee
+        fee_cell = f'<td style="padding: 12px; text-align: right;">${fee:,.2f}</td>' if include_fees else ''
         rows += f"""
         <tr style="border-bottom: 1px solid #e5e7eb;">
             <td style="padding: 12px; text-align: left;">{stone.get('sku', 'N/A')}</td>
@@ -1956,7 +1960,20 @@ def generate_stones_table_html(stones: list) -> str:
             <td style="padding: 12px; text-align: left;">{stone.get('stone_type', 'N/A')}</td>
             <td style="padding: 12px; text-align: left;">{stone.get('shape', 'N/A')}</td>
             <td style="padding: 12px; text-align: right;">${stone.get('value', 0):,.2f}</td>
+            {fee_cell}
         </tr>"""
+    
+    # Add total row if fees are included
+    total_row = ""
+    if include_fees:
+        total_row = f"""
+        <tr style="background-color: #f3f4f6; font-weight: bold;">
+            <td colspan="5" style="padding: 12px; text-align: right;">Total Fee:</td>
+            <td style="padding: 12px; text-align: right;">${total_fee:,.2f}</td>
+        </tr>"""
+    
+    fee_header = '<th style="padding: 12px; text-align: right;">Fee</th>' if include_fees else ''
+    
     return f"""
     <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
         <thead>
@@ -1966,9 +1983,10 @@ def generate_stones_table_html(stones: list) -> str:
                 <th style="padding: 12px; text-align: left;">Type</th>
                 <th style="padding: 12px; text-align: left;">Shape</th>
                 <th style="padding: 12px; text-align: right;">Value</th>
+                {fee_header}
             </tr>
         </thead>
-        <tbody>{rows}</tbody>
+        <tbody>{rows}{total_row}</tbody>
     </table>"""
 
 def generate_verbal_results_table_html(stones: list, verbal_findings: list) -> str:
