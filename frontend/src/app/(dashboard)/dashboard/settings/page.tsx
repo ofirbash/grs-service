@@ -811,9 +811,9 @@ export default function SettingsPage() {
                       <TableRow className="bg-navy-50">
                         <TableHead className="font-semibold text-navy-700">Min Value (USD)</TableHead>
                         <TableHead className="font-semibold text-navy-700">Max Value (USD)</TableHead>
-                        <TableHead className="font-semibold text-navy-700">Express Fee</TableHead>
-                        <TableHead className="font-semibold text-navy-700">Normal Fee</TableHead>
-                        <TableHead className="font-semibold text-navy-700">Recheck Fee</TableHead>
+                        {(editingPricing ? pricingForm.service_types : pricing.service_types).map((st) => (
+                          <TableHead key={st} className="font-semibold text-navy-700">{st} Fee</TableHead>
+                        ))}
                         {editingPricing && <TableHead className="w-16"></TableHead>}
                       </TableRow>
                     </TableHeader>
@@ -844,42 +844,21 @@ export default function SettingsPage() {
                               <span className="font-medium">${bracket.max_value.toLocaleString()}</span>
                             )}
                           </TableCell>
-                          <TableCell>
-                            {editingPricing ? (
-                              <Input
-                                type="number"
-                                value={bracket.express_fee}
-                                onChange={(e) => updateBracket(index, 'express_fee', parseFloat(e.target.value) || 0)}
-                                className="w-24"
-                              />
-                            ) : (
-                              <Badge className="bg-red-100 text-red-800">${bracket.express_fee}</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {editingPricing ? (
-                              <Input
-                                type="number"
-                                value={bracket.normal_fee}
-                                onChange={(e) => updateBracket(index, 'normal_fee', parseFloat(e.target.value) || 0)}
-                                className="w-24"
-                              />
-                            ) : (
-                              <Badge className="bg-blue-100 text-blue-800">${bracket.normal_fee}</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {editingPricing ? (
-                              <Input
-                                type="number"
-                                value={bracket.recheck_fee}
-                                onChange={(e) => updateBracket(index, 'recheck_fee', parseFloat(e.target.value) || 0)}
-                                className="w-24"
-                              />
-                            ) : (
-                              <Badge className="bg-green-100 text-green-800">${bracket.recheck_fee}</Badge>
-                            )}
-                          </TableCell>
+                          {(editingPricing ? pricingForm.service_types : pricing.service_types).map((st) => (
+                            <TableCell key={st}>
+                              {editingPricing ? (
+                                <Input
+                                  type="number"
+                                  value={bracket.fees?.[st] ?? 0}
+                                  onChange={(e) => updateBracket(index, st, parseFloat(e.target.value) || 0)}
+                                  className="w-24"
+                                  data-testid={`bracket-${index}-${st.toLowerCase()}-fee`}
+                                />
+                              ) : (
+                                <Badge className="bg-navy-100 text-navy-800">${bracket.fees?.[st] ?? 0}</Badge>
+                              )}
+                            </TableCell>
+                          ))}
                           {editingPricing && (
                             <TableCell>
                               <Button
