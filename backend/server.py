@@ -2010,12 +2010,17 @@ def generate_stones_table_html(stones: list, include_fees: bool = False) -> str:
         fee = stone.get('fee', 0)
         total_fee += fee
         fee_cell = f'<td style="padding: 12px; text-align: right;">${fee:,.2f}</td>' if include_fees else ''
+        
+        # Get certificate ID from verbal_findings if available
+        vf = stone.get('verbal_findings', {})
+        cert_id = vf.get('certificate_id', '-') if isinstance(vf, dict) else '-'
+        
         rows += f"""
         <tr style="border-bottom: 1px solid #e5e7eb;">
             <td style="padding: 12px; text-align: left;">{stone.get('sku', 'N/A')}</td>
-            <td style="padding: 12px; text-align: left;">{stone.get('weight', 0)} ct</td>
             <td style="padding: 12px; text-align: left;">{stone.get('stone_type', 'N/A')}</td>
-            <td style="padding: 12px; text-align: left;">{stone.get('shape', 'N/A')}</td>
+            <td style="padding: 12px; text-align: center;">{stone.get('weight', 0)} ct</td>
+            <td style="padding: 12px; text-align: center;">{cert_id}</td>
             <td style="padding: 12px; text-align: right;">${stone.get('value', 0):,.2f}</td>
             {fee_cell}
         </tr>"""
