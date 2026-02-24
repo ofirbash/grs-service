@@ -992,10 +992,22 @@ export default function JobsPage() {
       {/* Jobs Table */}
       <Card className="border-navy-100">
         <CardHeader className="border-b border-navy-100">
-          <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
-            <Briefcase className="h-5 w-5" />
-            All Jobs ({filteredJobs.length})
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+              <Briefcase className="h-5 w-5" />
+              All Jobs ({filteredJobs.length})
+            </CardTitle>
+            {isAdmin && selectedJobIds.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setBulkStatusDialogOpen(true)}
+                data-testid="bulk-status-button"
+              >
+                Update Status ({selectedJobIds.length})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           {filteredJobs.length === 0 ? (
@@ -1008,6 +1020,17 @@ export default function JobsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-navy-50">
+                    {isAdmin && (
+                      <TableHead className="font-semibold text-navy-700 w-12">
+                        <input
+                          type="checkbox"
+                          checked={filteredJobs.length > 0 && selectedJobIds.length === filteredJobs.length}
+                          onChange={selectAllJobs}
+                          className="h-4 w-4 rounded border-navy-300"
+                          data-testid="select-all-jobs"
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="font-semibold text-navy-700">Job #</TableHead>
                     <TableHead className="font-semibold text-navy-700">Client</TableHead>
                     <TableHead className="font-semibold text-navy-700">Branch</TableHead>
@@ -1023,23 +1046,48 @@ export default function JobsPage() {
                   {filteredJobs.map((job) => (
                     <TableRow
                       key={job.id}
-                      className="hover:bg-navy-50 cursor-pointer"
-                      onClick={() => openJobDetails(job)}
+                      className={`hover:bg-navy-50 cursor-pointer ${selectedJobIds.includes(job.id) ? 'bg-navy-100' : ''}`}
                       data-testid={`job-row-${job.job_number}`}
                     >
-                      <TableCell className="font-medium text-navy-800">#{job.job_number}</TableCell>
-                      <TableCell className="text-navy-600">{job.client_name || 'N/A'}</TableCell>
-                      <TableCell className="text-navy-600">{job.branch_name || 'N/A'}</TableCell>
-                      <TableCell className="text-navy-600">{job.service_type}</TableCell>
-                      <TableCell className="text-navy-600">{job.total_stones}</TableCell>
-                      <TableCell className="text-navy-600 font-medium">
+                      {isAdmin && (
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedJobIds.includes(job.id)}
+                            onChange={() => toggleJobSelection(job.id)}
+                            className="h-4 w-4 rounded border-navy-300"
+                            data-testid={`select-job-${job.job_number}`}
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell 
+                        className="font-medium text-navy-800"
+                        onClick={() => openJobDetails(job)}
+                      >
+                        #{job.job_number}
+                      </TableCell>
+                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
+                        {job.client_name || 'N/A'}
+                      </TableCell>
+                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
+                        {job.branch_name || 'N/A'}
+                      </TableCell>
+                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
+                        {job.service_type}
+                      </TableCell>
+                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
+                        {job.total_stones}
+                      </TableCell>
+                      <TableCell className="text-navy-600 font-medium" onClick={() => openJobDetails(job)}>
                         ${job.total_value.toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-navy-600 font-medium">
+                      <TableCell className="text-navy-600 font-medium" onClick={() => openJobDetails(job)}>
                         ${job.total_fee.toLocaleString()}
                       </TableCell>
-                      <TableCell>{getStatusBadge(job.status)}</TableCell>
-                      <TableCell className="text-navy-600">
+                      <TableCell onClick={() => openJobDetails(job)}>
+                        {getStatusBadge(job.status)}
+                      </TableCell>
+                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
                         {job.shipment_info ? (
                           <div className="flex flex-col gap-1">
                             <Badge variant="outline">#{job.shipment_info.shipment_number}</Badge>
