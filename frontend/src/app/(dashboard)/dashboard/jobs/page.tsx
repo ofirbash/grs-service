@@ -1632,6 +1632,56 @@ export default function JobsPage() {
                 </div>
               </div>
 
+              {/* Invoice Section - Admin Only */}
+              {isAdmin && (
+                <div className="space-y-3 border-t pt-4">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <Receipt className="h-4 w-4" />
+                    Client Invoice
+                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">For Email</Badge>
+                  </Label>
+                  <p className="text-sm text-navy-500">Generate invoice with actual fees to send to client</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleGenerateInvoice}
+                      disabled={generatingInvoice}
+                      className="border-green-300 text-green-700 hover:bg-green-50"
+                      data-testid="generate-invoice-button"
+                    >
+                      {generatingInvoice ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Receipt className="h-4 w-4 mr-2" />
+                          {selectedJob.invoice_url ? 'Regenerate Invoice' : 'Generate Invoice'}
+                        </>
+                      )}
+                    </Button>
+                    
+                    {selectedJob.invoice_url && (
+                      <Button
+                        variant="outline"
+                        onClick={() => window.open(selectedJob.invoice_url, '_blank')}
+                        data-testid="view-invoice-button"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Invoice
+                      </Button>
+                    )}
+                  </div>
+                  {selectedJob.invoice_url && (
+                    <p className="text-xs text-green-600">
+                      <CheckCircle2 className="h-3 w-3 inline mr-1" />
+                      Invoice ready - will be attached to &quot;Stones Returned&quot; email
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Lab Invoice Section - Admin Only */}
               {isAdmin && (
                 <div className="space-y-2 border-t pt-4">
