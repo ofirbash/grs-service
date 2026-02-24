@@ -137,6 +137,7 @@ export default function SettingsPage() {
     service_types: [],
   });
   const [newServiceType, setNewServiceType] = useState('');
+  const [usedServiceTypes, setUsedServiceTypes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchAllData();
