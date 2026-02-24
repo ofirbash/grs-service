@@ -1252,7 +1252,7 @@ export default function JobsPage() {
                       <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
                         {(() => {
                           const totalActual = job.stones.reduce((sum, s) => sum + (s.actual_fee ?? s.fee), 0);
-                          const hasDifferentActual = job.stones.some(s => s.actual_fee !== undefined && s.actual_fee !== s.fee);
+                          const hasDifferentActual = job.stones.some(s => s.actual_fee != null && s.actual_fee !== s.fee);
                           return (
                             <div className="space-y-0.5">
                               <p className="font-medium">${job.total_fee.toLocaleString()}</p>
@@ -1579,7 +1579,7 @@ export default function JobsPage() {
                 </div>
                 {(() => {
                   const totalActual = selectedJob.stones.reduce((sum, s) => sum + (s.actual_fee ?? s.fee), 0);
-                  const hasDifferentActual = selectedJob.stones.some(s => s.actual_fee !== undefined && s.actual_fee !== s.fee);
+                  const hasDifferentActual = selectedJob.stones.some(s => s.actual_fee != null && s.actual_fee !== s.fee);
                   return hasDifferentActual ? (
                     <div>
                       <Label className="text-navy-500">Total Actual Fees</Label>
