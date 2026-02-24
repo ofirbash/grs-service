@@ -1648,6 +1648,74 @@ export default function JobsPage() {
                 </div>
               )}
 
+              {/* Email Notifications Section - Admin Only */}
+              {isAdmin && (
+                <div className="space-y-3 border-t pt-4">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email Notifications
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">Review & Send</Badge>
+                  </Label>
+                  <p className="text-sm text-navy-500">Send status update emails to the client. Review before sending.</p>
+                  
+                  {loadingNotifications ? (
+                    <div className="flex items-center gap-2 text-navy-500 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading notifications...
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {notificationStatuses.filter(n => n.is_available).length === 0 ? (
+                        <p className="text-sm text-navy-400 italic py-2">
+                          No email notifications available for current status ({selectedJob.status.replace(/_/g, ' ')})
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {notificationStatuses.filter(n => n.is_available).map((notification) => (
+                            <div
+                              key={notification.type}
+                              className={`flex items-center justify-between p-3 rounded-lg border ${
+                                notification.is_sent 
+                                  ? 'bg-green-50 border-green-200' 
+                                  : 'bg-amber-50 border-amber-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {notification.is_sent ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <Clock className="h-4 w-4 text-amber-600" />
+                                )}
+                                <div>
+                                  <p className="text-sm font-medium text-navy-800">
+                                    {NOTIFICATION_LABELS[notification.type] || notification.type}
+                                  </p>
+                                  {notification.last_sent && (
+                                    <p className="text-xs text-navy-500">
+                                      Sent {new Date(notification.last_sent.sent_at).toLocaleDateString()}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant={notification.is_sent ? "outline" : "default"}
+                                onClick={() => handlePreviewNotification(notification.type)}
+                                className={notification.is_sent ? "" : "bg-navy-700 hover:bg-navy-600"}
+                                data-testid={`preview-notification-${notification.type}`}
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                {notification.is_sent ? 'Resend' : 'Review'}
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Stones Table with Certificate Grouping */}
               <div className="space-y-4 border-t pt-4">
                 <div className="flex items-center justify-between">
