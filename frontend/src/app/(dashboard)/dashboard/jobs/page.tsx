@@ -578,6 +578,10 @@ export default function JobsPage() {
     setEditMode(false);
     setSelectedStones([]);
     setViewDialogOpen(true);
+    // Fetch notification statuses for admin users
+    if (user?.role === 'super_admin' || user?.role === 'branch_admin') {
+      fetchNotificationStatuses(job.id);
+    }
   };
 
   const handleUpdateJob = async () => {
