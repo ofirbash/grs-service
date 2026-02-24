@@ -130,6 +130,7 @@ interface ShipmentOptions {
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [availableJobs, setAvailableJobs] = useState<Job[]>([]);
+  const [filteredAvailableJobs, setFilteredAvailableJobs] = useState<Job[]>([]);
   const [options, setOptions] = useState<ShipmentOptions | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
