@@ -231,7 +231,6 @@ interface Branch {
 
 const STONE_TYPES = ['Ruby', 'Sapphire', 'Emerald', 'Diamond', 'Alexandrite', 'Spinel', 'Padparadscha', 'Paraiba', 'Tanzanite', 'Other'];
 const SHAPES = ['Round', 'Oval', 'Cushion', 'Pear', 'Heart', 'Marquise', 'Princess', 'Emerald Cut', 'Cabochon', 'Other'];
-const SERVICE_TYPES = ['Express', 'Normal', 'Recheck'];
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
@@ -243,6 +242,7 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [serviceTypes, setServiceTypes] = useState<string[]>(['Express', 'Normal', 'Recheck']);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const labInvoiceInputRef = useRef<HTMLInputElement>(null);
 
