@@ -49,6 +49,10 @@ export const authApi = {
     const response = await api.get('/auth/me');
     return response.data;
   },
+  setupPassword: async (token: string, password: string) => {
+    const response = await api.post('/auth/setup-password', { token, password });
+    return response.data;
+  },
 };
 
 // Shipments API
