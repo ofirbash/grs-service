@@ -1278,15 +1278,15 @@ export default function ShipmentsPage() {
           </DialogHeader>
 
           <div className="py-4">
-            {availableJobs.length === 0 ? (
+            {filteredAvailableJobs.length === 0 ? (
               <div className="p-4 text-center text-navy-500 bg-navy-50 rounded-lg">
                 <AlertCircle className="h-8 w-8 mx-auto mb-2 text-navy-400" />
                 <p>No available jobs to add</p>
-                <p className="text-sm">All jobs are either assigned to shipments or completed</p>
+                <p className="text-sm">All jobs are either already in this shipment or completed</p>
               </div>
             ) : (
               <div className="border border-navy-200 rounded-lg max-h-64 overflow-y-auto">
-                {availableJobs.map((job) => (
+                {filteredAvailableJobs.map((job) => (
                   <div
                     key={job.id}
                     className={`flex items-center justify-between p-3 hover:bg-navy-50 cursor-pointer border-b last:border-b-0 ${
