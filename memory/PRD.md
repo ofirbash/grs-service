@@ -302,6 +302,12 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ **Lock Indicator**: Shows "Click Edit to modify fees and verbal findings" when fields are locked on both pages
 - ✅ **Removed Redundant Edit Buttons**: Cleaned up duplicate edit buttons in verbal findings section headers
 
+### Phase 12: Dynamic Service Types (Complete) - Feb 24, 2026
+- ✅ **Add Service Types from Settings**: Admins can add new service types from the Pricing tab in Settings (input + Add button in edit mode)
+- ✅ **Dynamic Service Types in Jobs**: Jobs page fetches service types from pricing config instead of hardcoded list
+- ✅ **No Deletion**: Service types cannot be removed (by design, to protect existing jobs)
+- ✅ **Duplicate Prevention**: Cannot add a service type that already exists (case-insensitive check)
+
 ---
 
 ## Prioritized Backlog
