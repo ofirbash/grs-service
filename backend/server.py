@@ -1460,7 +1460,7 @@ async def update_job(job_id: str, job_update: JobUpdate, user: dict = Depends(re
         update_data["notes"] = job_update.notes
     
     if job_update.status is not None:
-        valid_statuses = ["received", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "certificates_scanned", "certificates_sent", "done"]
+        valid_statuses = ["draft", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "cert_uploaded", "cert_returned", "done"]
         if job_update.status not in valid_statuses:
             raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
         update_data["status"] = job_update.status
@@ -1477,7 +1477,7 @@ async def update_job(job_id: str, job_update: JobUpdate, user: dict = Depends(re
 # Shipment types and statuses
 SHIPMENT_TYPES = ["send_stones_to_lab", "stones_from_lab", "certificates_from_lab"]
 SHIPMENT_STATUSES = ["pending", "in_transit", "delivered", "cancelled"]
-JOB_STATUSES = ["received", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "certificates_scanned", "certificates_sent", "done"]
+JOB_STATUSES = ["draft", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "cert_uploaded", "cert_returned", "done"]
 COURIERS = ["UPS", "FedEx", "DHL", "TNT", "Aramex", "Local Courier", "Hand Carry", "Other"]
 
 @api_router.post("/shipments", response_model=ShipmentResponse)
