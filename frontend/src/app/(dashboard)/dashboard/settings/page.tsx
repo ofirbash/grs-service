@@ -138,6 +138,7 @@ export default function SettingsPage() {
     color_stability_fee: 50,
     service_types: [],
   });
+  const [newServiceType, setNewServiceType] = useState('');
 
   useEffect(() => {
     fetchAllData();
