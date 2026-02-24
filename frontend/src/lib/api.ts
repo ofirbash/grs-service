@@ -143,6 +143,10 @@ export const jobsApi = {
     const response = await api.put(`/jobs/${id}/lab-invoice`, { filename, file_data });
     return response.data;
   },
+  generateInvoice: async (id: string) => {
+    const response = await api.post(`/jobs/${id}/generate-invoice`);
+    return response.data;
+  },
   update: async (id: string, data: { notes?: string; status?: string }) => {
     const response = await api.put(`/jobs/${id}`, data);
     return response.data;
