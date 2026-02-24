@@ -1666,7 +1666,7 @@ export default function JobsPage() {
                     {selectedJob.invoice_url && (
                       <Button
                         variant="outline"
-                        onClick={() => window.open(selectedJob.invoice_url, '_blank')}
+                        onClick={() => setViewInvoiceOpen(true)}
                         data-testid="view-invoice-button"
                       >
                         <Eye className="h-4 w-4 mr-2" />
