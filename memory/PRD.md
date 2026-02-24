@@ -386,7 +386,6 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 ## Known Issues
 1. **Platform Preview Bug**: The Emergent platform "Preview" button shows an Expo QR code. Workaround: Use direct URL to access the app.
 2. **Notification System**: Currently mocked - no actual SMS/Email sent
-3. **Cloudinary PDF Access**: PDF files uploaded to Cloudinary may return 401 errors if "Strict transformations" is enabled in Cloudinary security settings. User needs to disable this setting in their Cloudinary account.
 
 ---
 
