@@ -2405,12 +2405,21 @@ async def preview_notification(job_id: str, notification_type: str, user: dict =
             "name": "Signed_Memo.pdf",
             "url": job.get("signed_memo_url")
         })
-    elif notification_type == "stones_returned" and job.get("lab_invoice_url"):
-        attachments.append({
-            "type": "invoice",
-            "name": "Invoice.pdf",
-            "url": job.get("lab_invoice_url")
-        })
+    elif notification_type == "stones_returned":
+        # Attach generated invoice if available
+        if job.get("invoice_url"):
+            attachments.append({
+                "type": "invoice",
+                "name": job.get("invoice_filename", "Invoice.pdf"),
+                "url": job.get("invoice_url")
+            })
+        # Also attach lab invoice if available
+        elif job.get("lab_invoice_url"):
+            attachments.append({
+                "type": "invoice",
+                "name": "Invoice.pdf",
+                "url": job.get("lab_invoice_url")
+            })
     
     return {
         "notification_type": notification_type,
