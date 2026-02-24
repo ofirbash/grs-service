@@ -654,6 +654,53 @@ async def disable_2fa(totp_code: str = Body(..., embed=True), user: dict = Depen
     
     return {"message": "2FA disabled successfully"}
 
+@api_router.post("/auth/setup-password")
+async def setup_password(data: SetupPasswordRequest):
+    """Set password for a new customer account using the setup token"""
+    user = await db.users.find_one({"setup_token": data.token})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired setup link")
+    
+    # Check token expiry (30 days)
+    token_created = user.get("setup_token_created_at")
+    if token_created:
+        expiry = token_created + timedelta(days=30)
+        if datetime.utcnow() > expiry:
+            raise HTTPException(status_code=400, detail="Setup link has expired. Please contact your administrator.")
+    
+    # Set password and activate account
+    hashed_password = get_password_hash(data.password)
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {
+            "password_hash": hashed_password,
+            "email_verified": True,
+            "setup_token": None,
+            "setup_token_created_at": None,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    # Return token so user is logged in immediately
+    user_id = str(user["_id"])
+    access_token = create_access_token({"sub": user_id, "email": user["email"], "role": user["role"]})
+    
+    return TokenResponse(
+        access_token=access_token,
+        user=UserResponse(
+            id=user_id,
+            email=user["email"],
+            full_name=user["full_name"],
+            role=user["role"],
+            branch_id=user.get("branch_id"),
+            client_id=user.get("client_id"),
+            phone=user.get("phone"),
+            email_verified=True,
+            two_factor_enabled=False,
+            created_at=user["created_at"]
+        )
+    )
+
 # ============== BRANCH ENDPOINTS ==============
 
 @api_router.post("/branches", response_model=BranchResponse)
