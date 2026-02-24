@@ -496,12 +496,75 @@ export default function JobsPage() {
       comment: findings?.comment || ''
     });
     
+    // Initialize fee fields
+    setStoneActualFee(stone.actual_fee !== undefined ? String(stone.actual_fee) : String(stone.fee));
+    setStoneColorStability(stone.color_stability_test || false);
+    
     // If verbal findings exist with certificate_id, lock the form (view mode)
     // Customers never get edit mode
     const hasExistingFindings = !!(findings?.certificate_id);
     setVerbalEditMode(isAdmin && !hasExistingFindings);  // Edit mode only for admin if no existing findings
     
     setStoneDialogOpen(true);
+  };
+
+  // Save stone fees from job modal
+  const handleSaveStoneFees = async () => {
+    if (!viewingStone || !selectedJob) return;
+    
+    const newActualFee = stoneActualFee !== '' ? parseFloat(stoneActualFee) : undefined;
+    const hasActualFeeChange = newActualFee !== viewingStone.actual_fee && newActualFee !== viewingStone.fee;
+    const hasColorStabilityChange = stoneColorStability !== viewingStone.color_stability_test;
+    
+    if (!hasActualFeeChange && !hasColorStabilityChange) return;
+    
+    setSavingStoneFees(true);
+    try {
+      const updateData: { actual_fee?: number; color_stability_test?: boolean } = {};
+      
+      if (hasActualFeeChange && newActualFee !== undefined) {
+        updateData.actual_fee = newActualFee;
+      }
+      
+      if (hasColorStabilityChange) {
+        updateData.color_stability_test = stoneColorStability;
+      }
+      
+      await stonesApi.updateFees(viewingStone.id, updateData);
+      
+      // Update viewingStone
+      setViewingStone(prev => prev ? { 
+        ...prev, 
+        actual_fee: updateData.actual_fee ?? prev.actual_fee,
+        color_stability_test: updateData.color_stability_test ?? prev.color_stability_test 
+      } : null);
+      
+      // Update selectedJob stones
+      if (selectedJob) {
+        setSelectedJob(prev => prev ? {
+          ...prev,
+          stones: prev.stones.map(s => 
+            s.id === viewingStone.id 
+              ? { 
+                  ...s, 
+                  actual_fee: updateData.actual_fee ?? s.actual_fee,
+                  color_stability_test: updateData.color_stability_test ?? s.color_stability_test,
+                  fee: hasColorStabilityChange 
+                    ? (stoneColorStability ? s.fee + 50 : s.fee - 50)
+                    : s.fee
+                } 
+              : s
+          )
+        } : null);
+      }
+      
+      // Refresh jobs list
+      fetchData();
+    } catch (error) {
+      console.error('Failed to save stone fees:', error);
+    } finally {
+      setSavingStoneFees(false);
+    }
   };
 
   const handleCreateJob = async () => {
