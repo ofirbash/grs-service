@@ -1950,7 +1950,7 @@ export default function JobsPage() {
                             <TableCell>
                               <div>
                                 <span>${stone.fee.toLocaleString()}</span>
-                                {stone.actual_fee !== undefined && stone.actual_fee !== stone.fee && (
+                                {stone.actual_fee != null && stone.actual_fee !== stone.fee && (
                                   <p className="text-xs text-green-600">Actual: ${stone.actual_fee.toLocaleString()}</p>
                                 )}
                               </div>
@@ -2027,7 +2027,7 @@ export default function JobsPage() {
                                   <TableCell>
                                     <div>
                                       <span>${stone.fee.toLocaleString()}</span>
-                                      {stone.actual_fee !== undefined && stone.actual_fee !== stone.fee && (
+                                      {stone.actual_fee != null && stone.actual_fee !== stone.fee && (
                                         <p className="text-xs text-green-600">Actual: ${stone.actual_fee.toLocaleString()}</p>
                                       )}
                                     </div>
