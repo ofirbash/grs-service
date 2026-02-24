@@ -335,7 +335,6 @@ export default function JobsPage() {
   // Stone fee editing
   const [stoneActualFee, setStoneActualFee] = useState<string>('');
   const [stoneColorStability, setStoneColorStability] = useState<boolean>(false);
-  const [savingStoneFees, setSavingStoneFees] = useState(false);
   
   // Structured verbal findings
   const [dropdownSettings, setDropdownSettings] = useState<DropdownSettings>({

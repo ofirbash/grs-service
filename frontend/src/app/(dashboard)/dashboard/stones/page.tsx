@@ -109,7 +109,6 @@ export default function StonesPage() {
   // Fees management
   const [actualFee, setActualFee] = useState<string>('');
   const [colorStabilityTest, setColorStabilityTest] = useState<boolean>(false);
-  const [savingFees, setSavingFees] = useState(false);
   
   // Structured verbal findings
   const [dropdownSettings, setDropdownSettings] = useState<DropdownSettings>({
