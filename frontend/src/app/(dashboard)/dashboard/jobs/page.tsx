@@ -2769,6 +2769,39 @@ export default function JobsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Client Invoice Dialog */}
+      <Dialog open={viewInvoiceOpen} onOpenChange={setViewInvoiceOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Client Invoice - Job #{selectedJob?.job_number}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden" style={{ height: '70vh' }}>
+            {selectedJob?.invoice_url && (
+              <iframe
+                src={`${selectedJob.invoice_url}#toolbar=1`}
+                className="w-full h-full border-0"
+                title="Invoice PDF"
+              />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewInvoiceOpen(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={() => window.open(selectedJob?.invoice_url, '_blank')}
+              className="bg-navy-800 hover:bg-navy-700"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
