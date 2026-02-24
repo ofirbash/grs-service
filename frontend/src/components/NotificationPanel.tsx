@@ -69,15 +69,7 @@ const notificationLabels: Record<string, string> = {
   cert_returned: "5. Certificates Arrived",
 };
 
-const notificationStatusTriggers: Record<string, string> = {
-  stones_accepted: "stones_accepted",
-  verbal_uploaded: "verbal_uploaded",
-  stones_returned: "stones_returned",
-  cert_uploaded: "cert_uploaded",
-  cert_returned: "cert_returned",
-};
-
-export function NotificationPanel({ jobId, jobNumber, currentStatus, onNotificationSent }: NotificationPanelProps) {
+export function NotificationPanel({ jobId, currentStatus, onNotificationSent }: NotificationPanelProps) {
   const [notifications, setNotifications] = useState<NotificationStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -87,7 +79,7 @@ export function NotificationPanel({ jobId, jobNumber, currentStatus, onNotificat
   const [recipientEmail, setRecipientEmail] = useState('');
   const [sendError, setSendError] = useState('');
 
-  const fetchNotificationStatus = async () => {
+  const fetchNotificationStatus = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/jobs/${jobId}/notifications/status`, {
@@ -102,11 +94,11 @@ export function NotificationPanel({ jobId, jobNumber, currentStatus, onNotificat
     } finally {
       setLoading(false);
     }
-  };
+  }, [jobId]);
 
   useEffect(() => {
     fetchNotificationStatus();
-  }, [jobId, currentStatus]);
+  }, [fetchNotificationStatus, currentStatus]);
 
   const handlePreview = async (notificationType: string) => {
     setPreviewLoading(true);
