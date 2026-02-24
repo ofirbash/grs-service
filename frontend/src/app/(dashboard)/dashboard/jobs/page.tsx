@@ -2302,7 +2302,8 @@ export default function JobsPage() {
                         value={stoneActualFee}
                         onChange={(e) => setStoneActualFee(e.target.value)}
                         onBlur={handleSaveStoneFees}
-                        className="h-7 w-24 border-navy-200 text-sm font-medium"
+                        className={`h-7 w-24 border-navy-200 text-sm font-medium ${savingStoneFees ? 'opacity-50' : ''}`}
+                        disabled={savingStoneFees}
                         data-testid="stone-actual-fee-input"
                       />
                     </div>
@@ -2326,6 +2327,7 @@ export default function JobsPage() {
                           setTimeout(() => handleSaveStoneFees(), 100);
                         }}
                         className="scale-75"
+                        disabled={savingStoneFees}
                         data-testid="stone-color-stability-switch"
                       />
                       <span className="text-xs text-navy-600">
