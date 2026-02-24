@@ -608,10 +608,10 @@ export default function StonesPage() {
                 </div>
                 
                 {/* Lock indicator when not in edit mode */}
-                {!verbalEditMode && selectedStone.verbal_findings && typeof selectedStone.verbal_findings === 'object' && (selectedStone.verbal_findings as StructuredVerbalFindings).certificate_id && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-sm text-amber-800 flex items-center gap-2">
+                {!verbalEditMode && isAdmin && (
+                  <div className="bg-navy-50 border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-600 flex items-center gap-2">
                     <Lock className="h-4 w-4" />
-                    Form is locked. Click &quot;Edit&quot; to make changes.
+                    Click &quot;Edit&quot; to modify fees and verbal findings.
                   </div>
                 )}
                 
