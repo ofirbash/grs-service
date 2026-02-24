@@ -812,7 +812,7 @@ export default function SettingsPage() {
                         <TableHead className="font-semibold text-navy-700">Min Value (USD)</TableHead>
                         <TableHead className="font-semibold text-navy-700">Max Value (USD)</TableHead>
                         {(editingPricing ? pricingForm.service_types : pricing.service_types).map((st) => (
-                          <TableHead key={st} className="font-semibold text-navy-700">{st} Fee</TableHead>
+                          <TableHead key={st} className="font-semibold text-navy-700">{st}</TableHead>
                         ))}
                         {editingPricing && <TableHead className="w-16"></TableHead>}
                       </TableRow>
