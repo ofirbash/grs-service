@@ -497,7 +497,7 @@ export default function JobsPage() {
     });
     
     // Initialize fee fields
-    setStoneActualFee(stone.actual_fee !== undefined ? String(stone.actual_fee) : String(stone.fee));
+    setStoneActualFee(stone.actual_fee != null ? String(stone.actual_fee) : String(stone.fee));
     setStoneColorStability(stone.color_stability_test || false);
     
     // Always start in locked mode - user must click "Edit" to modify
@@ -2277,7 +2277,7 @@ export default function JobsPage() {
                       />
                     </div>
                   ) : (
-                    <p className={`font-medium ${viewingStone.actual_fee !== undefined && viewingStone.actual_fee !== viewingStone.fee ? 'text-green-700' : 'text-navy-800'}`}>
+                    <p className={`font-medium ${viewingStone.actual_fee != null && viewingStone.actual_fee !== viewingStone.fee ? 'text-green-700' : 'text-navy-800'}`}>
                       ${(viewingStone.actual_fee ?? viewingStone.fee).toLocaleString()}
                     </p>
                   )}
