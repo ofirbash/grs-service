@@ -2116,8 +2116,7 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
     
     if notification_type == "stones_accepted":
         subject = f"Job #{job_number}: Stones Received - GRS Global"
-        stones_table = generate_stones_table_html(stones)
-        fees_table = generate_fees_table_html(job)
+        stones_table = generate_stones_table_html(stones, include_fees=True)
         
         body = f"""
         <div style="padding: 30px;">
@@ -2127,14 +2126,11 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
             
             <h3 style="color: #102a43; margin-top: 30px;">Job Details</h3>
             <p><strong>Job Number:</strong> #{job_number}</p>
+            <p><strong>Service Type:</strong> {job.get('service_type', 'Standard')}</p>
             <p><strong>Total Stones:</strong> {len(stones)}</p>
-            <p><strong>Total Value:</strong> ${job.get('total_value', 0):,.2f}</p>
             
             <h3 style="color: #102a43; margin-top: 30px;">Stones Received</h3>
             {stones_table}
-            
-            <h3 style="color: #102a43; margin-top: 30px;">Fee Breakdown</h3>
-            {fees_table}
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
                 <em>The signed Memo-In document is attached to this email.</em>
