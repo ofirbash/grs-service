@@ -942,6 +942,62 @@ export default function JobsPage() {
     }
   };
 
+  // Fetch notification statuses for a job
+  const fetchNotificationStatuses = async (jobId: string) => {
+    setLoadingNotifications(true);
+    try {
+      const data = await notificationsApi.getStatus(jobId);
+      setNotificationStatuses(data.notifications || []);
+    } catch (error) {
+      console.error('Failed to fetch notification statuses:', error);
+      setNotificationStatuses([]);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  // Preview notification email
+  const handlePreviewNotification = async (notificationType: string) => {
+    if (!selectedJob) return;
+    
+    setLoadingPreview(true);
+    setPreviewModalOpen(true);
+    try {
+      const preview = await notificationsApi.preview(selectedJob.id, notificationType);
+      setNotificationPreview(preview);
+    } catch (error) {
+      console.error('Failed to load preview:', error);
+      alert('Failed to load email preview. Please try again.');
+      setPreviewModalOpen(false);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  // Send notification email
+  const handleSendNotification = async () => {
+    if (!selectedJob || !notificationPreview) return;
+    
+    setSendingEmail(true);
+    try {
+      await notificationsApi.send(
+        selectedJob.id,
+        notificationPreview.notification_type,
+        notificationPreview.recipient_email
+      );
+      alert(`Email sent successfully to ${notificationPreview.recipient_email}`);
+      setPreviewModalOpen(false);
+      setNotificationPreview(null);
+      // Refresh notification statuses
+      fetchNotificationStatuses(selectedJob.id);
+    } catch (error: any) {
+      console.error('Failed to send email:', error);
+      alert(error.response?.data?.detail || 'Failed to send email. Please try again.');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const toggleStoneSelection = (stoneId: string) => {
     setSelectedStones(prev => 
       prev.includes(stoneId) 
