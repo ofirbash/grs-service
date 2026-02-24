@@ -2782,7 +2782,7 @@ export default function JobsPage() {
           <div className="flex-1 overflow-hidden" style={{ height: '70vh' }}>
             {selectedJob?.invoice_url && (
               <iframe
-                src={`${selectedJob.invoice_url}#toolbar=1`}
+                src={`https://docs.google.com/viewer?url=${encodeURIComponent(selectedJob.invoice_url)}&embedded=true`}
                 className="w-full h-full border-0"
                 title="Invoice PDF"
               />
