@@ -994,9 +994,10 @@ export default function JobsPage() {
       setNotificationPreview(null);
       // Refresh notification statuses
       fetchNotificationStatuses(selectedJob.id);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to send email:', error);
-      alert(error.response?.data?.detail || 'Failed to send email. Please try again.');
+      const err = error as { response?: { data?: { detail?: string } } };
+      alert(err.response?.data?.detail || 'Failed to send email. Please try again.');
     } finally {
       setSendingEmail(false);
     }
