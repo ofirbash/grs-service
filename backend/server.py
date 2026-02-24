@@ -350,9 +350,7 @@ class ShipmentResponse(BaseModel):
 class PricingBracket(BaseModel):
     min_value: float
     max_value: float
-    express_fee: float
-    normal_fee: float
-    recheck_fee: float
+    fees: dict = {}  # Dynamic: {"Express": 120, "Normal": 80, "Recheck": 40, ...}
 
 class PricingConfigResponse(BaseModel):
     brackets: List[PricingBracket]
