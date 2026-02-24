@@ -583,26 +583,7 @@ export default function StonesPage() {
                     {(() => {
                       const vf = selectedStone.verbal_findings;
                       const hasFindings = vf && typeof vf === 'object' && (vf as StructuredVerbalFindings).certificate_id;
-                      if (hasFindings) {
-                        return (
-                          <>
-                            <Badge variant="success">Completed</Badge>
-                            {isAdmin && !verbalEditMode && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setVerbalEditMode(true)}
-                                className="h-7 text-xs border-navy-300 hover:bg-navy-100"
-                                data-testid="edit-verbal-button"
-                              >
-                                <Pencil className="h-3 w-3 mr-1" />
-                                Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-                      return null;
+                      return hasFindings ? <Badge variant="success">Completed</Badge> : null;
                     })()}
                   </div>
                 </div>
