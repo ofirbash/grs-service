@@ -311,6 +311,13 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ **No Deletion**: Service types cannot be removed (protects existing jobs)
 - ✅ **Duplicate Prevention**: Cannot add a service type that already exists (case-insensitive check)
 
+### Phase 13: Client Account Self-Setup (Complete) - Feb 24, 2026
+- ✅ **Auto-create customer user account**: When admin creates a client, a customer user account is auto-created with a setup token (30-day expiry)
+- ✅ **Welcome email via Resend**: Setup email sent to client's primary email with branded HTML and "Set Up Your Password" link
+- ✅ **Setup password page** (`/setup-password?token=xxx`): Clean password form, validates token, sets password, auto-logs in
+- ✅ **Token expiry**: 30-day expiry enforced server-side
+- ✅ **Duplicate handling**: Skips user creation if email already exists in users collection
+
 ---
 
 ## Prioritized Backlog
