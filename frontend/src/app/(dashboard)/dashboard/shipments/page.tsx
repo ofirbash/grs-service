@@ -1247,14 +1247,35 @@ export default function ShipmentsPage() {
 
               {/* Jobs Table */}
               <div className="border-t pt-4">
-                <Label className="text-base font-semibold mb-3 block">
-                  Jobs in Shipment ({shipmentJobs.length})
-                </Label>
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-base font-semibold">
+                    Jobs in Shipment ({shipmentJobs.length})
+                  </Label>
+                  {shipmentJobs.length > 0 && selectedShipmentJobs.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setBulkStatusDialogOpen(true)}
+                      data-testid="bulk-status-button"
+                    >
+                      Update Status ({selectedShipmentJobs.length})
+                    </Button>
+                  )}
+                </div>
                 {shipmentJobs.length > 0 ? (
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-navy-50">
+                          <TableHead className="text-navy-700 w-12">
+                            <input
+                              type="checkbox"
+                              checked={shipmentJobs.length > 0 && selectedShipmentJobs.length === shipmentJobs.length}
+                              onChange={() => selectAllShipmentJobs(shipmentJobs)}
+                              className="h-4 w-4 rounded border-navy-300"
+                              data-testid="select-all-shipment-jobs"
+                            />
+                          </TableHead>
                           <TableHead className="text-navy-700">Job #</TableHead>
                           <TableHead className="text-navy-700">Client</TableHead>
                           <TableHead className="text-navy-700">Stones</TableHead>
@@ -1266,18 +1287,57 @@ export default function ShipmentsPage() {
                         {shipmentJobs.map((job) => (
                           <TableRow 
                             key={job.id}
-                            className="cursor-pointer hover:bg-navy-100"
-                            onClick={() => {
-                              setSelectedJob(job);
-                              setJobDialogOpen(true);
-                            }}
+                            className={`cursor-pointer hover:bg-navy-100 ${selectedShipmentJobs.includes(job.id) ? 'bg-navy-100' : ''}`}
                             data-testid={`shipment-job-row-${job.job_number}`}
                           >
-                            <TableCell className="font-medium">#{job.job_number}</TableCell>
-                            <TableCell>{job.client_name || '-'}</TableCell>
-                            <TableCell>{job.total_stones}</TableCell>
-                            <TableCell>${job.total_value.toLocaleString()}</TableCell>
-                            <TableCell>
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={selectedShipmentJobs.includes(job.id)}
+                                onChange={() => toggleShipmentJobSelection(job.id)}
+                                className="h-4 w-4 rounded border-navy-300"
+                                data-testid={`select-shipment-job-${job.job_number}`}
+                              />
+                            </TableCell>
+                            <TableCell 
+                              className="font-medium"
+                              onClick={() => {
+                                setSelectedJob(job);
+                                setJobDialogOpen(true);
+                              }}
+                            >
+                              #{job.job_number}
+                            </TableCell>
+                            <TableCell 
+                              onClick={() => {
+                                setSelectedJob(job);
+                                setJobDialogOpen(true);
+                              }}
+                            >
+                              {job.client_name || '-'}
+                            </TableCell>
+                            <TableCell 
+                              onClick={() => {
+                                setSelectedJob(job);
+                                setJobDialogOpen(true);
+                              }}
+                            >
+                              {job.total_stones}
+                            </TableCell>
+                            <TableCell 
+                              onClick={() => {
+                                setSelectedJob(job);
+                                setJobDialogOpen(true);
+                              }}
+                            >
+                              ${job.total_value.toLocaleString()}
+                            </TableCell>
+                            <TableCell 
+                              onClick={() => {
+                                setSelectedJob(job);
+                                setJobDialogOpen(true);
+                              }}
+                            >
                               <Badge variant="secondary">{job.status.replace(/_/g, ' ')}</Badge>
                             </TableCell>
                           </TableRow>
@@ -1287,7 +1347,7 @@ export default function ShipmentsPage() {
                   </div>
                 ) : (
                   <p className="text-navy-400 text-center py-4">No jobs in this shipment</p>
-                )}
+                )}}
               </div>
 
               {/* Summary */}
