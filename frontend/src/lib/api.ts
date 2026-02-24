@@ -295,7 +295,7 @@ export const settingsApi = {
     return response.data;
   },
   updatePricing: async (data: {
-    brackets: Array<{ min_value: number; max_value: number; express_fee: number; normal_fee: number; recheck_fee: number }>;
+    brackets: Array<{ min_value: number; max_value: number; fees: Record<string, number> }>;
     color_stability_fee: number;
     service_types: string[];
   }) => {
