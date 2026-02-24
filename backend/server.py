@@ -1119,8 +1119,10 @@ async def add_stone_to_job(job_id: str, stone: AddStoneRequest, user: dict = Dep
     existing_stones = job.get("stones", [])
     next_position = len(existing_stones) + 1
     
-    # Calculate fee using the proper pricing brackets
-    fee = calculate_stone_fee(stone.value, job.get("service_type", "Normal"), stone.color_stability_test)
+    # Calculate fee using DB pricing brackets
+    db_brackets = await get_pricing_brackets_from_db()
+    cs_fee = await get_color_stability_fee_from_db()
+    fee = calculate_stone_fee_from_brackets(stone.value, job.get("service_type", "Normal"), stone.color_stability_test, db_brackets, cs_fee)
     
     # Generate SKU
     sku = generate_sku(stone.stone_type, stone.weight, job["job_number"], next_position)
