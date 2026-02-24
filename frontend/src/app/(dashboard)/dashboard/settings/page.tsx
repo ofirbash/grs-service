@@ -74,9 +74,7 @@ interface Branch {
 interface PricingBracket {
   min_value: number;
   max_value: number;
-  express_fee: number;
-  normal_fee: number;
-  recheck_fee: number;
+  fees: Record<string, number>;
 }
 
 interface PricingConfig {
