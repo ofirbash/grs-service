@@ -441,6 +441,7 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - `/app/test_reports/iteration_12.json` - Cloudinary integration (Feb 23, 2026)
   - `/app/test_reports/iteration_13.json` - Customer access control & dashboard navigation (Feb 23, 2026)
   - `/app/test_reports/iteration_15.json` - 5-Stage Email Notification System (Feb 24, 2026)
+  - `/app/test_reports/iteration_16.json` - UI/UX fixes: unified edit mode, notification refresh, actual fees (Feb 24, 2026)
 
 ---
 
