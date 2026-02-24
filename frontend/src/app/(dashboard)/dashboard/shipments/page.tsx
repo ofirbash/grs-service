@@ -1347,7 +1347,7 @@ export default function ShipmentsPage() {
                   </div>
                 ) : (
                   <p className="text-navy-400 text-center py-4">No jobs in this shipment</p>
-                )}}
+                )}
               </div>
 
               {/* Summary */}
