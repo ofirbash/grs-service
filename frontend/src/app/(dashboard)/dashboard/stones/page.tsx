@@ -214,17 +214,24 @@ export default function StonesPage() {
   const handleSaveFees = async () => {
     if (!selectedStone) return;
     
+    // Check if there are actual changes to save
+    const newActualFee = actualFee !== '' ? parseFloat(actualFee) : undefined;
+    const hasActualFeeChange = newActualFee !== selectedStone.actual_fee;
+    const hasColorStabilityChange = colorStabilityTest !== selectedStone.color_stability_test;
+    
+    if (!hasActualFeeChange && !hasColorStabilityChange) return;
+    
     setSavingFees(true);
     try {
       const updateData: { actual_fee?: number; color_stability_test?: boolean } = {};
       
-      // Only include actual_fee if it's a valid number
-      if (actualFee !== '') {
+      // Only include actual_fee if it changed
+      if (hasActualFeeChange && actualFee !== '') {
         updateData.actual_fee = parseFloat(actualFee);
       }
       
       // Only include color_stability_test if it's different from current
-      if (colorStabilityTest !== selectedStone.color_stability_test) {
+      if (hasColorStabilityChange) {
         updateData.color_stability_test = colorStabilityTest;
       }
       
@@ -250,10 +257,9 @@ export default function StonesPage() {
         color_stability_test: updateData.color_stability_test ?? prev.color_stability_test 
       } : null);
       
-      alert('Fees updated successfully');
+      // Silent save - no alert
     } catch (error) {
       console.error('Failed to save fees:', error);
-      alert('Failed to save fees');
     } finally {
       setSavingFees(false);
     }
