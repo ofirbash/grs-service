@@ -331,6 +331,11 @@ export default function JobsPage() {
   const [verbalEditMode, setVerbalEditMode] = useState(false);
   const certScanInputRef = useRef<HTMLInputElement>(null);
   
+  // Stone fee editing
+  const [stoneActualFee, setStoneActualFee] = useState<string>('');
+  const [stoneColorStability, setStoneColorStability] = useState<boolean>(false);
+  const [savingStoneFees, setSavingStoneFees] = useState(false);
+  
   // Structured verbal findings
   const [dropdownSettings, setDropdownSettings] = useState<DropdownSettings>({
     identification: [],
