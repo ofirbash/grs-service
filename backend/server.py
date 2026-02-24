@@ -763,10 +763,14 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
     total_value = 0
     total_fee = 0
     
+    # Fetch pricing from DB for accurate fee calculation
+    db_brackets = await get_pricing_brackets_from_db()
+    cs_fee = await get_color_stability_fee_from_db()
+    
     for cert_unit in job.certificate_units:
         for stone_data in cert_unit.stones:
             sku = generate_sku(stone_data.stone_type, stone_data.weight, job_number, position)
-            fee = calculate_stone_fee(stone_data.value, job.service_type, stone_data.color_stability_test)
+            fee = calculate_stone_fee_from_brackets(stone_data.value, job.service_type, stone_data.color_stability_test, db_brackets, cs_fee)
             
             stone = {
                 "id": str(uuid.uuid4()),
