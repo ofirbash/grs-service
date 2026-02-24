@@ -501,10 +501,8 @@ export default function JobsPage() {
     setStoneActualFee(stone.actual_fee !== undefined ? String(stone.actual_fee) : String(stone.fee));
     setStoneColorStability(stone.color_stability_test || false);
     
-    // If verbal findings exist with certificate_id, lock the form (view mode)
-    // Customers never get edit mode
-    const hasExistingFindings = !!(findings?.certificate_id);
-    setVerbalEditMode(isAdmin && !hasExistingFindings);  // Edit mode only for admin if no existing findings
+    // Always start in locked mode - user must click "Edit" to modify
+    setVerbalEditMode(false);
     
     setStoneDialogOpen(true);
   };
