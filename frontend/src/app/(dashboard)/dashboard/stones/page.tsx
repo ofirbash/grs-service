@@ -486,6 +486,18 @@ export default function StonesPage() {
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Diamond className="h-5 w-5" />
               Stone Details - {selectedStone?.sku}
+              {isAdmin && (
+                <Button
+                  variant={verbalEditMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setVerbalEditMode(!verbalEditMode)}
+                  className={`ml-auto h-7 text-xs ${verbalEditMode ? 'bg-amber-600 hover:bg-amber-700' : 'border-navy-300 hover:bg-navy-100'}`}
+                  data-testid="edit-stone-button"
+                >
+                  <Pencil className="h-3 w-3 mr-1" />
+                  {verbalEditMode ? 'Editing...' : 'Edit'}
+                </Button>
+              )}
             </DialogTitle>
             <DialogDescription>
               Job #{selectedStone?.job_number} | {selectedStone?.client_name}
@@ -516,9 +528,9 @@ export default function StonesPage() {
                   <Label className="text-navy-500 text-xs">Est. Fee</Label>
                   <p className="font-medium text-navy-800">${selectedStone.fee.toLocaleString()}</p>
                 </div>
-                {isAdmin ? (
-                  <div>
-                    <Label className="text-navy-500 text-xs">Actual Fee</Label>
+                <div>
+                  <Label className="text-navy-500 text-xs">Actual Fee</Label>
+                  {verbalEditMode ? (
                     <div className="flex items-center gap-1">
                       <span className="text-navy-600 text-sm">$</span>
                       <Input
@@ -526,34 +538,24 @@ export default function StonesPage() {
                         step="0.01"
                         value={actualFee}
                         onChange={(e) => setActualFee(e.target.value)}
-                        onBlur={handleSaveFees}
-                        className={`h-7 w-24 border-navy-200 text-sm font-medium ${savingFees ? 'opacity-50' : ''}`}
-                        disabled={savingFees}
+                        className="h-7 w-24 border-navy-200 text-sm font-medium"
                         data-testid="actual-fee-input"
                       />
                     </div>
-                  </div>
-                ) : (
-                  selectedStone.actual_fee !== undefined && selectedStone.actual_fee !== selectedStone.fee && (
-                    <div>
-                      <Label className="text-navy-500 text-xs">Actual Fee</Label>
-                      <p className="font-medium text-green-700">${selectedStone.actual_fee.toLocaleString()}</p>
-                    </div>
-                  )
-                )}
+                  ) : (
+                    <p className={`font-medium ${selectedStone.actual_fee !== undefined && selectedStone.actual_fee !== selectedStone.fee ? 'text-green-700' : 'text-navy-800'}`}>
+                      ${(selectedStone.actual_fee ?? selectedStone.fee).toLocaleString()}
+                    </p>
+                  )}
+                </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Color Stability</Label>
-                  {isAdmin ? (
+                  {verbalEditMode ? (
                     <div className="flex items-center gap-2 mt-1">
                       <Switch
                         checked={colorStabilityTest}
-                        onCheckedChange={(checked) => {
-                          setColorStabilityTest(checked);
-                          // Auto-save on change
-                          setTimeout(() => handleSaveFees(), 100);
-                        }}
+                        onCheckedChange={setColorStabilityTest}
                         className="scale-75"
-                        disabled={savingFees}
                         data-testid="color-stability-switch"
                       />
                       <span className="text-xs text-navy-600">
