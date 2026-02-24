@@ -509,7 +509,7 @@ export default function StonesPage() {
                   <p className="font-medium text-navy-800">${selectedStone.value.toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-navy-500 text-xs">Fee</Label>
+                  <Label className="text-navy-500 text-xs">Est. Fee</Label>
                   <p className="font-medium text-navy-800">${selectedStone.fee.toLocaleString()}</p>
                 </div>
                 <div>
@@ -519,6 +519,77 @@ export default function StonesPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Fees & Color Stability Section - Admin Only */}
+              {isAdmin && (
+                <div className="space-y-4 p-4 border border-amber-200 bg-amber-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold flex items-center gap-2 text-navy-800">
+                      <DollarSign className="h-5 w-5" />
+                      Fee Adjustments
+                    </Label>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm text-navy-600">Actual Fee (USD)</Label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-navy-500">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder={`Est: $${selectedStone.fee}`}
+                          value={actualFee}
+                          onChange={(e) => setActualFee(e.target.value)}
+                          className="border-navy-200"
+                          data-testid="actual-fee-input"
+                        />
+                      </div>
+                      <p className="text-xs text-navy-500">
+                        Leave empty to use estimated fee (${selectedStone.fee})
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-sm text-navy-600 flex items-center gap-2">
+                        <FlaskConical className="h-4 w-4" />
+                        Color Stability Test
+                      </Label>
+                      <div className="flex items-center gap-3 pt-1">
+                        <Switch
+                          checked={colorStabilityTest}
+                          onCheckedChange={setColorStabilityTest}
+                          data-testid="color-stability-switch"
+                        />
+                        <span className="text-sm text-navy-600">
+                          {colorStabilityTest ? 'Yes (+$50)' : 'No'}
+                        </span>
+                      </div>
+                      {colorStabilityTest !== selectedStone.color_stability_test && (
+                        <p className="text-xs text-amber-600">
+                          Changed from: {selectedStone.color_stability_test ? 'Yes' : 'No'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <Button
+                    onClick={handleSaveFees}
+                    disabled={savingFees}
+                    className="bg-amber-600 hover:bg-amber-700"
+                    data-testid="save-fees-button"
+                  >
+                    {savingFees ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Fee Changes'
+                    )}
+                  </Button>
+                </div>
+              )}
 
               {/* Verbal Findings Section */}
               <div className="space-y-4">
