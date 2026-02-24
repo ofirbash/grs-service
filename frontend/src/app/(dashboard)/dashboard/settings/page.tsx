@@ -325,12 +325,12 @@ export default function SettingsPage() {
 
   const addBracket = () => {
     const lastBracket = pricingForm.brackets[pricingForm.brackets.length - 1];
+    const defaultFees: Record<string, number> = {};
+    pricingForm.service_types.forEach(st => { defaultFees[st] = 0; });
     const newBracket: PricingBracket = {
       min_value: lastBracket ? lastBracket.max_value + 1 : 0,
       max_value: lastBracket ? lastBracket.max_value + 10000 : 9999.99,
-      express_fee: 100,
-      normal_fee: 80,
-      recheck_fee: 40,
+      fees: defaultFees,
     };
     setPricingForm({ ...pricingForm, brackets: [...pricingForm.brackets, newBracket] });
   };
