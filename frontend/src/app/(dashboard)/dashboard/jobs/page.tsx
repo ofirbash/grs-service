@@ -360,6 +360,9 @@ export default function JobsPage() {
   const [notificationPreview, setNotificationPreview] = useState<NotificationPreview | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  
+  // Invoice generation
+  const [generatingInvoice, setGeneratingInvoice] = useState(false);
 
   useEffect(() => {
     fetchData();
