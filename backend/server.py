@@ -2144,7 +2144,12 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
         """
         
     elif notification_type == "verbal_uploaded":
-        cert_ids = list(set([s.get('certificate_group', '') for s in stones if s.get('certificate_group')]))
+        # Get certificate IDs from verbal findings in each stone
+        cert_ids = list(set([
+            s.get('verbal_findings', {}).get('certificate_id', '') 
+            for s in stones 
+            if s.get('verbal_findings', {}).get('certificate_id')
+        ]))
         cert_id_str = ', '.join([str(c) for c in cert_ids]) if cert_ids else 'N/A'
         subject = f"Job #{job_number} - Certificate #{cert_id_str}: Verbal Results - GRS Global"
         verbal_table = generate_verbal_results_table_html(stones, verbal_findings)
