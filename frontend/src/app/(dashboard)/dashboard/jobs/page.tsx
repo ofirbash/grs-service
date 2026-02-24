@@ -363,6 +363,7 @@ export default function JobsPage() {
   
   // Invoice generation
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const [viewInvoiceOpen, setViewInvoiceOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
