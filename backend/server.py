@@ -1066,8 +1066,8 @@ async def add_stone_to_job(job_id: str, stone: AddStoneRequest, user: dict = Dep
     existing_stones = job.get("stones", [])
     next_position = len(existing_stones) + 1
     
-    # Calculate fee (10% of value)
-    fee = stone.value * 0.10
+    # Calculate fee using the proper pricing brackets
+    fee = calculate_stone_fee(stone.value, job.get("service_type", "Normal"), stone.color_stability_test)
     
     # Generate SKU
     sku = generate_sku(stone.stone_type, stone.weight, job["job_number"], next_position)
