@@ -362,6 +362,43 @@ export default function JobsPage() {
     }
   };
 
+  // Bulk update status for selected jobs
+  const handleBulkStatusUpdate = async () => {
+    if (selectedJobIds.length === 0 || !bulkStatus) return;
+    
+    setUpdatingBulkStatus(true);
+    try {
+      await Promise.all(
+        selectedJobIds.map(jobId => jobsApi.updateStatus(jobId, bulkStatus))
+      );
+      setBulkStatusDialogOpen(false);
+      setBulkStatus('');
+      setSelectedJobIds([]);
+      fetchData();
+    } catch (error) {
+      console.error('Failed to update job statuses:', error);
+    } finally {
+      setUpdatingBulkStatus(false);
+    }
+  };
+
+  // Toggle job selection
+  const toggleJobSelection = (jobId: string) => {
+    setSelectedJobIds(prev => 
+      prev.includes(jobId) ? prev.filter(id => id !== jobId) : [...prev, jobId]
+    );
+  };
+
+  // Select all visible jobs
+  const selectAllJobs = () => {
+    const visibleJobIds = filteredJobs.map(j => j.id);
+    if (selectedJobIds.length === visibleJobIds.length) {
+      setSelectedJobIds([]);
+    } else {
+      setSelectedJobIds(visibleJobIds);
+    }
+  };
+
   const handleAddStone = () => {
     setStones([...stones, { stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
   };
