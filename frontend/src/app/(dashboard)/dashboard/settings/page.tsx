@@ -317,9 +317,17 @@ export default function SettingsPage() {
     }
   };
 
-  const updateBracket = (index: number, field: keyof PricingBracket, value: number) => {
+  const updateBracket = (index: number, field: string, value: number) => {
     const newBrackets = [...pricingForm.brackets];
-    newBrackets[index] = { ...newBrackets[index], [field]: value };
+    if (field === 'min_value' || field === 'max_value') {
+      newBrackets[index] = { ...newBrackets[index], [field]: value };
+    } else {
+      // field is a service type name - update inside fees
+      newBrackets[index] = {
+        ...newBrackets[index],
+        fees: { ...newBrackets[index].fees, [field]: value }
+      };
+    }
     setPricingForm({ ...pricingForm, brackets: newBrackets });
   };
 
