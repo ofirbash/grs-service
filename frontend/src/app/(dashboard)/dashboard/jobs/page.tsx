@@ -2281,6 +2281,18 @@ export default function JobsPage() {
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Diamond className="h-5 w-5" />
               Stone - {viewingStone?.sku}
+              {isAdmin && (
+                <Button
+                  variant={verbalEditMode ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setVerbalEditMode(!verbalEditMode)}
+                  className={`ml-auto h-7 text-xs ${verbalEditMode ? 'bg-amber-600 hover:bg-amber-700' : 'border-navy-300 hover:bg-navy-100'}`}
+                  data-testid="edit-stone-button"
+                >
+                  <Pencil className="h-3 w-3 mr-1" />
+                  {verbalEditMode ? 'Editing...' : 'Edit'}
+                </Button>
+              )}
             </DialogTitle>
             <DialogDescription>
               Job #{selectedJob?.job_number} | {viewingStone?.stone_type} | {viewingStone?.weight} ct
@@ -2311,9 +2323,9 @@ export default function JobsPage() {
                   <Label className="text-navy-500 text-xs">Est. Fee</Label>
                   <p className="font-medium text-navy-800">${viewingStone.fee.toLocaleString()}</p>
                 </div>
-                {isAdmin ? (
-                  <div>
-                    <Label className="text-navy-500 text-xs">Actual Fee</Label>
+                <div>
+                  <Label className="text-navy-500 text-xs">Actual Fee</Label>
+                  {verbalEditMode ? (
                     <div className="flex items-center gap-1">
                       <span className="text-navy-600 text-sm">$</span>
                       <Input
@@ -2321,33 +2333,24 @@ export default function JobsPage() {
                         step="0.01"
                         value={stoneActualFee}
                         onChange={(e) => setStoneActualFee(e.target.value)}
-                        onBlur={handleSaveStoneFees}
-                        className={`h-7 w-24 border-navy-200 text-sm font-medium ${savingStoneFees ? 'opacity-50' : ''}`}
-                        disabled={savingStoneFees}
+                        className="h-7 w-24 border-navy-200 text-sm font-medium"
                         data-testid="stone-actual-fee-input"
                       />
                     </div>
-                  </div>
-                ) : (
-                  viewingStone.actual_fee !== undefined && viewingStone.actual_fee !== viewingStone.fee && (
-                    <div>
-                      <Label className="text-navy-500 text-xs">Actual Fee</Label>
-                      <p className="font-medium text-green-700">${viewingStone.actual_fee.toLocaleString()}</p>
-                    </div>
-                  )
-                )}
+                  ) : (
+                    <p className={`font-medium ${viewingStone.actual_fee !== undefined && viewingStone.actual_fee !== viewingStone.fee ? 'text-green-700' : 'text-navy-800'}`}>
+                      ${(viewingStone.actual_fee ?? viewingStone.fee).toLocaleString()}
+                    </p>
+                  )}
+                </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Color Stability</Label>
-                  {isAdmin ? (
+                  {verbalEditMode ? (
                     <div className="flex items-center gap-2 mt-1">
                       <Switch
                         checked={stoneColorStability}
-                        onCheckedChange={(checked) => {
-                          setStoneColorStability(checked);
-                          setTimeout(() => handleSaveStoneFees(), 100);
-                        }}
+                        onCheckedChange={setStoneColorStability}
                         className="scale-75"
-                        disabled={savingStoneFees}
                         data-testid="stone-color-stability-switch"
                       />
                       <span className="text-xs text-navy-600">
@@ -2375,39 +2378,18 @@ export default function JobsPage() {
                     <FileText className="h-5 w-5" />
                     Verbal Findings
                   </Label>
-                  <div className="flex items-center gap-2">
-                    {(() => {
-                      const vf = viewingStone.verbal_findings;
-                      const hasFindings = vf && typeof vf === 'object' && (vf as StructuredVerbalFindings).certificate_id;
-                      if (hasFindings) {
-                        return (
-                          <>
-                            <Badge variant="success">Completed</Badge>
-                            {isAdmin && !verbalEditMode && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setVerbalEditMode(true)}
-                                className="h-7 text-xs border-navy-300 hover:bg-navy-100"
-                                data-testid="edit-verbal-button"
-                              >
-                                <Pencil className="h-3 w-3 mr-1" />
-                                Edit
-                              </Button>
-                            )}
-                          </>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
+                  {(() => {
+                    const vf = viewingStone.verbal_findings;
+                    const hasFindings = vf && typeof vf === 'object' && (vf as StructuredVerbalFindings).certificate_id;
+                    return hasFindings ? <Badge variant="secondary" className="bg-green-100 text-green-800">Completed</Badge> : null;
+                  })()}
                 </div>
                 
                 {/* Lock indicator when not in edit mode */}
-                {!verbalEditMode && viewingStone.verbal_findings && typeof viewingStone.verbal_findings === 'object' && (viewingStone.verbal_findings as StructuredVerbalFindings).certificate_id && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-sm text-amber-800 flex items-center gap-2">
+                {!verbalEditMode && isAdmin && (
+                  <div className="bg-navy-50 border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-600 flex items-center gap-2">
                     <Lock className="h-4 w-4" />
-                    Form is locked. Click &quot;Edit&quot; to make changes.
+                    Click &quot;Edit&quot; to modify fees and verbal findings.
                   </div>
                 )}
                 
