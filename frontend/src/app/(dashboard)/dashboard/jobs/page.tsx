@@ -401,16 +401,20 @@ export default function JobsPage() {
 
   const fetchData = async () => {
     try {
-      const [jobsData, clientsData, branchesData, dropdownData] = await Promise.all([
+      const [jobsData, clientsData, branchesData, dropdownData, pricingData] = await Promise.all([
         jobsApi.getAll(),
         clientsApi.getAll(),
         branchesApi.getAll(),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
+        settingsApi.getPricing().catch(() => ({ service_types: ['Express', 'Normal', 'Recheck'] })),
       ]);
       setJobs(jobsData);
       setClients(clientsData);
       setBranches(branchesData);
       setDropdownSettings(dropdownData);
+      if (pricingData.service_types?.length) {
+        setServiceTypes(pricingData.service_types);
+      }
       
       // Initialize dropdowns if empty
       if (!dropdownData.identification?.length) {
