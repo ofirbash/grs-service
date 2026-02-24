@@ -380,6 +380,21 @@ export default function SettingsPage() {
     setNewServiceType('');
   };
 
+  const handleDeleteServiceType = (serviceType: string) => {
+    if (usedServiceTypes.has(serviceType)) return;
+    if (!confirm(`Remove service type "${serviceType}"?`)) return;
+    const updatedBrackets = pricingForm.brackets.map(b => {
+      const newFees = { ...b.fees };
+      delete newFees[serviceType];
+      return { ...b, fees: newFees };
+    });
+    setPricingForm({
+      ...pricingForm,
+      service_types: pricingForm.service_types.filter(t => t !== serviceType),
+      brackets: updatedBrackets,
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64" data-testid="settings-loading">
