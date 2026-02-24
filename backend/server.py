@@ -2233,6 +2233,50 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
     elif notification_type == "stones_returned":
         subject = f"Job #{job_number}: Stones Ready for Collection - GRS Global"
         
+        # Calculate totals
+        total_estimated = sum(s.get('fee', 0) for s in stones)
+        total_actual = sum(s.get('actual_fee', s.get('fee', 0)) for s in stones)
+        has_actual_fees = any(s.get('actual_fee') is not None for s in stones)
+        
+        # Build fees table
+        fees_rows = ""
+        for stone in stones:
+            est_fee = stone.get('fee', 0)
+            act_fee = stone.get('actual_fee')
+            actual_cell = f'<td style="padding: 10px; text-align: right; font-weight: bold;">${act_fee:,.2f}</td>' if act_fee is not None else '<td style="padding: 10px; text-align: right; color: #6b7280;">-</td>'
+            fees_rows += f"""
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+                <td style="padding: 10px;">{stone.get('sku', 'N/A')}</td>
+                <td style="padding: 10px;">{stone.get('stone_type', 'N/A')}</td>
+                <td style="padding: 10px; text-align: right;">${est_fee:,.2f}</td>
+                {actual_cell}
+            </tr>"""
+        
+        # Total row
+        fees_rows += f"""
+        <tr style="background-color: #f3f4f6; font-weight: bold;">
+            <td colspan="2" style="padding: 10px; text-align: right;">TOTAL:</td>
+            <td style="padding: 10px; text-align: right;">${total_estimated:,.2f}</td>
+            <td style="padding: 10px; text-align: right;">${total_actual:,.2f}</td>
+        </tr>"""
+        
+        fees_table = f"""
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+            <thead>
+                <tr style="background-color: #102a43; color: white;">
+                    <th style="padding: 10px; text-align: left;">SKU</th>
+                    <th style="padding: 10px; text-align: left;">Type</th>
+                    <th style="padding: 10px; text-align: right;">Estimated Fee</th>
+                    <th style="padding: 10px; text-align: right;">Actual Fee</th>
+                </tr>
+            </thead>
+            <tbody>{fees_rows}</tbody>
+        </table>
+        """
+        
+        # Amount due message
+        amount_due = total_actual if has_actual_fees else total_estimated
+        
         body = f"""
         <div style="padding: 30px;">
             <h2 style="color: #102a43; margin-bottom: 20px;">Stones Ready for Collection</h2>
@@ -2243,17 +2287,15 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
             
             <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
                 <p style="color: #92400e; margin: 0; font-weight: bold;">
-                    Payment is required upon pickup.
+                    Payment of ${amount_due:,.2f} is required upon pickup.
                 </p>
             </div>
             
-            <h3 style="color: #102a43; margin-top: 30px;">Job Summary</h3>
-            <p><strong>Job Number:</strong> #{job_number}</p>
-            <p><strong>Total Stones:</strong> {len(stones)}</p>
-            <p><strong>Total Fee Due:</strong> ${job.get('total_fee', 0):,.2f}</p>
+            <h3 style="color: #102a43; margin-top: 30px;">Fee Summary</h3>
+            {fees_table}
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-                <em>The invoice for the total fees is attached to this email.</em>
+                <em>The detailed invoice is attached to this email.</em>
             </p>
         </div>
         """
