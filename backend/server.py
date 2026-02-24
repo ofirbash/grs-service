@@ -2041,9 +2041,9 @@ def generate_stones_table_html(stones: list, include_fees: bool = False) -> str:
         <thead>
             <tr style="background-color: #102a43; color: white;">
                 <th style="padding: 12px; text-align: left;">SKU</th>
-                <th style="padding: 12px; text-align: left;">Weight</th>
                 <th style="padding: 12px; text-align: left;">Type</th>
-                <th style="padding: 12px; text-align: left;">Shape</th>
+                <th style="padding: 12px; text-align: center;">Weight</th>
+                <th style="padding: 12px; text-align: center;">Cert. ID</th>
                 <th style="padding: 12px; text-align: right;">Value</th>
                 {fee_header}
             </tr>
