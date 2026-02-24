@@ -907,8 +907,18 @@ export default function SettingsPage() {
                 <Label className="text-sm font-medium text-navy-800">Available Service Types</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {(editingPricing ? pricingForm.service_types : pricing.service_types).map((type) => (
-                    <Badge key={type} className="bg-navy-800 text-white">
+                    <Badge key={type} className="bg-navy-800 text-white flex items-center gap-1">
                       {type}
+                      {editingPricing && !usedServiceTypes.has(type) && (
+                        <button
+                          onClick={() => handleDeleteServiceType(type)}
+                          className="ml-1 hover:text-red-300"
+                          title={`Remove ${type}`}
+                          data-testid={`delete-service-type-${type.toLowerCase()}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
                     </Badge>
                   ))}
                 </div>
