@@ -172,7 +172,7 @@ export default function StonesPage() {
     });
     
     // Initialize fee fields
-    setActualFee(stone.actual_fee !== undefined ? String(stone.actual_fee) : '');
+    setActualFee(stone.actual_fee != null ? String(stone.actual_fee) : '');
     setColorStabilityTest(stone.color_stability_test || false);
     
     // Always start in locked mode - user must click "Edit" to modify
@@ -459,7 +459,7 @@ export default function StonesPage() {
                       />
                     </div>
                   ) : (
-                    <p className={`font-medium ${selectedStone.actual_fee !== undefined && selectedStone.actual_fee !== selectedStone.fee ? 'text-green-700' : 'text-navy-800'}`}>
+                    <p className={`font-medium ${selectedStone.actual_fee != null && selectedStone.actual_fee !== selectedStone.fee ? 'text-green-700' : 'text-navy-800'}`}>
                       ${(selectedStone.actual_fee ?? selectedStone.fee).toLocaleString()}
                     </p>
                   )}
