@@ -1196,6 +1196,63 @@ async def update_stone_verbal(stone_id: str, data: VerbalFindingsUpdate, user: d
     
     return {"message": "Verbal findings updated successfully"}
 
+# Stone fees update model
+class StoneFeeUpdate(BaseModel):
+    actual_fee: Optional[float] = None
+    color_stability_test: Optional[bool] = None
+
+@api_router.put("/stones/{stone_id}/fees")
+async def update_stone_fees(stone_id: str, data: StoneFeeUpdate, user: dict = Depends(require_admin)):
+    """Update actual fee and/or color stability test for a stone"""
+    # Find the job containing this stone
+    job = await db.jobs.find_one({"stones.id": stone_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Stone not found")
+    
+    # Find the stone to get current values
+    stone = next((s for s in job.get('stones', []) if s.get('id') == stone_id), None)
+    if not stone:
+        raise HTTPException(status_code=404, detail="Stone not found")
+    
+    update_data = {"updated_at": datetime.utcnow()}
+    fee_adjustment = 0
+    
+    # Update color stability test if provided
+    if data.color_stability_test is not None:
+        update_data["stones.$.color_stability_test"] = data.color_stability_test
+        # Adjust fee if color stability changed
+        current_cst = stone.get('color_stability_test', False)
+        if data.color_stability_test and not current_cst:
+            # Adding color stability test - add fee
+            fee_adjustment = COLOR_STABILITY_FEE
+            # Update the original fee to include color stability
+            new_fee = stone.get('fee', 0) + COLOR_STABILITY_FEE
+            update_data["stones.$.fee"] = new_fee
+        elif not data.color_stability_test and current_cst:
+            # Removing color stability test - subtract fee
+            fee_adjustment = -COLOR_STABILITY_FEE
+            new_fee = max(0, stone.get('fee', 0) - COLOR_STABILITY_FEE)
+            update_data["stones.$.fee"] = new_fee
+    
+    # Update actual fee if provided
+    if data.actual_fee is not None:
+        update_data["stones.$.actual_fee"] = data.actual_fee
+    
+    # Update the stone
+    await db.jobs.update_one(
+        {"_id": job["_id"], "stones.id": stone_id},
+        {"$set": update_data}
+    )
+    
+    # Update job total fee if color stability changed
+    if fee_adjustment != 0:
+        await db.jobs.update_one(
+            {"_id": job["_id"]},
+            {"$inc": {"total_fee": fee_adjustment}}
+        )
+    
+    return {"message": "Stone fees updated successfully"}
+
 # ============== DROPDOWN SETTINGS ==============
 
 class DropdownOption(BaseModel):
