@@ -351,7 +351,16 @@ export default function SettingsPage() {
       alert('This service type already exists');
       return;
     }
-    setPricingForm({ ...pricingForm, service_types: [...pricingForm.service_types, trimmed] });
+    // Add service type and add default fee (0) to all existing brackets
+    const updatedBrackets = pricingForm.brackets.map(b => ({
+      ...b,
+      fees: { ...b.fees, [trimmed]: 0 }
+    }));
+    setPricingForm({
+      ...pricingForm,
+      service_types: [...pricingForm.service_types, trimmed],
+      brackets: updatedBrackets,
+    });
     setNewServiceType('');
   };
 
