@@ -146,15 +146,22 @@ export default function SettingsPage() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [dropdownsData, branchesData, pricingData] = await Promise.all([
+      const [dropdownsData, branchesData, pricingData, jobsData] = await Promise.all([
         settingsApi.getDropdowns(),
         branchesApi.getAll(),
         settingsApi.getPricing(),
+        jobsApi.getAll(),
       ]);
       setDropdowns(dropdownsData);
       setBranches(branchesData);
       setPricing(pricingData);
       setPricingForm(pricingData);
+      // Track which service types are used by existing jobs
+      const used = new Set<string>();
+      jobsData.forEach((job: { service_type?: string }) => {
+        if (job.service_type) used.add(job.service_type);
+      });
+      setUsedServiceTypes(used);
     } catch (error) {
       console.error('Failed to fetch settings:', error);
       alert('Failed to load settings');
