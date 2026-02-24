@@ -2121,6 +2121,59 @@ export default function ShipmentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Status Update Dialog */}
+      <Dialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-navy-800">
+              Update Job Status
+            </DialogTitle>
+            <DialogDescription>
+              Update status for {selectedShipmentJobs.length} selected job(s)
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <Label className="text-navy-700 mb-2 block">New Status</Label>
+            <Select value={bulkStatus} onValueChange={setBulkStatus}>
+              <SelectTrigger data-testid="bulk-status-select">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="received">Received</SelectItem>
+                <SelectItem value="sent_to_lab">Sent to Lab</SelectItem>
+                <SelectItem value="verbal_uploaded">Verbal Uploaded</SelectItem>
+                <SelectItem value="stones_returned">Stones Returned</SelectItem>
+                <SelectItem value="certificates_scanned">Certificates Scanned</SelectItem>
+                <SelectItem value="certificates_sent">Certificates Sent</SelectItem>
+                <SelectItem value="done">Done</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkStatusDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkStatusUpdate}
+              disabled={updatingBulkStatus || !bulkStatus}
+              className="bg-navy-800 hover:bg-navy-700"
+              data-testid="confirm-bulk-status-button"
+            >
+              {updatingBulkStatus ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Status'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
