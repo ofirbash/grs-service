@@ -1009,6 +1009,33 @@ export default function JobsPage() {
     }
   };
 
+  // Generate and save invoice
+  const handleGenerateInvoice = async () => {
+    if (!selectedJob) return;
+    
+    setGeneratingInvoice(true);
+    try {
+      const result = await jobsApi.generateInvoice(selectedJob.id);
+      alert('Invoice generated successfully!');
+      
+      // Update local state with new invoice URL
+      setSelectedJob(prev => prev ? { 
+        ...prev, 
+        invoice_url: result.invoice_url,
+        invoice_filename: result.filename 
+      } : null);
+      
+      // Refresh jobs list
+      fetchData();
+    } catch (error: unknown) {
+      console.error('Failed to generate invoice:', error);
+      const err = error as { response?: { data?: { detail?: string } } };
+      alert(err.response?.data?.detail || 'Failed to generate invoice. Please try again.');
+    } finally {
+      setGeneratingInvoice(false);
+    }
+  };
+
   const toggleStoneSelection = (stoneId: string) => {
     setSelectedStones(prev => 
       prev.includes(stoneId) 
