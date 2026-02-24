@@ -162,7 +162,19 @@ export default function ClientsPage() {
 
     setUpdating(true);
     try {
-      await clientsApi.update(editingClient.id, editFormData);
+      // Convert empty strings to undefined for optional fields
+      const cleanedData = {
+        name: editFormData.name,
+        email: editFormData.email,
+        branch_id: editFormData.branch_id,
+        phone: editFormData.phone || undefined,
+        secondary_email: editFormData.secondary_email || undefined,
+        secondary_phone: editFormData.secondary_phone || undefined,
+        company: editFormData.company || undefined,
+        address: editFormData.address || undefined,
+        notes: editFormData.notes || undefined,
+      };
+      await clientsApi.update(editingClient.id, cleanedData);
       setEditDialogOpen(false);
       setEditingClient(null);
       fetchData();
