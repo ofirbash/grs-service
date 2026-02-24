@@ -505,6 +505,51 @@ export default function ShipmentsPage() {
     }
   };
 
+  // Bulk update status for selected jobs in shipment
+  const handleBulkStatusUpdate = async () => {
+    if (selectedShipmentJobs.length === 0 || !bulkStatus) return;
+    
+    setUpdatingBulkStatus(true);
+    try {
+      // Update each selected job's status
+      await Promise.all(
+        selectedShipmentJobs.map(jobId => 
+          jobsApi.updateStatus(jobId, bulkStatus)
+        )
+      );
+      setBulkStatusDialogOpen(false);
+      setBulkStatus('');
+      setSelectedShipmentJobs([]);
+      fetchData();
+      // Refresh selected shipment jobs
+      if (selectedShipment) {
+        const updatedShipment = await shipmentsApi.getById(selectedShipment.id);
+        setSelectedShipment(updatedShipment);
+      }
+    } catch (error) {
+      console.error('Failed to update job statuses:', error);
+    } finally {
+      setUpdatingBulkStatus(false);
+    }
+  };
+
+  // Toggle job selection in shipment
+  const toggleShipmentJobSelection = (jobId: string) => {
+    setSelectedShipmentJobs(prev => 
+      prev.includes(jobId) ? prev.filter(id => id !== jobId) : [...prev, jobId]
+    );
+  };
+
+  // Select all jobs in shipment
+  const selectAllShipmentJobs = (jobs: Job[]) => {
+    const allJobIds = jobs.map(j => j.id);
+    if (selectedShipmentJobs.length === allJobIds.length) {
+      setSelectedShipmentJobs([]);
+    } else {
+      setSelectedShipmentJobs(allJobIds);
+    }
+  };
+
   const handleGeneratePdf = async (shipment: Shipment, jobs: Job[]) => {
     setGeneratingPdf(true);
     try {
