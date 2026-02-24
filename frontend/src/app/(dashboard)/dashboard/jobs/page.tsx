@@ -54,6 +54,7 @@ import {
   Send,
   Clock,
   CheckCircle2,
+  Receipt,
 } from 'lucide-react';
 
 interface StructuredVerbalFindings {
