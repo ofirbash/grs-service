@@ -1552,13 +1552,14 @@ export default function ShipmentsPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="received">Received</SelectItem>
-                          <SelectItem value="in_testing">In Testing</SelectItem>
-                          <SelectItem value="testing_complete">Testing Complete</SelectItem>
-                          <SelectItem value="pending_certificate">Pending Certificate</SelectItem>
-                          <SelectItem value="certificate_issued">Certificate Issued</SelectItem>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="stones_accepted">Stones Accepted</SelectItem>
                           <SelectItem value="sent_to_lab">Sent to Lab</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="verbal_uploaded">Verbal Uploaded</SelectItem>
+                          <SelectItem value="stones_returned">Stones Returned</SelectItem>
+                          <SelectItem value="cert_uploaded">Cert. Uploaded</SelectItem>
+                          <SelectItem value="cert_returned">Cert. Returned</SelectItem>
+                          <SelectItem value="done">Done</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
