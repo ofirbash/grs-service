@@ -184,6 +184,10 @@ export const stonesApi = {
     const response = await api.put(`/stones/${id}/verbal`, { structured_findings });
     return response.data;
   },
+  updateFees: async (id: string, data: { actual_fee?: number; color_stability_test?: boolean }) => {
+    const response = await api.put(`/stones/${id}/fees`, data);
+    return response.data;
+  },
   uploadCertificateScan: async (id: string, filename: string, file_data: string) => {
     const response = await api.put(`/stones/${id}/certificate-scan`, { filename, file_data });
     return response.data;
