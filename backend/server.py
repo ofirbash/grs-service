@@ -2464,8 +2464,12 @@ async def send_notification_email(
     
     if notification_type == "stones_accepted" and job.get("signed_memo_url"):
         attachment_info.append({"type": "signed_memo", "url": job.get("signed_memo_url")})
-    elif notification_type == "stones_returned" and job.get("lab_invoice_url"):
-        attachment_info.append({"type": "invoice", "url": job.get("lab_invoice_url")})
+    elif notification_type == "stones_returned":
+        # Prefer generated invoice, fallback to lab invoice
+        if job.get("invoice_url"):
+            attachment_info.append({"type": "invoice", "url": job.get("invoice_url"), "filename": job.get("invoice_filename", "Invoice.pdf")})
+        elif job.get("lab_invoice_url"):
+            attachment_info.append({"type": "invoice", "url": job.get("lab_invoice_url")})
     
     # Download attachments for email
     for att in attachment_info:
@@ -2478,7 +2482,7 @@ async def send_notification_email(
                     response = await http_client.get(att["url"])
                     if response.status_code == 200:
                         content = response.content
-                        filename = f"{att['type']}.pdf"
+                        filename = att.get("filename", f"{att['type']}.pdf")
                         attachments_for_email.append({
                             "filename": filename,
                             "content": list(content)  # Resend expects list of bytes
