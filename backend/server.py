@@ -873,6 +873,8 @@ async def get_jobs(
             signed_memo_filename=job.get("signed_memo_filename"),
             lab_invoice_url=job.get("lab_invoice_url"),
             lab_invoice_filename=job.get("lab_invoice_filename"),
+            invoice_url=job.get("invoice_url"),
+            invoice_filename=job.get("invoice_filename"),
             created_at=job["created_at"],
             updated_at=job["updated_at"]
         ))
@@ -936,6 +938,8 @@ async def get_job(job_id: str, user: dict = Depends(get_current_user)):
         signed_memo_filename=job.get("signed_memo_filename"),
         lab_invoice_url=job.get("lab_invoice_url"),
         lab_invoice_filename=job.get("lab_invoice_filename"),
+        invoice_url=job.get("invoice_url"),
+        invoice_filename=job.get("invoice_filename"),
         created_at=job["created_at"],
         updated_at=job["updated_at"]
     )
