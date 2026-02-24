@@ -350,6 +350,14 @@ export default function JobsPage() {
   const [uploadingLabInvoice, setUploadingLabInvoice] = useState(false);
   const [viewLabInvoiceOpen, setViewLabInvoiceOpen] = useState(false);
 
+  // Email Notifications
+  const [notificationStatuses, setNotificationStatuses] = useState<NotificationStatus[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [notificationPreview, setNotificationPreview] = useState<NotificationPreview | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
