@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { dashboardApi, shipmentsApi, jobsApi } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
