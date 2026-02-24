@@ -934,7 +934,7 @@ async def get_job(job_id: str, user: dict = Depends(get_current_user)):
 
 @api_router.put("/jobs/{job_id}/status", response_model=JobResponse)
 async def update_job_status(job_id: str, status_update: JobStatusUpdate, user: dict = Depends(require_admin)):
-    valid_statuses = ["received", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "certificates_scanned", "certificates_sent", "done"]
+    valid_statuses = ["draft", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "cert_uploaded", "cert_returned", "done"]
     if status_update.status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
     
