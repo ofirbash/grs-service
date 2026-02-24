@@ -56,7 +56,6 @@ interface NotificationPreview {
 
 interface NotificationPanelProps {
   jobId: string;
-  jobNumber: number;
   currentStatus: string;
   onNotificationSent?: () => void;
 }
