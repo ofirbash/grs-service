@@ -197,6 +197,12 @@ export default function ShipmentsPage() {
   const [jobsToAdd, setJobsToAdd] = useState<string[]>([]);
   const [addingJobs, setAddingJobs] = useState(false);
 
+  // Bulk status update for jobs in shipment
+  const [selectedShipmentJobs, setSelectedShipmentJobs] = useState<string[]>([]);
+  const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [updatingBulkStatus, setUpdatingBulkStatus] = useState(false);
+
   // PDF generation
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
