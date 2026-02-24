@@ -171,6 +171,10 @@ export default function StonesPage() {
       comment: findings?.comment || ''
     });
     
+    // Initialize fee fields
+    setActualFee(stone.actual_fee !== undefined ? String(stone.actual_fee) : '');
+    setColorStabilityTest(stone.color_stability_test || false);
+    
     // If verbal findings exist with certificate_id, lock the form (view mode)
     // Customers never get edit mode
     const hasExistingFindings = !!(findings?.certificate_id);
