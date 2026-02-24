@@ -2270,7 +2270,7 @@ export default function JobsPage() {
           {viewingStone && (
             <div className="space-y-6 py-4">
               {/* Stone Info */}
-              <div className="grid grid-cols-3 gap-4 p-4 bg-navy-50 rounded-lg">
+              <div className="grid grid-cols-4 gap-4 p-4 bg-navy-50 rounded-lg">
                 <div>
                   <Label className="text-navy-500 text-xs">Type</Label>
                   <p className="font-medium text-navy-800">{viewingStone.stone_type}</p>
@@ -2288,8 +2288,55 @@ export default function JobsPage() {
                   <p className="font-medium text-navy-800">${viewingStone.value.toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-navy-500 text-xs">Fee</Label>
+                  <Label className="text-navy-500 text-xs">Est. Fee</Label>
                   <p className="font-medium text-navy-800">${viewingStone.fee.toLocaleString()}</p>
+                </div>
+                {isAdmin ? (
+                  <div>
+                    <Label className="text-navy-500 text-xs">Actual Fee</Label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-navy-600 text-sm">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={stoneActualFee}
+                        onChange={(e) => setStoneActualFee(e.target.value)}
+                        onBlur={handleSaveStoneFees}
+                        className="h-7 w-24 border-navy-200 text-sm font-medium"
+                        data-testid="stone-actual-fee-input"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  viewingStone.actual_fee !== undefined && viewingStone.actual_fee !== viewingStone.fee && (
+                    <div>
+                      <Label className="text-navy-500 text-xs">Actual Fee</Label>
+                      <p className="font-medium text-green-700">${viewingStone.actual_fee.toLocaleString()}</p>
+                    </div>
+                  )
+                )}
+                <div>
+                  <Label className="text-navy-500 text-xs">Color Stability</Label>
+                  {isAdmin ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Switch
+                        checked={stoneColorStability}
+                        onCheckedChange={(checked) => {
+                          setStoneColorStability(checked);
+                          setTimeout(() => handleSaveStoneFees(), 100);
+                        }}
+                        className="scale-75"
+                        data-testid="stone-color-stability-switch"
+                      />
+                      <span className="text-xs text-navy-600">
+                        {stoneColorStability ? '+$50' : 'No'}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="font-medium text-navy-800">
+                      {viewingStone.color_stability_test ? 'Yes (+$50)' : 'No'}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Certificate Group</Label>
