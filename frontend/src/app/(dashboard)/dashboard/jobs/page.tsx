@@ -122,6 +122,43 @@ interface Job {
   created_at: string;
 }
 
+interface NotificationStatus {
+  type: string;
+  description: string;
+  status_trigger: string;
+  is_available: boolean;
+  is_sent: boolean;
+  can_send: boolean;
+  last_sent?: {
+    sent_at: string;
+    sent_by: string;
+    status: string;
+    recipient: string;
+  };
+}
+
+interface NotificationPreview {
+  notification_type: string;
+  description: string;
+  job_number: number;
+  recipient_email: string;
+  recipient_name: string;
+  subject: string;
+  html_body: string;
+  attachments: Array<{ type: string; name: string; url: string }>;
+  can_send: boolean;
+  current_status: string;
+}
+
+// Notification type labels for display
+const NOTIFICATION_LABELS: Record<string, string> = {
+  stones_accepted: 'Stones Received',
+  verbal_uploaded: 'Verbal Results',
+  stones_returned: 'Stones Ready',
+  cert_uploaded: 'Cert. Scans Available',
+  cert_returned: 'Certificates Ready',
+};
+
 // Helper function to get certificate group label based on stone count
 const getCertificateLabel = (stoneCount: number): string => {
   if (stoneCount === 1) return 'Single';
