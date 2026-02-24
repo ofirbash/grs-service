@@ -883,6 +883,33 @@ export default function SettingsPage() {
                     </Badge>
                   ))}
                 </div>
+                {editingPricing && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <Input
+                      placeholder="New service type..."
+                      value={newServiceType}
+                      onChange={(e) => setNewServiceType(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddServiceType();
+                        }
+                      }}
+                      className="w-48 h-8 text-sm border-navy-200"
+                      data-testid="new-service-type-input"
+                    />
+                    <Button
+                      onClick={handleAddServiceType}
+                      disabled={!newServiceType.trim()}
+                      size="sm"
+                      className="bg-navy-800 hover:bg-navy-700 h-8"
+                      data-testid="add-service-type-button"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
