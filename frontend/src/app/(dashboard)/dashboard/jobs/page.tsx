@@ -911,6 +911,10 @@ export default function JobsPage() {
       cert_uploaded: 'success',
       cert_returned: 'success',
       done: 'success',
+      // Legacy statuses for backward compatibility
+      received: 'secondary',
+      certificates_scanned: 'success',
+      certificates_sent: 'success',
     };
     const labels: Record<string, string> = {
       draft: 'Draft',
@@ -921,6 +925,10 @@ export default function JobsPage() {
       cert_uploaded: 'Cert. Uploaded',
       cert_returned: 'Cert. Returned',
       done: 'Done',
+      // Legacy status labels
+      received: 'Draft',
+      certificates_scanned: 'Cert. Uploaded',
+      certificates_sent: 'Cert. Returned',
     };
     return <Badge variant={variants[status] || 'secondary'}>{labels[status] || status.replace('_', ' ')}</Badge>;
   };
