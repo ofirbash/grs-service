@@ -3190,23 +3190,16 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
     pricing = await db.pricing_config.find_one({"type": "pricing"})
     
     if pricing:
+        raw_brackets = pricing.get("brackets", [])
+        brackets = [normalize_bracket(b) for b in raw_brackets]
         return {
-            "brackets": pricing.get("brackets", []),
+            "brackets": brackets,
             "color_stability_fee": pricing.get("color_stability_fee", COLOR_STABILITY_FEE),
             "service_types": pricing.get("service_types", ["Express", "Normal", "Recheck"])
         }
     
     # Return defaults
-    brackets = [
-        {
-            "min_value": b["min"],
-            "max_value": b["max"],
-            "express_fee": b["express"],
-            "normal_fee": b["normal"],
-            "recheck_fee": b["recheck"]
-        }
-        for b in PRICING_BRACKETS
-    ]
+    brackets = [normalize_bracket(b) for b in PRICING_BRACKETS]
     return {
         "brackets": brackets,
         "color_stability_fee": COLOR_STABILITY_FEE,
