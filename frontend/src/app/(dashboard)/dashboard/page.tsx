@@ -174,13 +174,13 @@ export default function DashboardPage() {
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "success" | "warning" | "destructive"> = {
-      received: 'secondary',
+      draft: 'secondary',
       stones_accepted: 'secondary',
       sent_to_lab: 'default',
       verbal_uploaded: 'default',
       stones_returned: 'warning',
-      certificates_scanned: 'success',
-      certificates_sent: 'success',
+      cert_uploaded: 'success',
+      cert_returned: 'success',
       done: 'success',
       pending: 'warning',
       in_transit: 'default',
