@@ -302,10 +302,13 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ **Lock Indicator**: Shows "Click Edit to modify fees and verbal findings" when fields are locked on both pages
 - ✅ **Removed Redundant Edit Buttons**: Cleaned up duplicate edit buttons in verbal findings section headers
 
-### Phase 12: Dynamic Service Types (Complete) - Feb 24, 2026
+### Phase 12: Dynamic Service Types & Pricing (Complete) - Feb 24, 2026
 - ✅ **Add Service Types from Settings**: Admins can add new service types from the Pricing tab in Settings (input + Add button in edit mode)
+- ✅ **Dynamic Pricing Columns**: Each service type gets its own fee column in the pricing brackets table
+- ✅ **Dynamic Fee Calculation**: Backend calculates fees using the service type's fee from DB brackets (not hardcoded)
+- ✅ **Backward Compatibility**: Old bracket format (express_fee/normal_fee/recheck_fee) auto-converts to new `fees` dict format
 - ✅ **Dynamic Service Types in Jobs**: Jobs page fetches service types from pricing config instead of hardcoded list
-- ✅ **No Deletion**: Service types cannot be removed (by design, to protect existing jobs)
+- ✅ **No Deletion**: Service types cannot be removed (protects existing jobs)
 - ✅ **Duplicate Prevention**: Cannot add a service type that already exists (case-insensitive check)
 
 ---
