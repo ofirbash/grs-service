@@ -46,6 +46,7 @@ cloudinary.config(
 # Resend email configuration
 resend.api_key = os.getenv("RESEND_API_KEY", "")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
