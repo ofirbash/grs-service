@@ -2494,12 +2494,37 @@ export default function JobsPage() {
                     }
                     setSavingStoneVerbal(true);
                     try {
+                      // Save verbal findings
                       await stonesApi.updateStructuredVerbal(viewingStone.id, structuredFindings);
+                      
+                      // Save fee changes if any
+                      const newActualFee = stoneActualFee !== '' ? parseFloat(stoneActualFee) : undefined;
+                      const hasActualFeeChange = newActualFee !== viewingStone.fee;
+                      const hasColorStabilityChange = stoneColorStability !== viewingStone.color_stability_test;
+                      
+                      if (hasActualFeeChange || hasColorStabilityChange) {
+                        const feeUpdateData: { actual_fee?: number; color_stability_test?: boolean } = {};
+                        if (hasActualFeeChange && newActualFee !== undefined) {
+                          feeUpdateData.actual_fee = newActualFee;
+                        }
+                        if (hasColorStabilityChange) {
+                          feeUpdateData.color_stability_test = stoneColorStability;
+                        }
+                        await stonesApi.updateFees(viewingStone.id, feeUpdateData);
+                      }
+                      
                       // Update local state
-                      setViewingStone({ ...viewingStone, verbal_findings: structuredFindings });
+                      const updatedStone = { 
+                        ...viewingStone, 
+                        verbal_findings: structuredFindings,
+                        actual_fee: hasActualFeeChange ? newActualFee : viewingStone.actual_fee,
+                        color_stability_test: hasColorStabilityChange ? stoneColorStability : viewingStone.color_stability_test
+                      };
+                      setViewingStone(updatedStone);
+                      
                       if (selectedJob) {
                         const updatedStones = selectedJob.stones?.map(s => 
-                          s.id === viewingStone.id ? { ...s, verbal_findings: structuredFindings } : s
+                          s.id === viewingStone.id ? updatedStone : s
                         );
                         setSelectedJob({ ...selectedJob, stones: updatedStones });
                       }
@@ -2508,15 +2533,15 @@ export default function JobsPage() {
                       // Lock the form after saving
                       setVerbalEditMode(false);
                     } catch (error) {
-                      console.error('Failed to save verbal findings:', error);
-                      alert('Failed to save verbal findings');
+                      console.error('Failed to save:', error);
+                      alert('Failed to save changes');
                     } finally {
                       setSavingStoneVerbal(false);
                     }
                   }}
                   disabled={savingStoneVerbal || !structuredFindings.certificate_id}
                   className="bg-navy-800 hover:bg-navy-700 w-full"
-                  data-testid="save-stone-verbal-button"
+                  data-testid="save-stone-button"
                 >
                   {savingStoneVerbal ? (
                     <>
@@ -2526,7 +2551,7 @@ export default function JobsPage() {
                   ) : (
                     <>
                       <Check className="h-4 w-4 mr-2" />
-                      Save Verbal Findings
+                      Save Changes
                     </>
                   )}
                 </Button>
