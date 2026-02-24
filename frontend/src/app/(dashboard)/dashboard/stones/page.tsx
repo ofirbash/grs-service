@@ -43,7 +43,10 @@ import {
   Check,
   Pencil,
   Lock,
+  DollarSign,
+  FlaskConical,
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 
 interface StructuredVerbalFindings {
   certificate_id?: string;
