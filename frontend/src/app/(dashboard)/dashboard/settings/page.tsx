@@ -346,6 +346,17 @@ export default function SettingsPage() {
     setPricingForm({ ...pricingForm, brackets: newBrackets });
   };
 
+  const handleAddServiceType = () => {
+    const trimmed = newServiceType.trim();
+    if (!trimmed) return;
+    if (pricingForm.service_types.some(t => t.toLowerCase() === trimmed.toLowerCase())) {
+      alert('This service type already exists');
+      return;
+    }
+    setPricingForm({ ...pricingForm, service_types: [...pricingForm.service_types, trimmed] });
+    setNewServiceType('');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64" data-testid="settings-loading">
