@@ -2085,7 +2085,14 @@ export default function JobsPage() {
                                   <TableCell>{stone.weight} ct</TableCell>
                                   <TableCell>{stone.shape}</TableCell>
                                   <TableCell>${stone.value.toLocaleString()}</TableCell>
-                                  <TableCell>${stone.fee.toLocaleString()}</TableCell>
+                                  <TableCell>
+                                    <div>
+                                      <span>${stone.fee.toLocaleString()}</span>
+                                      {stone.actual_fee !== undefined && stone.actual_fee !== stone.fee && (
+                                        <p className="text-xs text-green-600">Actual: ${stone.actual_fee.toLocaleString()}</p>
+                                      )}
+                                    </div>
+                                  </TableCell>
                                   <TableCell onClick={(e) => e.stopPropagation()}>
                                     <div className="flex items-center gap-1">
                                       <Badge variant="outline" className="bg-navy-100">Cert {groupNum}</Badge>
