@@ -1360,7 +1360,7 @@ export default function JobsPage() {
                     <SelectValue placeholder="Select service" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SERVICE_TYPES.map((type) => (
+                    {serviceTypes.map((type) => (
                       <SelectItem key={type} value={type}>
                         {type}
                       </SelectItem>
