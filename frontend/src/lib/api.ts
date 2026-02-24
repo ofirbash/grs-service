@@ -304,6 +304,26 @@ export const dashboardApi = {
   },
 };
 
+// Notifications API
+export const notificationsApi = {
+  getStatus: async (jobId: string) => {
+    const response = await api.get(`/jobs/${jobId}/notifications/status`);
+    return response.data;
+  },
+  preview: async (jobId: string, notificationType: string) => {
+    const response = await api.get(`/jobs/${jobId}/notifications/preview/${notificationType}`);
+    return response.data;
+  },
+  send: async (jobId: string, notificationType: string, recipientEmail: string, customMessage?: string) => {
+    const response = await api.post(`/jobs/${jobId}/notifications/send/${notificationType}`, {
+      notification_type: notificationType,
+      recipient_email: recipientEmail,
+      custom_message: customMessage,
+    });
+    return response.data;
+  },
+};
+
 // Cloudinary Upload API
 export const cloudinaryApi = {
   getSignature: async (folder: string = 'uploads', resourceType: 'image' | 'raw' = 'image') => {
