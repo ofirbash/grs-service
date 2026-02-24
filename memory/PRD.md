@@ -343,6 +343,11 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - PUT `/api/jobs/{id}/group-stones` - Group stones for certificate
 - PUT `/api/jobs/{id}/memo` - Upload signed memo
 
+### Notifications (Email)
+- GET `/api/jobs/{job_id}/notifications/status` - Get notification status for a job
+- GET `/api/jobs/{job_id}/notifications/preview/{type}` - Preview email content
+- POST `/api/jobs/{job_id}/notifications/send/{type}` - Send email via Resend
+
 ### Clients
 - GET `/api/clients` - List all clients
 - POST `/api/clients` - Create new client
