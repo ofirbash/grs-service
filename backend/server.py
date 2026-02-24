@@ -1732,10 +1732,10 @@ async def update_shipment_status(
             }
         elif shipment_type == "certificates_from_lab":
             status_mapping = {
-                "pending": "certificates_scanned",
-                "in_transit": "certificates_sent",
-                "delivered": "certificates_sent",
-                "cancelled": "certificates_scanned"
+                "pending": "cert_uploaded",
+                "in_transit": "cert_returned",
+                "delivered": "cert_returned",
+                "cancelled": "cert_uploaded"
             }
         else:
             status_mapping = {
