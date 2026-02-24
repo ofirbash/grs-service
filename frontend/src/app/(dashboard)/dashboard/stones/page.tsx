@@ -708,10 +708,54 @@ export default function StonesPage() {
                 
                 {isAdmin && verbalEditMode && (
                 <Button
-                  onClick={handleSaveVerbalFindings}
+                  onClick={async () => {
+                    if (!selectedStone) return;
+                    if (!structuredFindings.certificate_id) {
+                      alert('Certificate ID is required');
+                      return;
+                    }
+                    setSavingVerbal(true);
+                    try {
+                      // Save verbal findings
+                      await stonesApi.updateStructuredVerbal(selectedStone.id, structuredFindings);
+                      
+                      // Save fee changes if any
+                      const newActualFee = actualFee !== '' ? parseFloat(actualFee) : undefined;
+                      const hasActualFeeChange = newActualFee !== selectedStone.actual_fee;
+                      const hasColorStabilityChange = colorStabilityTest !== selectedStone.color_stability_test;
+                      
+                      if (hasActualFeeChange || hasColorStabilityChange) {
+                        const feeUpdateData: { actual_fee?: number; color_stability_test?: boolean } = {};
+                        if (hasActualFeeChange && newActualFee !== undefined) {
+                          feeUpdateData.actual_fee = newActualFee;
+                        }
+                        if (hasColorStabilityChange) {
+                          feeUpdateData.color_stability_test = colorStabilityTest;
+                        }
+                        await stonesApi.updateFees(selectedStone.id, feeUpdateData);
+                      }
+                      
+                      // Update local state
+                      const updatedStone = { 
+                        ...selectedStone, 
+                        verbal_findings: structuredFindings,
+                        actual_fee: (hasActualFeeChange && newActualFee !== undefined) ? newActualFee : selectedStone.actual_fee,
+                        color_stability_test: hasColorStabilityChange ? colorStabilityTest : selectedStone.color_stability_test
+                      };
+                      setStones(prev => prev.map(s => s.id === selectedStone.id ? updatedStone : s));
+                      setSelectedStone(updatedStone);
+                      // Lock the form after saving
+                      setVerbalEditMode(false);
+                    } catch (error) {
+                      console.error('Failed to save:', error);
+                      alert('Failed to save changes');
+                    } finally {
+                      setSavingVerbal(false);
+                    }
+                  }}
                   disabled={savingVerbal || !structuredFindings.certificate_id}
                   className="bg-navy-800 hover:bg-navy-700 w-full"
-                  data-testid="save-verbal-button"
+                  data-testid="save-stone-button"
                 >
                   {savingVerbal ? (
                     <>
@@ -721,7 +765,7 @@ export default function StonesPage() {
                   ) : (
                     <>
                       <Check className="h-4 w-4 mr-2" />
-                      Save Verbal Findings
+                      Save Changes
                     </>
                   )}
                 </Button>
