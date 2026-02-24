@@ -147,6 +147,10 @@ class TokenResponse(BaseModel):
     user: UserResponse
     requires_2fa: bool = False
 
+class SetupPasswordRequest(BaseModel):
+    token: str
+    password: str
+
 # Branch Models
 class BranchCreate(BaseModel):
     name: str  # e.g., "Israel", "USA"
