@@ -2582,6 +2582,108 @@ export default function JobsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Email Preview Modal */}
+      <Dialog open={previewModalOpen} onOpenChange={(open) => {
+        setPreviewModalOpen(open);
+        if (!open) {
+          setNotificationPreview(null);
+        }
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              Review Email Before Sending
+            </DialogTitle>
+            <DialogDescription>
+              Preview the email content before sending to the client.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingPreview ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-navy-600" />
+            </div>
+          ) : notificationPreview ? (
+            <div className="flex-1 overflow-y-auto space-y-4 py-4">
+              {/* Email Details */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-navy-50 rounded-lg">
+                <div>
+                  <Label className="text-navy-500 text-xs">To</Label>
+                  <p className="font-medium text-navy-800">{notificationPreview.recipient_email}</p>
+                  <p className="text-sm text-navy-600">{notificationPreview.recipient_name}</p>
+                </div>
+                <div>
+                  <Label className="text-navy-500 text-xs">Job</Label>
+                  <p className="font-medium text-navy-800">#{notificationPreview.job_number}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-navy-500 text-xs">Subject</Label>
+                  <p className="font-medium text-navy-800">{notificationPreview.subject}</p>
+                </div>
+                {notificationPreview.attachments.length > 0 && (
+                  <div className="col-span-2">
+                    <Label className="text-navy-500 text-xs">Attachments</Label>
+                    <div className="flex gap-2 mt-1">
+                      {notificationPreview.attachments.map((att, idx) => (
+                        <Badge key={idx} variant="secondary" className="bg-blue-100 text-blue-800">
+                          <FileText className="h-3 w-3 mr-1" />
+                          {att.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Email Preview */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-navy-100 px-4 py-2 text-sm font-medium text-navy-700 border-b">
+                  Email Preview
+                </div>
+                <div 
+                  className="p-4 bg-white"
+                  style={{ maxHeight: '400px', overflowY: 'auto' }}
+                  dangerouslySetInnerHTML={{ __html: notificationPreview.html_body }}
+                />
+              </div>
+
+              {!notificationPreview.can_send && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-amber-800 text-sm">
+                    <strong>Note:</strong> Email sending is not configured. The API key may be missing.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          <DialogFooter className="border-t pt-4 mt-auto">
+            <Button variant="outline" onClick={() => setPreviewModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendNotification}
+              disabled={sendingEmail || !notificationPreview?.can_send}
+              className="bg-green-600 hover:bg-green-700"
+              data-testid="send-notification-button"
+            >
+              {sendingEmail ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
