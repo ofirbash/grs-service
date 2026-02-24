@@ -2206,14 +2206,8 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
         """
         
     elif notification_type == "verbal_uploaded":
-        # Get certificate IDs from verbal findings in each stone
-        cert_ids = list(set([
-            s.get('verbal_findings', {}).get('certificate_id', '') 
-            for s in stones 
-            if s.get('verbal_findings', {}).get('certificate_id')
-        ]))
-        cert_id_str = ', '.join([str(c) for c in cert_ids]) if cert_ids else 'N/A'
-        subject = f"Job #{job_number} - Certificate #{cert_id_str}: Verbal Results - GRS Global"
+        # Simple subject without certificate numbers
+        subject = f"Job #{job_number}: Verbal Results Available - GRS Global"
         verbal_table = generate_verbal_results_table_html(stones, verbal_findings)
         
         body = f"""
@@ -2224,10 +2218,12 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
             
             <h3 style="color: #102a43; margin-top: 30px;">Job Details</h3>
             <p><strong>Job Number:</strong> #{job_number}</p>
-            <p><strong>Certificate ID(s):</strong> {cert_id_str}</p>
+            <p><strong>Total Stones:</strong> {len(stones)}</p>
             
             <h3 style="color: #102a43; margin-top: 30px;">Verbal Results</h3>
-            {verbal_table}
+            <div style="display: flex; justify-content: center;">
+                {verbal_table}
+            </div>
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
                 Please review the results above. Contact us if you have any questions.
