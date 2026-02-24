@@ -527,7 +527,8 @@ export default function StonesPage() {
                         value={actualFee}
                         onChange={(e) => setActualFee(e.target.value)}
                         onBlur={handleSaveFees}
-                        className="h-7 w-24 border-navy-200 text-sm font-medium"
+                        className={`h-7 w-24 border-navy-200 text-sm font-medium ${savingFees ? 'opacity-50' : ''}`}
+                        disabled={savingFees}
                         data-testid="actual-fee-input"
                       />
                     </div>
@@ -552,6 +553,7 @@ export default function StonesPage() {
                           setTimeout(() => handleSaveFees(), 100);
                         }}
                         className="scale-75"
+                        disabled={savingFees}
                         data-testid="color-stability-switch"
                       />
                       <span className="text-xs text-navy-600">
