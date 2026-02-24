@@ -199,6 +199,12 @@ export default function JobsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const labInvoiceInputRef = useRef<HTMLInputElement>(null);
 
+  // Bulk job selection for status update
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
+  const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [updatingBulkStatus, setUpdatingBulkStatus] = useState(false);
+
   // Create job dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
