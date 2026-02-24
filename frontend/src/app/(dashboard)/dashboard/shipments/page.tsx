@@ -1135,6 +1135,11 @@ export default function ShipmentsPage() {
                       size="sm"
                       onClick={() => {
                         setJobsToAdd([]);
+                        // Filter out jobs already in this shipment
+                        const jobsNotInShipment = availableJobs.filter(
+                          job => !selectedShipment.job_ids?.includes(job.id)
+                        );
+                        setFilteredAvailableJobs(jobsNotInShipment);
                         setAddJobsDialogOpen(true);
                       }}
                       data-testid="add-jobs-button"
