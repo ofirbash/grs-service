@@ -201,6 +201,34 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - `/stones/group/certificate-scan` defined before `/stones/{stone_id}/certificate-scan`
   - Both endpoints work correctly now
 
+### Phase 10: 5-Stage Email Notification System (Complete) - Feb 24, 2026
+- ✅ **Resend Integration**
+  - Added Resend API key to backend .env
+  - Email sending via Resend API with HTML templates
+  - Attachment support for PDF files (Memo-In, Invoice)
+- ✅ **5 Notification Types**
+  1. `stones_accepted` - Stones Received confirmation with stones table and fees
+  2. `verbal_uploaded` - Lab findings with verbal results table
+  3. `stones_returned` - Notice that stones are ready for collection
+  4. `cert_uploaded` - Digital certificate scans available with download links
+  5. `cert_returned` - Physical certificates ready for final collection
+- ✅ **Backend API Endpoints**
+  - GET `/api/jobs/{job_id}/notifications/status` - Returns available notifications based on job status
+  - GET `/api/jobs/{job_id}/notifications/preview/{type}` - Preview email content (subject, HTML body, recipient)
+  - POST `/api/jobs/{job_id}/notifications/send/{type}` - Send email via Resend
+- ✅ **Frontend "Review & Send" Workflow**
+  - Email Notifications section in Job detail modal (admin only)
+  - Shows available notifications based on job status
+  - "Review" button to preview email content
+  - Email preview modal with recipient info, subject, and rendered HTML
+  - "Send Email" button to send after review
+  - Sent notifications shown with green checkmark and timestamp
+- ✅ **Email Templates**
+  - Professional GRS Global branded header
+  - Dynamic data tables (stones, fees, verbal results, certificate links)
+  - Personalized greeting with client name
+  - Attachment indicators for PDF files
+
 ### Backend (Previously Complete)
 - ✅ Full CRUD APIs for all entities
 - ✅ Shipment workflow with job linking
