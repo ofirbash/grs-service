@@ -1376,13 +1376,13 @@ export default function JobsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="received">Received</SelectItem>
+                        <SelectItem value="draft">Draft</SelectItem>
                         <SelectItem value="stones_accepted">Stones Accepted</SelectItem>
                         <SelectItem value="sent_to_lab">Sent to Lab</SelectItem>
                         <SelectItem value="verbal_uploaded">Verbal Uploaded</SelectItem>
                         <SelectItem value="stones_returned">Stones Returned</SelectItem>
-                        <SelectItem value="certificates_scanned">Cert. Scanned</SelectItem>
-                        <SelectItem value="certificates_sent">Cert. Sent</SelectItem>
+                        <SelectItem value="cert_uploaded">Cert. Uploaded</SelectItem>
+                        <SelectItem value="cert_returned">Cert. Returned</SelectItem>
                         <SelectItem value="done">Done</SelectItem>
                       </SelectContent>
                     </Select>
