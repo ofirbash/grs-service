@@ -1907,19 +1907,350 @@ async def add_verbal_finding(job_id: str, finding: VerbalFindingCreate, user: di
 
 # ============== NOTIFICATION ENDPOINTS ==============
 
-NOTIFICATION_TYPES = {
-    "accepted": {"sms": "Job #{job_id} accepted. Track: {link}", "subject": "Job #{job_id}: Stones Accepted"},
-    "results_ready": {"sms": "Job #{job_id} verbal results ready. View: {link}", "subject": "Job #{job_id}: Verbal Results Available"},
-    "stones_back": {"sms": "Job #{job_id} stones returned. Collect: {link}", "subject": "Job #{job_id}: Stones Returned to Office"},
-    "payment_request": {"sms": "Job #{job_id} payment due. Pay: {link}", "subject": "Job #{job_id}: Payment Request"},
-    "scans_ready": {"sms": "Job #{job_id} cert scans ready. View: {link}", "subject": "Job #{job_id}: Certificate Scans Available"},
-    "certs_arrived": {"sms": "Job #{job_id} physical certs arrived. Collect: {link}", "subject": "Job #{job_id}: Physical Certificates Arrived"}
+# Email notification types mapped to job statuses
+EMAIL_NOTIFICATION_TYPES = {
+    "stones_accepted": {
+        "status": "stones_accepted",
+        "subject": "Job #{job_number}: Stones Received - GRS Global",
+        "description": "Initial drop-off confirmation with stones table and fees"
+    },
+    "verbal_uploaded": {
+        "status": "verbal_uploaded",
+        "subject": "Job #{job_number} - Certificate #{cert_id}: Verbal Results - GRS Global",
+        "description": "Lab findings with verbal results table"
+    },
+    "stones_returned": {
+        "status": "stones_returned",
+        "subject": "Job #{job_number}: Stones Ready for Collection - GRS Global",
+        "description": "Notice that stones have returned to office"
+    },
+    "cert_uploaded": {
+        "status": "cert_uploaded",
+        "subject": "Job #{job_number}: Certificate Scans Available - GRS Global",
+        "description": "Digital certificate scans with download links"
+    },
+    "cert_returned": {
+        "status": "cert_returned",
+        "subject": "Job #{job_number}: Physical Certificates Ready - GRS Global",
+        "description": "Final collection notice for physical certificates"
+    }
 }
 
-@api_router.post("/jobs/{job_id}/notify/{notification_type}")
-async def send_notification(job_id: str, notification_type: str, user: dict = Depends(require_admin)):
-    if notification_type not in NOTIFICATION_TYPES:
-        raise HTTPException(status_code=400, detail=f"Invalid notification type. Must be one of: {list(NOTIFICATION_TYPES.keys())}")
+class EmailPreviewRequest(BaseModel):
+    notification_type: str
+    recipient_email: Optional[str] = None
+
+class SendEmailRequest(BaseModel):
+    notification_type: str
+    recipient_email: str
+    custom_message: Optional[str] = None
+
+def generate_stones_table_html(stones: list) -> str:
+    """Generate HTML table for stones"""
+    rows = ""
+    for stone in stones:
+        rows += f"""
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px; text-align: left;">{stone.get('sku', 'N/A')}</td>
+            <td style="padding: 12px; text-align: left;">{stone.get('weight', 0)} ct</td>
+            <td style="padding: 12px; text-align: left;">{stone.get('stone_type', 'N/A')}</td>
+            <td style="padding: 12px; text-align: left;">{stone.get('shape', 'N/A')}</td>
+            <td style="padding: 12px; text-align: right;">${stone.get('value', 0):,.2f}</td>
+        </tr>"""
+    return f"""
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+        <thead>
+            <tr style="background-color: #102a43; color: white;">
+                <th style="padding: 12px; text-align: left;">SKU</th>
+                <th style="padding: 12px; text-align: left;">Weight</th>
+                <th style="padding: 12px; text-align: left;">Type</th>
+                <th style="padding: 12px; text-align: left;">Shape</th>
+                <th style="padding: 12px; text-align: right;">Value</th>
+            </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+    </table>"""
+
+def generate_verbal_results_table_html(stones: list, verbal_findings: list) -> str:
+    """Generate HTML table for verbal results"""
+    rows = ""
+    for stone in stones:
+        vf = next((v for v in verbal_findings if v.get("stone_id") == stone.get("id")), None)
+        rows += f"""
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px; text-align: left;">{stone.get('sku', 'N/A')}</td>
+            <td style="padding: 12px; text-align: left;">{vf.get('identification', 'Pending') if vf else 'Pending'}</td>
+            <td style="padding: 12px; text-align: left;">{stone.get('weight', 0)} ct</td>
+            <td style="padding: 12px; text-align: left;">{vf.get('color', 'N/A') if vf else 'N/A'}</td>
+            <td style="padding: 12px; text-align: left;">{vf.get('origin', 'N/A') if vf else 'N/A'}</td>
+            <td style="padding: 12px; text-align: left;">{vf.get('comment', '') if vf else ''}</td>
+        </tr>"""
+    return f"""
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+        <thead>
+            <tr style="background-color: #102a43; color: white;">
+                <th style="padding: 12px; text-align: left;">SKU</th>
+                <th style="padding: 12px; text-align: left;">Identification</th>
+                <th style="padding: 12px; text-align: left;">Carat Weight</th>
+                <th style="padding: 12px; text-align: left;">Color</th>
+                <th style="padding: 12px; text-align: left;">Origin</th>
+                <th style="padding: 12px; text-align: left;">Comment</th>
+            </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+    </table>"""
+
+def generate_cert_scans_table_html(stones: list) -> str:
+    """Generate HTML table with certificate scan download links"""
+    rows = ""
+    for stone in stones:
+        scan_url = stone.get('certificate_scan_url', '')
+        if scan_url:
+            link = f'<a href="{scan_url}" style="color: #2563eb; text-decoration: none;">Download Certificate</a>'
+        else:
+            link = '<span style="color: #6b7280;">Not available</span>'
+        rows += f"""
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px; text-align: left;">{stone.get('sku', 'N/A')}</td>
+            <td style="padding: 12px; text-align: left;">{stone.get('stone_type', 'N/A')}</td>
+            <td style="padding: 12px; text-align: left;">{stone.get('weight', 0)} ct</td>
+            <td style="padding: 12px; text-align: left;">{link}</td>
+        </tr>"""
+    return f"""
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+        <thead>
+            <tr style="background-color: #102a43; color: white;">
+                <th style="padding: 12px; text-align: left;">SKU</th>
+                <th style="padding: 12px; text-align: left;">Type</th>
+                <th style="padding: 12px; text-align: left;">Weight</th>
+                <th style="padding: 12px; text-align: left;">Certificate Scan</th>
+            </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+    </table>"""
+
+def generate_fees_table_html(job: dict) -> str:
+    """Generate HTML table for fees breakdown"""
+    certificate_units = job.get('certificate_units', [])
+    rows = ""
+    for i, unit in enumerate(certificate_units, 1):
+        rows += f"""
+        <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px; text-align: left;">Certificate Unit {i}</td>
+            <td style="padding: 12px; text-align: left;">{unit.get('type', 'Standard')}</td>
+            <td style="padding: 12px; text-align: right;">${unit.get('fee', 0):,.2f}</td>
+        </tr>"""
+    
+    # Add total row
+    total_fee = job.get('total_fee', 0)
+    rows += f"""
+    <tr style="background-color: #f3f4f6; font-weight: bold;">
+        <td colspan="2" style="padding: 12px; text-align: right;">Total Fee:</td>
+        <td style="padding: 12px; text-align: right;">${total_fee:,.2f}</td>
+    </tr>"""
+    
+    return f"""
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+        <thead>
+            <tr style="background-color: #102a43; color: white;">
+                <th style="padding: 12px; text-align: left;">Item</th>
+                <th style="padding: 12px; text-align: left;">Type</th>
+                <th style="padding: 12px; text-align: right;">Fee</th>
+            </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+    </table>"""
+
+def build_notification_email_html(notification_type: str, job: dict, client: dict) -> tuple:
+    """Build HTML email content for notification type. Returns (subject, html_body)"""
+    job_number = job.get('job_number', 'N/A')
+    client_name = client.get('name', 'Valued Customer')
+    stones = job.get('stones', [])
+    verbal_findings = job.get('verbal_findings', [])
+    
+    # Common header
+    header = f"""
+    <div style="background-color: #102a43; padding: 20px; text-align: center;">
+        <h1 style="color: #fbbf24; margin: 0; font-size: 24px;">GRS Global</h1>
+        <p style="color: white; margin: 5px 0 0 0; font-size: 14px;">Lab Logistics & ERP System</p>
+    </div>
+    """
+    
+    # Common footer
+    footer = f"""
+    <div style="background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #6b7280;">
+        <p>This is an automated notification from GRS Global.</p>
+        <p>If you have any questions, please contact us.</p>
+    </div>
+    """
+    
+    if notification_type == "stones_accepted":
+        subject = f"Job #{job_number}: Stones Received - GRS Global"
+        stones_table = generate_stones_table_html(stones)
+        fees_table = generate_fees_table_html(job)
+        
+        body = f"""
+        <div style="padding: 30px;">
+            <h2 style="color: #102a43; margin-bottom: 20px;">Stones Received</h2>
+            <p style="color: #374151; font-size: 16px;">Dear {client_name},</p>
+            <p style="color: #374151; font-size: 16px;">Your stones have been received and logged into our system.</p>
+            
+            <h3 style="color: #102a43; margin-top: 30px;">Job Details</h3>
+            <p><strong>Job Number:</strong> #{job_number}</p>
+            <p><strong>Total Stones:</strong> {len(stones)}</p>
+            <p><strong>Total Value:</strong> ${job.get('total_value', 0):,.2f}</p>
+            
+            <h3 style="color: #102a43; margin-top: 30px;">Stones Received</h3>
+            {stones_table}
+            
+            <h3 style="color: #102a43; margin-top: 30px;">Fee Breakdown</h3>
+            {fees_table}
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                <em>The signed Memo-In document is attached to this email.</em>
+            </p>
+        </div>
+        """
+        
+    elif notification_type == "verbal_uploaded":
+        cert_ids = list(set([s.get('certificate_group', '') for s in stones if s.get('certificate_group')]))
+        cert_id_str = ', '.join([str(c) for c in cert_ids]) if cert_ids else 'N/A'
+        subject = f"Job #{job_number} - Certificate #{cert_id_str}: Verbal Results - GRS Global"
+        verbal_table = generate_verbal_results_table_html(stones, verbal_findings)
+        
+        body = f"""
+        <div style="padding: 30px;">
+            <h2 style="color: #102a43; margin-bottom: 20px;">Verbal Results Available</h2>
+            <p style="color: #374151; font-size: 16px;">Dear {client_name},</p>
+            <p style="color: #374151; font-size: 16px;">The verbal findings for your stones are now available.</p>
+            
+            <h3 style="color: #102a43; margin-top: 30px;">Job Details</h3>
+            <p><strong>Job Number:</strong> #{job_number}</p>
+            <p><strong>Certificate ID(s):</strong> {cert_id_str}</p>
+            
+            <h3 style="color: #102a43; margin-top: 30px;">Verbal Results</h3>
+            {verbal_table}
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                Please review the results above. Contact us if you have any questions.
+            </p>
+        </div>
+        """
+        
+    elif notification_type == "stones_returned":
+        subject = f"Job #{job_number}: Stones Ready for Collection - GRS Global"
+        
+        body = f"""
+        <div style="padding: 30px;">
+            <h2 style="color: #102a43; margin-bottom: 20px;">Stones Ready for Collection</h2>
+            <p style="color: #374151; font-size: 16px;">Dear {client_name},</p>
+            <p style="color: #374151; font-size: 16px;">
+                <strong>Your stones have returned to our Israel office and are ready for collection.</strong>
+            </p>
+            
+            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+                <p style="color: #92400e; margin: 0; font-weight: bold;">
+                    Payment is required upon pickup.
+                </p>
+            </div>
+            
+            <h3 style="color: #102a43; margin-top: 30px;">Job Summary</h3>
+            <p><strong>Job Number:</strong> #{job_number}</p>
+            <p><strong>Total Stones:</strong> {len(stones)}</p>
+            <p><strong>Total Fee Due:</strong> ${job.get('total_fee', 0):,.2f}</p>
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                <em>The invoice for the total fees is attached to this email.</em>
+            </p>
+        </div>
+        """
+        
+    elif notification_type == "cert_uploaded":
+        subject = f"Job #{job_number}: Certificate Scans Available - GRS Global"
+        scans_table = generate_cert_scans_table_html(stones)
+        
+        body = f"""
+        <div style="padding: 30px;">
+            <h2 style="color: #102a43; margin-bottom: 20px;">Certificate Scans Available</h2>
+            <p style="color: #374151; font-size: 16px;">Dear {client_name},</p>
+            <p style="color: #374151; font-size: 16px;">
+                The digital certificate scans for your stones are now available for download.
+            </p>
+            
+            <h3 style="color: #102a43; margin-top: 30px;">Certificate Downloads</h3>
+            {scans_table}
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                Click the download link next to each stone to view the certificate scan.
+            </p>
+        </div>
+        """
+        
+    elif notification_type == "cert_returned":
+        subject = f"Job #{job_number}: Physical Certificates Ready - GRS Global"
+        
+        body = f"""
+        <div style="padding: 30px;">
+            <h2 style="color: #102a43; margin-bottom: 20px;">Physical Certificates Ready</h2>
+            <p style="color: #374151; font-size: 16px;">Dear {client_name},</p>
+            <p style="color: #374151; font-size: 16px;">
+                <strong>Your physical certificates have arrived at our office and are ready for final collection.</strong>
+            </p>
+            
+            <div style="background-color: #d1fae5; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
+                <p style="color: #065f46; margin: 0;">
+                    Please visit our office to collect your certificates along with your stones.
+                </p>
+            </div>
+            
+            <h3 style="color: #102a43; margin-top: 30px;">Job Summary</h3>
+            <p><strong>Job Number:</strong> #{job_number}</p>
+            <p><strong>Total Stones:</strong> {len(stones)}</p>
+            <p><strong>Total Certificates:</strong> {len([s for s in stones if s.get('certificate_scan_url')])}</p>
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
+                Thank you for choosing GRS Global for your gemstone certification needs.
+            </p>
+        </div>
+        """
+    else:
+        subject = f"Job #{job_number}: Update - GRS Global"
+        body = f"""
+        <div style="padding: 30px;">
+            <h2 style="color: #102a43;">Job Update</h2>
+            <p>Dear {client_name},</p>
+            <p>Your job #{job_number} has been updated. Please log in to view details.</p>
+        </div>
+        """
+    
+    # Combine into full HTML email
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; background-color: #f9fafb;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            {header}
+            {body}
+            {footer}
+        </div>
+    </body>
+    </html>
+    """
+    
+    return subject, html_body
+
+@api_router.get("/jobs/{job_id}/notifications/preview/{notification_type}")
+async def preview_notification(job_id: str, notification_type: str, user: dict = Depends(require_admin)):
+    """Preview email notification content without sending"""
+    if notification_type not in EMAIL_NOTIFICATION_TYPES:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid notification type. Must be one of: {list(EMAIL_NOTIFICATION_TYPES.keys())}"
+        )
     
     job = await db.jobs.find_one({"_id": ObjectId(job_id)})
     if not job:
@@ -1929,25 +2260,130 @@ async def send_notification(job_id: str, notification_type: str, user: dict = De
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    # Generate notification content
-    notification_config = NOTIFICATION_TYPES[notification_type]
-    link = f"https://bashari.app/jobs/{job_id}"
+    subject, html_body = build_notification_email_html(notification_type, job, client)
     
-    sms_message = notification_config["sms"].format(job_id=job["job_number"], link=link)
-    email_subject = notification_config["subject"].format(job_id=job["job_number"])
+    # Determine attachments needed
+    attachments = []
+    if notification_type == "stones_accepted" and job.get("signed_memo_url"):
+        attachments.append({
+            "type": "signed_memo",
+            "name": "Signed_Memo.pdf",
+            "url": job.get("signed_memo_url")
+        })
+    elif notification_type == "stones_returned" and job.get("lab_invoice_url"):
+        attachments.append({
+            "type": "invoice",
+            "name": "Invoice.pdf",
+            "url": job.get("lab_invoice_url")
+        })
     
-    # Build email body based on notification type
-    email_body = build_email_body(notification_type, job, client)
+    return {
+        "notification_type": notification_type,
+        "description": EMAIL_NOTIFICATION_TYPES[notification_type]["description"],
+        "job_number": job.get("job_number"),
+        "recipient_email": client.get("email"),
+        "recipient_name": client.get("name"),
+        "subject": subject,
+        "html_body": html_body,
+        "attachments": attachments,
+        "can_send": bool(resend.api_key),
+        "current_status": job.get("status")
+    }
+
+@api_router.post("/jobs/{job_id}/notifications/send/{notification_type}")
+async def send_notification_email(
+    job_id: str, 
+    notification_type: str, 
+    request: SendEmailRequest,
+    user: dict = Depends(require_admin)
+):
+    """Send email notification to client"""
+    if notification_type not in EMAIL_NOTIFICATION_TYPES:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid notification type. Must be one of: {list(EMAIL_NOTIFICATION_TYPES.keys())}"
+        )
     
-    # Log the notification (MOCK for MVP)
+    job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    client = await db.clients.find_one({"_id": ObjectId(job["client_id"])})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    subject, html_body = build_notification_email_html(notification_type, job, client)
+    
+    # Prepare attachments
+    attachments_for_email = []
+    attachment_info = []
+    
+    if notification_type == "stones_accepted" and job.get("signed_memo_url"):
+        attachment_info.append({"type": "signed_memo", "url": job.get("signed_memo_url")})
+    elif notification_type == "stones_returned" and job.get("lab_invoice_url"):
+        attachment_info.append({"type": "invoice", "url": job.get("lab_invoice_url")})
+    
+    # Download attachments for email
+    for att in attachment_info:
+        try:
+            # For Cloudinary URLs or base64, handle appropriately
+            if att["url"].startswith("http"):
+                # Download file from URL
+                import httpx
+                async with httpx.AsyncClient() as http_client:
+                    response = await http_client.get(att["url"])
+                    if response.status_code == 200:
+                        content = response.content
+                        filename = f"{att['type']}.pdf"
+                        attachments_for_email.append({
+                            "filename": filename,
+                            "content": list(content)  # Resend expects list of bytes
+                        })
+        except Exception as e:
+            logger.warning(f"Failed to download attachment {att['type']}: {e}")
+    
+    # Log the notification
     notification_log = {
         "id": str(uuid.uuid4()),
         "notification_type": notification_type,
         "sent_at": datetime.utcnow(),
         "sent_by": user["full_name"],
-        "message": f"SMS: {sms_message} | Email: {email_subject}"
+        "recipient_email": request.recipient_email,
+        "subject": subject,
+        "status": "pending"
     }
     
+    # Send email via Resend
+    if resend.api_key:
+        try:
+            email_params = {
+                "from": SENDER_EMAIL,
+                "to": [request.recipient_email],
+                "subject": subject,
+                "html": html_body
+            }
+            
+            if attachments_for_email:
+                email_params["attachments"] = attachments_for_email
+            
+            response = resend.Emails.send(email_params)
+            
+            notification_log["status"] = "sent"
+            notification_log["resend_id"] = response.get("id") if isinstance(response, dict) else str(response)
+            
+            logger.info(f"Email sent successfully to {request.recipient_email} - ID: {notification_log['resend_id']}")
+            
+        except Exception as e:
+            notification_log["status"] = "failed"
+            notification_log["error"] = str(e)
+            logger.error(f"Failed to send email: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+    else:
+        # Mock mode - log but don't send
+        notification_log["status"] = "mocked"
+        logger.info(f"[MOCK EMAIL] To: {request.recipient_email} - Subject: {subject}")
+    
+    # Update job with notification log
     await db.jobs.update_one(
         {"_id": ObjectId(job_id)},
         {
@@ -1956,74 +2392,73 @@ async def send_notification(job_id: str, notification_type: str, user: dict = De
         }
     )
     
-    # Log mock notification
-    logger.info(f"[MOCK SMS] To: {client.get('phone', 'N/A')} - {sms_message}")
-    logger.info(f"[MOCK EMAIL] To: {client['email']} - Subject: {email_subject}")
-    logger.info(f"[MOCK EMAIL BODY] {email_body[:200]}...")
-    
     return {
-        "message": f"Notification '{notification_type}' logged successfully (MOCK)",
-        "sms_message": sms_message,
-        "email_subject": email_subject,
-        "recipient_email": client["email"],
-        "recipient_phone": client.get("phone"),
-        "timestamp": notification_log["sent_at"]
+        "message": f"Notification sent successfully" if notification_log["status"] == "sent" else f"Notification logged (status: {notification_log['status']})",
+        "notification_id": notification_log["id"],
+        "status": notification_log["status"],
+        "recipient": request.recipient_email,
+        "subject": subject
     }
 
-def build_email_body(notification_type: str, job: dict, client: dict) -> str:
-    """Build HTML email body based on notification type"""
-    stones = job.get("stones", [])
-    verbal_findings = job.get("verbal_findings", [])
+@api_router.get("/jobs/{job_id}/notifications/status")
+async def get_notification_status(job_id: str, user: dict = Depends(get_current_user)):
+    """Get notification status for a job - which notifications are pending/sent"""
+    job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
     
-    if notification_type == "results_ready":
-        # Include verbal findings table
-        rows = ""
-        for stone in stones:
-            vf = next((v for v in verbal_findings if v["stone_id"] == stone["id"]), None)
-            rows += f"""
-            <tr>
-                <td>{stone['sku']}</td>
-                <td>{vf['identification'] if vf else 'Pending'}</td>
-                <td>{stone['weight']} ct</td>
-                <td>{vf['color'] if vf else 'N/A'}</td>
-                <td>{vf['origin'] if vf else 'N/A'}</td>
-                <td>{vf['comment'] if vf else ''}</td>
-            </tr>
-            """
-        return f"""
-        <h2>Job #{job['job_number']} - Verbal Results</h2>
-        <p>Dear {client['name']},</p>
-        <p>Your verbal results are now available:</p>
-        <table border="1" cellpadding="8">
-            <tr><th>SKU</th><th>Identification</th><th>Carat Weight</th><th>Color</th><th>Origin</th><th>Comment</th></tr>
-            {rows}
-        </table>
-        """
+    current_status = job.get("status")
+    notification_log = job.get("notification_log", [])
     
-    elif notification_type == "scans_ready":
-        # Include links to certificate scans
-        rows = ""
-        for stone in stones:
-            scan_link = f"https://bashari.app/certificates/{stone['id']}" if stone.get("certificate_scan") else "Pending"
-            rows += f"<tr><td>{stone['sku']}</td><td><a href='{scan_link}'>{scan_link}</a></td></tr>"
-        return f"""
-        <h2>Job #{job['job_number']} - Certificate Scans Ready</h2>
-        <p>Dear {client['name']},</p>
-        <p>Your certificate scans are now available:</p>
-        <table border="1" cellpadding="8">
-            <tr><th>SKU</th><th>Certificate Link</th></tr>
-            {rows}
-        </table>
-        """
+    # Determine which notifications are available based on status
+    status_to_notifications = {
+        "stones_accepted": ["stones_accepted"],
+        "verbal_uploaded": ["stones_accepted", "verbal_uploaded"],
+        "stones_returned": ["stones_accepted", "verbal_uploaded", "stones_returned"],
+        "cert_uploaded": ["stones_accepted", "verbal_uploaded", "stones_returned", "cert_uploaded"],
+        "cert_returned": ["stones_accepted", "verbal_uploaded", "stones_returned", "cert_uploaded", "cert_returned"],
+        "done": ["stones_accepted", "verbal_uploaded", "stones_returned", "cert_uploaded", "cert_returned"]
+    }
     
-    else:
-        return f"""
-        <h2>Job #{job['job_number']} Update</h2>
-        <p>Dear {client['name']},</p>
-        <p>Your job status has been updated. Please log in to view details.</p>
-        <p>Total Stones: {job['total_stones']}</p>
-        <p>Total Value: ${job['total_value']:,.2f}</p>
-        """
+    available_notifications = status_to_notifications.get(current_status, [])
+    
+    # Check which have been sent
+    sent_notifications = {nl["notification_type"] for nl in notification_log if nl.get("status") in ["sent", "mocked"]}
+    
+    notification_statuses = []
+    for notif_type in EMAIL_NOTIFICATION_TYPES.keys():
+        notif_info = EMAIL_NOTIFICATION_TYPES[notif_type]
+        is_available = notif_type in available_notifications
+        is_sent = notif_type in sent_notifications
+        
+        # Get last sent info
+        last_sent = None
+        for nl in reversed(notification_log):
+            if nl.get("notification_type") == notif_type:
+                last_sent = {
+                    "sent_at": nl.get("sent_at"),
+                    "sent_by": nl.get("sent_by"),
+                    "status": nl.get("status"),
+                    "recipient": nl.get("recipient_email")
+                }
+                break
+        
+        notification_statuses.append({
+            "type": notif_type,
+            "description": notif_info["description"],
+            "status_trigger": notif_info["status"],
+            "is_available": is_available,
+            "is_sent": is_sent,
+            "can_send": is_available,
+            "last_sent": last_sent
+        })
+    
+    return {
+        "job_id": job_id,
+        "job_number": job.get("job_number"),
+        "current_status": current_status,
+        "notifications": notification_statuses
+    }
 
 # ============== DOCUMENT UPLOAD ENDPOINTS ==============
 
