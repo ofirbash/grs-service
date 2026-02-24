@@ -1549,9 +1549,19 @@ export default function JobsPage() {
                   <p className="font-medium text-navy-800">${selectedJob.total_value.toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-navy-500">Total Fee</Label>
+                  <Label className="text-navy-500">Total Est. Fees</Label>
                   <p className="font-medium text-navy-800">${selectedJob.total_fee.toLocaleString()}</p>
                 </div>
+                {(() => {
+                  const totalActual = selectedJob.stones.reduce((sum, s) => sum + (s.actual_fee ?? s.fee), 0);
+                  const hasDifferentActual = selectedJob.stones.some(s => s.actual_fee !== undefined && s.actual_fee !== s.fee);
+                  return hasDifferentActual ? (
+                    <div>
+                      <Label className="text-navy-500">Total Actual Fees</Label>
+                      <p className="font-medium text-green-700">${totalActual.toLocaleString()}</p>
+                    </div>
+                  ) : null;
+                })()}
               </div>
 
               {/* Notes */}
