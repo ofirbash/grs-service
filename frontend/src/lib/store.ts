@@ -56,3 +56,20 @@ export const useSidebarStore = create<SidebarState>()(
     }
   )
 );
+
+interface BranchFilterState {
+  selectedBranchId: string | null; // null = all branches
+  setSelectedBranch: (branchId: string | null) => void;
+}
+
+export const useBranchFilterStore = create<BranchFilterState>()(
+  persist(
+    (set) => ({
+      selectedBranchId: null,
+      setSelectedBranch: (branchId) => set({ selectedBranchId: branchId }),
+    }),
+    {
+      name: 'branch-filter-storage',
+    }
+  )
+);

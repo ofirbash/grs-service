@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { stonesApi, settingsApi, cloudinaryApi } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, useBranchFilterStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -89,6 +89,7 @@ interface DropdownSettings {
 
 export default function StonesPage() {
   const { user } = useAuthStore();
+  const { selectedBranchId } = useBranchFilterStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'branch_admin';
   const [stones, setStones] = useState<Stone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,12 +133,13 @@ export default function StonesPage() {
 
   useEffect(() => {
     fetchStones();
-  }, []);
+  }, [selectedBranchId]);
 
   const fetchStones = async () => {
     try {
+      const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
       const [stonesData, dropdownData] = await Promise.all([
-        stonesApi.getAll(),
+        stonesApi.getAll(branchParam),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
       ]);
       setStones(stonesData);

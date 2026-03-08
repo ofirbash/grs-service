@@ -1281,7 +1281,7 @@ async def add_stone_to_job(job_id: str, stone: AddStoneRequest, user: dict = Dep
 # ==================== STONES ENDPOINTS ====================
 
 @api_router.get("/stones")
-async def get_all_stones(user: dict = Depends(get_current_user)):
+async def get_all_stones(branch_id: Optional[str] = None, user: dict = Depends(get_current_user)):
     """Get all stones across all jobs with job info"""
     query = {}
     
@@ -1292,6 +1292,10 @@ async def get_all_stones(user: dict = Depends(get_current_user)):
             query["client_id"] = user_client_id
         else:
             return []
+    elif user["role"] == "branch_admin":
+        query["branch_id"] = user.get("branch_id")
+    elif branch_id and user["role"] == "super_admin":
+        query["branch_id"] = branch_id
     
     jobs = await db.jobs.find(query).to_list(1000)
     all_stones = []
@@ -1797,6 +1801,7 @@ async def create_shipment(shipment: ShipmentCreate, user: dict = Depends(require
 async def get_shipments(
     status: Optional[str] = None,
     courier: Optional[str] = None,
+    branch_id: Optional[str] = None,
     user: dict = Depends(get_current_user)
 ):
     # Customers cannot view shipments
@@ -1808,6 +1813,19 @@ async def get_shipments(
         query["status"] = status
     if courier:
         query["courier"] = courier
+    
+    # Branch filtering for shipments (via jobs)
+    filter_branch = None
+    if user["role"] == "branch_admin":
+        filter_branch = user.get("branch_id")
+    elif branch_id and user["role"] == "super_admin":
+        filter_branch = branch_id
+    
+    if filter_branch:
+        # Find job IDs that belong to this branch
+        branch_jobs = await db.jobs.find({"branch_id": filter_branch}, {"_id": 1}).to_list(10000)
+        branch_job_ids = [str(j["_id"]) for j in branch_jobs]
+        query["job_ids"] = {"$elemMatch": {"$in": branch_job_ids}}
     
     shipments = await db.shipments.find(query).sort("created_at", -1).to_list(1000)
     
@@ -3381,10 +3399,12 @@ async def update_user_role(user_id: str, role: str = Body(..., embed=True), user
 # ============== DASHBOARD STATS ==============
 
 @api_router.get("/dashboard/stats")
-async def get_dashboard_stats(user: dict = Depends(get_current_user)):
+async def get_dashboard_stats(branch_id: Optional[str] = None, user: dict = Depends(get_current_user)):
     query = {}
     if user["role"] == "branch_admin":
         query["branch_id"] = user.get("branch_id")
+    elif user["role"] == "super_admin" and branch_id:
+        query["branch_id"] = branch_id
     elif user["role"] == "customer":
         # Use client_id from user record, fallback to email lookup
         user_client_id = user.get("client_id")
@@ -3423,6 +3443,8 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     client_query = {}
     if user["role"] == "branch_admin":
         client_query["branch_id"] = user.get("branch_id")
+    elif user["role"] == "super_admin" and branch_id:
+        client_query["branch_id"] = branch_id
     
     # Customers see 1 (their own client), admins see all
     if user["role"] == "customer":

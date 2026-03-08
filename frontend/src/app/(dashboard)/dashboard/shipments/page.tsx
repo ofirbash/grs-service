@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi } from '@/lib/api';
+import { useBranchFilterStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -205,16 +206,18 @@ export default function ShipmentsPage() {
 
   // PDF generation
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const { selectedBranchId } = useBranchFilterStore();
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedBranchId]);
 
   const fetchData = async () => {
     try {
+      const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
       const [shipmentsData, jobsData, optionsData, dropdownData] = await Promise.all([
-        shipmentsApi.getAll(),
-        jobsApi.getAll(),
+        shipmentsApi.getAll(branchParam),
+        jobsApi.getAll(branchParam),
         shipmentsApi.getOptions(),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
       ]);

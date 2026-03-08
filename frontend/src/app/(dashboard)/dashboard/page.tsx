@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { dashboardApi, shipmentsApi, jobsApi } from '@/lib/api';
+import { useBranchFilterStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -105,14 +106,16 @@ export default function DashboardPage() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [shipmentModalOpen, setShipmentModalOpen] = useState(false);
   const [shipmentJobs, setShipmentJobs] = useState<Job[]>([]);
+  const { selectedBranchId } = useBranchFilterStore();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
         const [statsData, shipmentsData, jobsData] = await Promise.all([
-          dashboardApi.getStats(),
-          shipmentsApi.getAll(),
-          jobsApi.getAll(),
+          dashboardApi.getStats(branchParam),
+          shipmentsApi.getAll(branchParam),
+          jobsApi.getAll(branchParam),
         ]);
         setStats(statsData);
         setRecentShipments(shipmentsData.slice(0, 5));
@@ -126,7 +129,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, []);
+  }, [selectedBranchId]);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {

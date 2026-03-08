@@ -3,9 +3,17 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore, useSidebarStore } from '@/lib/store';
+import { useAuthStore, useSidebarStore, useBranchFilterStore } from '@/lib/store';
+import { branchesApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Gem,
   Package,
@@ -17,6 +25,7 @@ import {
   ChevronLeft,
   LayoutDashboard,
   Diamond,
+  Building,
 } from 'lucide-react';
 
 // Base navigation - filtered based on role
@@ -38,7 +47,11 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { isAuthenticated, user, logout } = useAuthStore();
   const { isCollapsed, toggleSidebar } = useSidebarStore();
+  const { selectedBranchId, setSelectedBranch } = useBranchFilterStore();
   const [mounted, setMounted] = useState(false);
+  const [branches, setBranches] = useState<Array<{ id: string; name: string; code: string }>>([]);
+
+  const isSuperAdmin = user?.role === 'super_admin';
 
   // Filter navigation based on user role
   const navigation = useMemo(() => {
@@ -49,6 +62,13 @@ export default function DashboardLayout({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Fetch branches for super_admin branch selector
+  useEffect(() => {
+    if (mounted && isAuthenticated && isSuperAdmin) {
+      branchesApi.getAll().then(setBranches).catch(console.error);
+    }
+  }, [mounted, isAuthenticated, isSuperAdmin]);
 
   useEffect(() => {
     if (mounted && !isAuthenticated) {
@@ -196,6 +216,25 @@ export default function DashboardLayout({
             </h1>
           </div>
           <div className="flex items-center gap-4">
+            {isSuperAdmin && branches.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Building className="h-4 w-4 text-navy-400" />
+                <Select
+                  value={selectedBranchId || "all"}
+                  onValueChange={(v) => setSelectedBranch(v === "all" ? null : v)}
+                >
+                  <SelectTrigger className="w-44 h-8 text-sm border-navy-200" data-testid="branch-selector">
+                    <SelectValue placeholder="All Branches" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Branches</SelectItem>
+                    {branches.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <span className="text-sm text-navy-600 hidden sm:block">
               Welcome, {user?.full_name}
             </span>

@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi, cloudinaryApi, notificationsApi } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, useBranchFilterStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -235,6 +235,7 @@ const SHAPES = ['Round', 'Oval', 'Cushion', 'Pear', 'Heart', 'Marquise', 'Prince
 export default function JobsPage() {
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
+  const { selectedBranchId } = useBranchFilterStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'branch_admin';
   const [jobs, setJobs] = useState<Job[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -374,7 +375,7 @@ export default function JobsPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedBranchId]);
 
   // Handle opening a specific job from URL parameter
   useEffect(() => {
@@ -401,9 +402,10 @@ export default function JobsPage() {
 
   const fetchData = async () => {
     try {
+      const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
       const [jobsData, clientsData, branchesData, dropdownData, pricingData] = await Promise.all([
-        jobsApi.getAll(),
-        clientsApi.getAll(),
+        jobsApi.getAll(branchParam),
+        clientsApi.getAll(selectedBranchId || undefined),
         branchesApi.getAll(),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
         settingsApi.getPricing().catch(() => ({ service_types: ['Express', 'Normal', 'Recheck'] })),

@@ -57,7 +57,7 @@ export const authApi = {
 
 // Shipments API
 export const shipmentsApi = {
-  getAll: async (params?: { status?: string; courier?: string }) => {
+  getAll: async (params?: { status?: string; courier?: string; branch_id?: string }) => {
     const response = await api.get('/shipments', { params });
     return response.data;
   },
@@ -169,8 +169,8 @@ export const jobsApi = {
 
 // Stones API
 export const stonesApi = {
-  getAll: async () => {
-    const response = await api.get('/stones');
+  getAll: async (params?: { branch_id?: string }) => {
+    const response = await api.get('/stones', { params });
     return response.data;
   },
   getById: async (id: string) => {
@@ -310,8 +310,8 @@ export const settingsApi = {
 
 // Dashboard API
 export const dashboardApi = {
-  getStats: async () => {
-    const response = await api.get('/dashboard/stats');
+  getStats: async (params?: { branch_id?: string }) => {
+    const response = await api.get('/dashboard/stats', { params });
     return response.data;
   },
 };

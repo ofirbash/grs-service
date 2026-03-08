@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { clientsApi, branchesApi } from '@/lib/api';
+import { useBranchFilterStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -58,6 +59,7 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [branchFilter, setBranchFilter] = useState('all');
+  const { selectedBranchId } = useBranchFilterStore();
 
   // Create client dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -92,12 +94,12 @@ export default function ClientsPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedBranchId]);
 
   const fetchData = async () => {
     try {
       const [clientsData, branchesData] = await Promise.all([
-        clientsApi.getAll(),
+        clientsApi.getAll(selectedBranchId || undefined),
         branchesApi.getAll(),
       ]);
       setClients(clientsData);

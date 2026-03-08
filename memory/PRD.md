@@ -318,6 +318,15 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ **Token expiry**: 30-day expiry enforced server-side
 - ✅ **Duplicate handling**: Skips user creation if email already exists in users collection
 
+### Phase 14: Branch-First Architecture (Complete) - Feb 24, 2026
+- ✅ **Admin accounts created**: ofir1@bashds.com (IL branch_admin), ofir2@bashds.com (US branch_admin), ofir@bashds.com (super_admin)
+- ✅ **Branch isolation enforced**: Clients, Jobs, Stones, Shipments, Dashboard all scoped by branch for branch_admins
+- ✅ **Super-admin branch toggle**: Dropdown in top bar to switch between "All Branches", "Israel", "USA-NY"
+- ✅ **Branch filter persisted**: Selected branch stored in Zustand with localStorage persistence
+- ✅ **All pages updated**: Dashboard, Jobs, Stones, Clients, Shipments all respect branch filter
+- ✅ **Shipment filtering via jobs**: Since shipments don't have branch_id, filtered via their job associations
+- ✅ **85 legacy clients imported** from SQL file (all assigned to Israel branch)
+
 ---
 
 ## Prioritized Backlog
