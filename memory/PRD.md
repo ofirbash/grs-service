@@ -327,6 +327,13 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ **Shipment filtering via jobs**: Since shipments don't have branch_id, filtered via their job associations
 - ✅ **85 legacy clients imported** from SQL file (all assigned to Israel branch)
 
+### Phase 15: Admin User Management (Complete) - Feb 24, 2026
+- ✅ **Admin Users tab** in Settings (visible only to super_admin)
+- ✅ **List admin users**: Shows all super_admin and branch_admin accounts with name, email, role, branch
+- ✅ **Create admin user**: Dialog with name, email, password, access level (Super Admin / Branch Admin), branch selector, phone
+- ✅ **Edit admin user**: Update name, role, branch, phone, and optionally reset password
+- ✅ **Backend endpoints**: `GET /api/users`, `POST /api/users/admin`, `PUT /api/users/{id}`
+
 ---
 
 ## Prioritized Backlog

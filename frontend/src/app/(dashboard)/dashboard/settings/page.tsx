@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { settingsApi, branchesApi, jobsApi } from '@/lib/api';
+import { settingsApi, branchesApi, jobsApi, usersApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +45,7 @@ import {
   DollarSign,
   AlertCircle,
   Search,
+  Shield,
 } from 'lucide-react';
 
 // Types
@@ -139,6 +140,29 @@ export default function SettingsPage() {
   const [newServiceType, setNewServiceType] = useState('');
   const [usedServiceTypes, setUsedServiceTypes] = useState<Set<string>>(new Set());
 
+  // Admin Users State
+  interface AdminUser {
+    id: string;
+    email: string;
+    full_name: string;
+    role: string;
+    branch_id?: string;
+    phone?: string;
+    created_at: string;
+  }
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
+  const [savingAdmin, setSavingAdmin] = useState(false);
+  const [adminForm, setAdminForm] = useState({
+    email: '',
+    full_name: '',
+    password: '',
+    role: 'branch_admin',
+    branch_id: '',
+    phone: '',
+  });
+
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -146,22 +170,28 @@ export default function SettingsPage() {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [dropdownsData, branchesData, pricingData, jobsData] = await Promise.all([
+      const promises: Promise<unknown>[] = [
         settingsApi.getDropdowns(),
         branchesApi.getAll(),
         settingsApi.getPricing(),
         jobsApi.getAll(),
-      ]);
-      setDropdowns(dropdownsData);
-      setBranches(branchesData);
-      setPricing(pricingData);
-      setPricingForm(pricingData);
-      // Track which service types are used by existing jobs
+      ];
+      if (isSuperAdmin) {
+        promises.push(usersApi.getAll());
+      }
+      const [dropdownsData, branchesData, pricingData, jobsData, usersData] = await Promise.all(promises);
+      setDropdowns(dropdownsData as DropdownSettings);
+      setBranches(branchesData as Branch[]);
+      setPricing(pricingData as PricingConfig);
+      setPricingForm(pricingData as PricingConfig);
       const used = new Set<string>();
-      jobsData.forEach((job: { service_type?: string }) => {
+      (jobsData as Array<{ service_type?: string }>).forEach((job) => {
         if (job.service_type) used.add(job.service_type);
       });
       setUsedServiceTypes(used);
+      if (usersData) {
+        setAdminUsers(usersData as AdminUser[]);
+      }
     } catch (error) {
       console.error('Failed to fetch settings:', error);
       alert('Failed to load settings');
@@ -395,6 +425,64 @@ export default function SettingsPage() {
     });
   };
 
+  // ============== ADMIN USER HANDLERS ==============
+  const openAdminDialog = (admin?: AdminUser) => {
+    if (admin) {
+      setEditingAdmin(admin);
+      setAdminForm({
+        email: admin.email,
+        full_name: admin.full_name,
+        password: '',
+        role: admin.role,
+        branch_id: admin.branch_id || '',
+        phone: admin.phone || '',
+      });
+    } else {
+      setEditingAdmin(null);
+      setAdminForm({ email: '', full_name: '', password: '', role: 'branch_admin', branch_id: '', phone: '' });
+    }
+    setAdminDialogOpen(true);
+  };
+
+  const handleSaveAdmin = async () => {
+    if (!adminForm.email || !adminForm.full_name || !adminForm.role) return;
+    if (!editingAdmin && !adminForm.password) return;
+    if (adminForm.role === 'branch_admin' && !adminForm.branch_id) {
+      alert('Please select a branch for the branch admin');
+      return;
+    }
+
+    setSavingAdmin(true);
+    try {
+      if (editingAdmin) {
+        const updateData: Record<string, string> = {
+          full_name: adminForm.full_name,
+          role: adminForm.role,
+          branch_id: adminForm.role === 'branch_admin' ? adminForm.branch_id : '',
+          phone: adminForm.phone,
+        };
+        if (adminForm.password) updateData.password = adminForm.password;
+        await usersApi.update(editingAdmin.id, updateData);
+      } else {
+        await usersApi.createAdmin({
+          email: adminForm.email,
+          full_name: adminForm.full_name,
+          password: adminForm.password,
+          role: adminForm.role,
+          branch_id: adminForm.role === 'branch_admin' ? adminForm.branch_id : undefined,
+          phone: adminForm.phone || undefined,
+        });
+      }
+      setAdminDialogOpen(false);
+      fetchAllData();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      alert(err.response?.data?.detail || 'Failed to save admin user');
+    } finally {
+      setSavingAdmin(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64" data-testid="settings-loading">
@@ -452,6 +540,16 @@ export default function SettingsPage() {
             <DollarSign className="h-4 w-4 mr-2" />
             Pricing
           </TabsTrigger>
+          {isSuperAdmin && (
+          <TabsTrigger
+            value="admins"
+            className="data-[state=active]:bg-white data-[state=active]:text-navy-800"
+            data-testid="tab-admins"
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            Admin Users
+          </TabsTrigger>
+          )}
         </TabsList>
 
         {/* ==================== DROPDOWNS TAB ==================== */}
@@ -953,7 +1051,207 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ==================== ADMIN USERS TAB ==================== */}
+        {isSuperAdmin && (
+        <TabsContent value="admins" className="space-y-6">
+          <Card className="border-navy-100">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Admin Users
+                </CardTitle>
+                <CardDescription>Manage admin accounts and access levels</CardDescription>
+              </div>
+              <Button
+                onClick={() => openAdminDialog()}
+                className="bg-navy-800 hover:bg-navy-700"
+                data-testid="add-admin-button"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Admin
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-navy-50">
+                      <TableHead className="font-semibold text-navy-700">Name</TableHead>
+                      <TableHead className="font-semibold text-navy-700">Email</TableHead>
+                      <TableHead className="font-semibold text-navy-700">Role</TableHead>
+                      <TableHead className="font-semibold text-navy-700">Branch</TableHead>
+                      <TableHead className="font-semibold text-navy-700 w-20">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {adminUsers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-navy-500">
+                          No admin users found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      adminUsers.map((admin) => (
+                        <TableRow key={admin.id} className="hover:bg-navy-50" data-testid={`admin-row-${admin.id}`}>
+                          <TableCell className="font-medium text-navy-800">{admin.full_name}</TableCell>
+                          <TableCell className="text-navy-600">{admin.email}</TableCell>
+                          <TableCell>
+                            {admin.role === 'super_admin' ? (
+                              <Badge className="bg-purple-100 text-purple-800">Super Admin</Badge>
+                            ) : (
+                              <Badge className="bg-blue-100 text-blue-800">Branch Admin</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-navy-600">
+                            {admin.role === 'super_admin'
+                              ? 'Global'
+                              : branches.find(b => b.id === admin.branch_id)?.name || '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openAdminDialog(admin)}
+                              className="h-8 w-8 p-0 hover:bg-navy-100"
+                              data-testid={`edit-admin-${admin.id}`}
+                            >
+                              <Pencil className="h-4 w-4 text-navy-600" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        )}
       </Tabs>
+
+      {/* ==================== ADMIN USER DIALOG ==================== */}
+      <Dialog open={adminDialogOpen} onOpenChange={setAdminDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-navy-800">
+              {editingAdmin ? 'Edit Admin User' : 'Create Admin User'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingAdmin ? 'Update admin account details' : 'Create a new admin account'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Full Name *</Label>
+              <Input
+                value={adminForm.full_name}
+                onChange={(e) => setAdminForm({ ...adminForm, full_name: e.target.value })}
+                placeholder="Enter full name"
+                className="border-navy-200"
+                data-testid="admin-name-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Email *</Label>
+              <Input
+                type="email"
+                value={adminForm.email}
+                onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
+                placeholder="Enter email"
+                className="border-navy-200"
+                disabled={!!editingAdmin}
+                data-testid="admin-email-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{editingAdmin ? 'New Password (leave empty to keep current)' : 'Password *'}</Label>
+              <Input
+                type="password"
+                value={adminForm.password}
+                onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                placeholder={editingAdmin ? 'Leave empty to keep current' : 'Enter password'}
+                className="border-navy-200"
+                data-testid="admin-password-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Access Level *</Label>
+              <Select
+                value={adminForm.role}
+                onValueChange={(v) => setAdminForm({ ...adminForm, role: v, branch_id: v === 'super_admin' ? '' : adminForm.branch_id })}
+              >
+                <SelectTrigger data-testid="admin-role-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="super_admin">Super Admin (Global)</SelectItem>
+                  <SelectItem value="branch_admin">Branch Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {adminForm.role === 'branch_admin' && (
+              <div className="space-y-2">
+                <Label>Branch *</Label>
+                <Select
+                  value={adminForm.branch_id}
+                  onValueChange={(v) => setAdminForm({ ...adminForm, branch_id: v })}
+                >
+                  <SelectTrigger data-testid="admin-branch-select">
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input
+                value={adminForm.phone}
+                onChange={(e) => setAdminForm({ ...adminForm, phone: e.target.value })}
+                placeholder="Phone number (optional)"
+                className="border-navy-200"
+                data-testid="admin-phone-input"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdminDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveAdmin}
+              disabled={savingAdmin || !adminForm.full_name || !adminForm.email || !adminForm.role || (!editingAdmin && !adminForm.password)}
+              className="bg-navy-800 hover:bg-navy-700"
+              data-testid="confirm-save-admin-button"
+            >
+              {savingAdmin ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                editingAdmin ? 'Save Changes' : 'Create Admin'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ==================== ADD DROPDOWN OPTION DIALOG ==================== */}
       <Dialog open={addOptionDialogOpen} onOpenChange={setAddOptionDialogOpen}>

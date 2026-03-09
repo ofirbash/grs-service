@@ -55,6 +55,22 @@ export const authApi = {
   },
 };
 
+// Users API (admin management)
+export const usersApi = {
+  getAll: async () => {
+    const response = await api.get('/users');
+    return response.data;
+  },
+  createAdmin: async (data: { email: string; full_name: string; password: string; role: string; branch_id?: string; phone?: string }) => {
+    const response = await api.post('/users/admin', data);
+    return response.data;
+  },
+  update: async (id: string, data: { full_name?: string; role?: string; branch_id?: string; phone?: string; password?: string }) => {
+    const response = await api.put(`/users/${id}`, data);
+    return response.data;
+  },
+};
+
 // Shipments API
 export const shipmentsApi = {
   getAll: async (params?: { status?: string; courier?: string; branch_id?: string }) => {
