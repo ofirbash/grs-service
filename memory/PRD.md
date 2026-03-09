@@ -334,6 +334,15 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ **Edit admin user**: Update name, role, branch, phone, and optionally reset password
 - ✅ **Backend endpoints**: `GET /api/users`, `POST /api/users/admin`, `PUT /api/users/{id}`
 
+### Phase 16: Payment Gateway - Tranzilla (Complete) - Mar 2026
+- ✅ **Public payment page** (`/pay?token=xxx`): No login required, shows job details, stone fees, currency selector
+- ✅ **Currency selection**: USD or ILS with live exchange rate from exchangerate-api.com
+- ✅ **Tranzilla iframe integration**: Ready to activate with terminal credentials (TRANZILLA_TERMINAL env var)
+- ✅ **Test/simulate mode**: Works without Tranzilla credentials for development
+- ✅ **Payment notify endpoint**: Receives Tranzilla POST callback, records payment status on job
+- ✅ **Payment link in email**: "Stones Ready" notification email includes "Pay Now" button linking to payment page
+- ✅ **Payment status tracking**: Jobs track payment_status, payment_date, payment_transaction_id, payment_currency, payment_amount
+
 ---
 
 ## Prioritized Backlog

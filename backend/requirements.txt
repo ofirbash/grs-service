@@ -100,6 +100,7 @@ regex==2026.1.15
 reportlab==4.4.10
 requests==2.32.5
 requests-oauthlib==2.0.0
+resend==2.23.0
 rich==14.3.2
 rpds-py==0.30.0
 rsa==4.9.1
@@ -126,5 +127,3 @@ watchfiles==1.1.1
 websockets==15.0.1
 yarl==1.22.0
 zipp==3.23.0
-
-resend>=2.0.0

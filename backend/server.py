@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, File, UploadFile, Form, Body, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, File, UploadFile, Form, Body, Query, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
@@ -2352,7 +2352,7 @@ def generate_fees_table_html(job: dict) -> str:
         <tbody>{rows}</tbody>
     </table>"""
 
-def build_notification_email_html(notification_type: str, job: dict, client: dict) -> tuple:
+def build_notification_email_html(notification_type: str, job: dict, client: dict, payment_url: str = "") -> tuple:
     """Build HTML email content for notification type. Returns (subject, html_body)"""
     job_number = job.get('job_number', 'N/A')
     client_name = client.get('name', 'Valued Customer')
@@ -2432,6 +2432,7 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
         total_estimated = sum(s.get('fee', 0) for s in stones)
         total_actual = sum(s.get('actual_fee', s.get('fee', 0)) for s in stones)
         has_actual_fees = any(s.get('actual_fee') is not None for s in stones)
+        has_actual_fees = any(s.get('actual_fee') is not None for s in stones)
         
         # Build fees table
         fees_rows = ""
@@ -2485,6 +2486,13 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
                     Payment of ${amount_due:,.2f} is required upon pickup.
                 </p>
             </div>
+            
+            {f'''<div style="text-align: center; margin: 25px 0;">
+                <a href="{payment_url}" style="background: #102a43; color: #f0b429; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
+                    Pay Now
+                </a>
+                <p style="color: #6b7280; font-size: 13px; margin-top: 10px;">Click above to pay securely online (Credit Card / Bit)</p>
+            </div>''' if payment_url else ''}
             
             <h3 style="color: #102a43; margin-top: 30px;">Fee Summary</h3>
             {fees_table}
@@ -2590,7 +2598,17 @@ async def preview_notification(job_id: str, notification_type: str, user: dict =
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    subject, html_body = build_notification_email_html(notification_type, job, client)
+    # Generate payment URL for stones_returned notification
+    payment_url = ""
+    if notification_type == "stones_returned":
+        pt = job.get("payment_token")
+        if not pt:
+            pt = str(uuid.uuid4())
+            await db.jobs.update_one({"_id": job["_id"]}, {"$set": {"payment_token": pt}})
+        if FRONTEND_URL:
+            payment_url = f"{FRONTEND_URL}/pay?token={pt}"
+    
+    subject, html_body = build_notification_email_html(notification_type, job, client, payment_url)
     
     # Determine attachments needed
     attachments = []
@@ -2651,7 +2669,17 @@ async def send_notification_email(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    subject, html_body = build_notification_email_html(notification_type, job, client)
+    # Generate payment URL for stones_returned notification
+    send_payment_url = ""
+    if notification_type == "stones_returned":
+        pt2 = job.get("payment_token")
+        if not pt2:
+            pt2 = str(uuid.uuid4())
+            await db.jobs.update_one({"_id": job["_id"]}, {"$set": {"payment_token": pt2}})
+        if FRONTEND_URL:
+            send_payment_url = f"{FRONTEND_URL}/pay?token={pt2}"
+    
+    subject, html_body = build_notification_email_html(notification_type, job, client, send_payment_url)
     
     # Prepare attachments
     attachments_for_email = []
@@ -3611,6 +3639,131 @@ async def get_dashboard_stats(branch_id: Optional[str] = None, user: dict = Depe
         "total_clients": total_clients,
         "jobs_by_status": status_breakdown
     }
+
+# ============== PAYMENT GATEWAY ==============
+
+TRANZILLA_TERMINAL = os.getenv("TRANZILLA_TERMINAL", "")
+TRANZILLA_PASSWORD = os.getenv("TRANZILLA_PASSWORD", "")
+
+@api_router.get("/exchange-rate")
+async def get_exchange_rate():
+    """Get live USD to ILS exchange rate"""
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            resp = await client.get("https://api.exchangerate-api.com/v4/latest/USD", timeout=10)
+            data = resp.json()
+            return {"usd_to_ils": data["rates"].get("ILS", 3.65), "source": "exchangerate-api.com"}
+    except Exception:
+        return {"usd_to_ils": 3.65, "source": "fallback"}
+
+@api_router.post("/jobs/{job_id}/payment-token")
+async def generate_payment_token(job_id: str, user: dict = Depends(require_admin)):
+    """Generate a unique payment token for a job"""
+    job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    # Generate or return existing token
+    existing_token = job.get("payment_token")
+    if existing_token:
+        return {"payment_token": existing_token, "payment_url": f"{FRONTEND_URL}/pay?token={existing_token}"}
+    
+    payment_token = str(uuid.uuid4())
+    await db.jobs.update_one(
+        {"_id": ObjectId(job_id)},
+        {"$set": {"payment_token": payment_token, "updated_at": datetime.utcnow()}}
+    )
+    return {"payment_token": payment_token, "payment_url": f"{FRONTEND_URL}/pay?token={payment_token}"}
+
+@api_router.get("/payment/{token}")
+async def get_payment_details(token: str):
+    """Public endpoint - get job payment details by token (no auth needed)"""
+    job = await db.jobs.find_one({"payment_token": token})
+    if not job:
+        raise HTTPException(status_code=404, detail="Invalid payment link")
+    
+    if job.get("payment_status") == "paid":
+        return {"status": "already_paid", "job_number": job["job_number"]}
+    
+    client = await db.clients.find_one({"_id": ObjectId(job["client_id"])})
+    branch = await db.branches.find_one({"_id": ObjectId(job["branch_id"])})
+    
+    stones_summary = []
+    for s in job.get("stones", []):
+        stones_summary.append({
+            "sku": s.get("sku", ""),
+            "stone_type": s.get("stone_type", ""),
+            "weight": s.get("weight", 0),
+            "fee": s.get("fee", 0),
+            "actual_fee": s.get("actual_fee"),
+        })
+    
+    total_fee = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []))
+    
+    return {
+        "status": "pending",
+        "job_number": job["job_number"],
+        "client_name": client["name"] if client else "N/A",
+        "branch_name": branch["name"] if branch else "N/A",
+        "service_type": job.get("service_type", ""),
+        "total_stones": job.get("total_stones", 0),
+        "total_fee": total_fee,
+        "stones": stones_summary,
+        "tranzilla_terminal": TRANZILLA_TERMINAL,
+        "has_tranzilla": bool(TRANZILLA_TERMINAL),
+    }
+
+@api_router.post("/payment/{token}/notify")
+async def payment_notify(token: str, request: Request):
+    """Tranzilla notify callback - records payment result"""
+    job = await db.jobs.find_one({"payment_token": token})
+    if not job:
+        return {"status": "error", "detail": "Invalid token"}
+    
+    # Parse form data from Tranzilla POST
+    form_data = await request.form()
+    response_code = form_data.get("Response", "")
+    transaction_id = form_data.get("index", form_data.get("ConfirmationCode", ""))
+    
+    # Response=000 means success
+    if str(response_code) == "000":
+        await db.jobs.update_one(
+            {"_id": job["_id"]},
+            {"$set": {
+                "payment_status": "paid",
+                "payment_date": datetime.utcnow(),
+                "payment_transaction_id": str(transaction_id),
+                "payment_currency": form_data.get("currency", ""),
+                "payment_amount": form_data.get("sum", ""),
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        logger.info(f"Payment received for job #{job['job_number']} - txn: {transaction_id}")
+    else:
+        logger.warning(f"Payment failed for job #{job['job_number']} - response: {response_code}")
+    
+    return {"status": "ok"}
+
+@api_router.post("/payment/{token}/simulate")
+async def simulate_payment(token: str):
+    """Test mode - simulate successful payment (when no Tranzilla credentials)"""
+    job = await db.jobs.find_one({"payment_token": token})
+    if not job:
+        raise HTTPException(status_code=404, detail="Invalid payment link")
+    
+    await db.jobs.update_one(
+        {"_id": job["_id"]},
+        {"$set": {
+            "payment_status": "paid",
+            "payment_date": datetime.utcnow(),
+            "payment_transaction_id": f"TEST-{uuid.uuid4().hex[:8]}",
+            "payment_currency": "USD",
+            "payment_amount": str(sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []))),
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    return {"status": "paid", "message": "Payment simulated successfully"}
 
 # ============== HEALTH CHECK ==============
 
