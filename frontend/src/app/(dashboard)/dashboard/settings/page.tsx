@@ -66,7 +66,6 @@ interface Branch {
   name: string;
   code: string;
   address: string;
-  return_address: string;
   phone?: string;
   email?: string;
   is_active?: boolean;
@@ -120,7 +119,6 @@ export default function SettingsPage() {
     name: '',
     code: '',
     address: '',
-    return_address: '',
     phone: '',
     email: '',
   });
@@ -170,12 +168,20 @@ export default function SettingsPage() {
   interface Address {
     id: string;
     name: string;
+    address: string;
+    email: string;
+    phone: string;
   }
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [newAddressName, setNewAddressName] = useState('');
-  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
-  const [editAddressName, setEditAddressName] = useState('');
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false);
+  const [editingAddressObj, setEditingAddressObj] = useState<Address | null>(null);
   const [savingAddress, setSavingAddress] = useState(false);
+  const [addressForm, setAddressForm] = useState({
+    name: '',
+    address: '',
+    email: '',
+    phone: '',
+  });
 
   useEffect(() => {
     fetchAllData();
@@ -302,7 +308,6 @@ export default function SettingsPage() {
         name: branch.name,
         code: branch.code,
         address: branch.address,
-        return_address: branch.return_address,
         phone: branch.phone || '',
         email: branch.email || '',
       });
@@ -312,7 +317,6 @@ export default function SettingsPage() {
         name: '',
         code: '',
         address: '',
-        return_address: '',
         phone: '',
         email: '',
       });
@@ -321,7 +325,7 @@ export default function SettingsPage() {
   };
 
   const handleSaveBranch = async () => {
-    if (!branchForm.name || !branchForm.code || !branchForm.address || !branchForm.return_address) {
+    if (!branchForm.name || !branchForm.code || !branchForm.address) {
       alert('Please fill in all required fields');
       return;
     }
@@ -442,34 +446,45 @@ export default function SettingsPage() {
   };
 
   // ============== ADDRESS HANDLERS ==============
-  const handleAddAddress = async () => {
-    if (!newAddressName.trim()) return;
+  const openAddressDialog = (addr?: Address) => {
+    if (addr) {
+      setEditingAddressObj(addr);
+      setAddressForm({ name: addr.name, address: addr.address || '', email: addr.email || '', phone: addr.phone || '' });
+    } else {
+      setEditingAddressObj(null);
+      setAddressForm({ name: '', address: '', email: '', phone: '' });
+    }
+    setAddressDialogOpen(true);
+  };
+
+  const handleSaveAddress = async () => {
+    if (!addressForm.name.trim()) return;
     setSavingAddress(true);
     try {
-      await addressesApi.create(newAddressName.trim());
-      setNewAddressName('');
+      if (editingAddressObj) {
+        await addressesApi.update(editingAddressObj.id, addressForm);
+      } else {
+        await addressesApi.create(addressForm);
+      }
+      setAddressDialogOpen(false);
       const data = await addressesApi.getAll();
       setAddresses(data);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } };
-      alert(err.response?.data?.detail || 'Failed to add address');
+      alert(err.response?.data?.detail || 'Failed to save address');
     } finally {
       setSavingAddress(false);
     }
   };
 
-  const handleUpdateAddress = async () => {
-    if (!editingAddress || !editAddressName.trim()) return;
-    setSavingAddress(true);
+  const handleDeleteAddress = async (addr: Address) => {
+    if (!confirm(`Delete address "${addr.name}"?`)) return;
     try {
-      await addressesApi.update(editingAddress.id, editAddressName.trim());
-      setEditingAddress(null);
+      await addressesApi.delete(addr.id);
       const data = await addressesApi.getAll();
       setAddresses(data);
     } catch (error) {
-      console.error('Failed to update address:', error);
-    } finally {
-      setSavingAddress(false);
+      console.error('Failed to delete address:', error);
     }
   };
 
@@ -828,7 +843,6 @@ export default function SettingsPage() {
                       <TableHead className="font-semibold text-navy-700">Name</TableHead>
                       <TableHead className="font-semibold text-navy-700">Code</TableHead>
                       <TableHead className="font-semibold text-navy-700">Address</TableHead>
-                      <TableHead className="font-semibold text-navy-700">Return Address</TableHead>
                       <TableHead className="font-semibold text-navy-700">Contact</TableHead>
                       {isSuperAdmin && (
                         <TableHead className="font-semibold text-navy-700 w-20">Actions</TableHead>
@@ -838,7 +852,7 @@ export default function SettingsPage() {
                   <TableBody>
                     {branches.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={isSuperAdmin ? 6 : 5} className="text-center py-8 text-navy-500">
+                        <TableCell colSpan={isSuperAdmin ? 5 : 4} className="text-center py-8 text-navy-500">
                           No branches configured
                         </TableCell>
                       </TableRow>
@@ -853,9 +867,6 @@ export default function SettingsPage() {
                           </TableCell>
                           <TableCell className="text-navy-600 max-w-[200px] truncate" title={branch.address}>
                             {branch.address}
-                          </TableCell>
-                          <TableCell className="text-navy-600 max-w-[200px] truncate" title={branch.return_address}>
-                            {branch.return_address}
                           </TableCell>
                           <TableCell className="text-navy-600">
                             <div className="text-sm">
@@ -888,88 +899,62 @@ export default function SettingsPage() {
 
           {/* Addresses Section */}
           <Card className="border-navy-100">
-            <CardHeader>
-              <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
-                <Building className="h-5 w-5" />
-                Addresses
-              </CardTitle>
-              <CardDescription>Manage shipment addresses (labs, offices, etc.)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="New address name..."
-                  value={newAddressName}
-                  onChange={(e) => setNewAddressName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddAddress(); }}
-                  className="w-64 border-navy-200"
-                  data-testid="new-address-input"
-                />
-                <Button
-                  onClick={handleAddAddress}
-                  disabled={savingAddress || !newAddressName.trim()}
-                  className="bg-navy-800 hover:bg-navy-700"
-                  data-testid="add-address-button"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add
-                </Button>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Addresses
+                </CardTitle>
+                <CardDescription>Manage shipment addresses (labs, offices, etc.)</CardDescription>
               </div>
-
+              <Button
+                onClick={() => openAddressDialog()}
+                className="bg-navy-800 hover:bg-navy-700"
+                data-testid="add-address-button"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Address
+              </Button>
+            </CardHeader>
+            <CardContent>
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-navy-50">
-                      <TableHead className="font-semibold text-navy-700">Address Name</TableHead>
+                      <TableHead className="font-semibold text-navy-700">Name</TableHead>
+                      <TableHead className="font-semibold text-navy-700">Address</TableHead>
+                      <TableHead className="font-semibold text-navy-700">Contact</TableHead>
                       <TableHead className="font-semibold text-navy-700 w-24">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {addresses.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={2} className="text-center py-6 text-navy-500">
+                        <TableCell colSpan={4} className="text-center py-6 text-navy-500">
                           No addresses configured
                         </TableCell>
                       </TableRow>
                     ) : (
                       addresses.map((addr) => (
                         <TableRow key={addr.id} className="hover:bg-navy-50">
-                          <TableCell className="font-medium text-navy-800">
-                            {editingAddress?.id === addr.id ? (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  value={editAddressName}
-                                  onChange={(e) => setEditAddressName(e.target.value)}
-                                  onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateAddress(); }}
-                                  className="w-64"
-                                  autoFocus
-                                />
-                              </div>
-                            ) : (
-                              addr.name
-                            )}
+                          <TableCell className="font-medium text-navy-800">{addr.name}</TableCell>
+                          <TableCell className="text-navy-600 max-w-[200px] truncate">{addr.address || '-'}</TableCell>
+                          <TableCell className="text-navy-600">
+                            <div className="text-sm">
+                              {addr.phone && <div>{addr.phone}</div>}
+                              {addr.email && <div className="text-navy-500">{addr.email}</div>}
+                              {!addr.phone && !addr.email && '-'}
+                            </div>
                           </TableCell>
                           <TableCell>
-                            {editingAddress?.id === addr.id ? (
-                              <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="sm" onClick={handleUpdateAddress} disabled={savingAddress} className="h-8 w-8 p-0">
-                                  <Save className="h-4 w-4 text-green-600" />
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => setEditingAddress(null)} className="h-8 w-8 p-0">
-                                  <X className="h-4 w-4 text-navy-500" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => { setEditingAddress(addr); setEditAddressName(addr.name); }}
-                                className="h-8 w-8 p-0 hover:bg-navy-100"
-                                data-testid={`edit-address-${addr.id}`}
-                              >
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => openAddressDialog(addr)} className="h-8 w-8 p-0 hover:bg-navy-100" data-testid={`edit-address-${addr.id}`}>
                                 <Pencil className="h-4 w-4 text-navy-600" />
                               </Button>
-                            )}
+                              <Button variant="ghost" size="sm" onClick={() => handleDeleteAddress(addr)} className="h-8 w-8 p-0 hover:bg-red-50" data-testid={`delete-address-${addr.id}`}>
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -1536,18 +1521,6 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="branchReturnAddress">Return Address *</Label>
-              <Textarea
-                id="branchReturnAddress"
-                value={branchForm.return_address}
-                onChange={(e) => setBranchForm({ ...branchForm, return_address: e.target.value })}
-                placeholder="Address for return shipments"
-                className="border-navy-200 min-h-[60px]"
-                data-testid="branch-return-address-input"
-              />
-            </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="branchPhone">Phone</Label>
@@ -1581,7 +1554,7 @@ export default function SettingsPage() {
             </Button>
             <Button
               onClick={handleSaveBranch}
-              disabled={savingBranch || !branchForm.name || !branchForm.code || !branchForm.address || !branchForm.return_address}
+              disabled={savingBranch || !branchForm.name || !branchForm.code || !branchForm.address}
               className="bg-navy-800 hover:bg-navy-700"
               data-testid="confirm-save-branch-button"
             >
@@ -1592,6 +1565,82 @@ export default function SettingsPage() {
                 </>
               ) : (
                 editingBranch ? 'Save Changes' : 'Create Branch'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== ADDRESS DIALOG ==================== */}
+      <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-navy-800">
+              {editingAddressObj ? 'Edit Address' : 'Add New Address'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingAddressObj ? 'Update address details' : 'Add a new shipment address'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Name *</Label>
+              <Input
+                value={addressForm.name}
+                onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
+                placeholder="e.g., HK Lab, GRS Switzerland"
+                className="border-navy-200"
+                data-testid="address-name-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input
+                value={addressForm.address}
+                onChange={(e) => setAddressForm({ ...addressForm, address: e.target.value })}
+                placeholder="Full address"
+                className="border-navy-200"
+                data-testid="address-address-input"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Contact Email</Label>
+                <Input
+                  type="email"
+                  value={addressForm.email}
+                  onChange={(e) => setAddressForm({ ...addressForm, email: e.target.value })}
+                  placeholder="email@example.com"
+                  className="border-navy-200"
+                  data-testid="address-email-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Contact Phone</Label>
+                <Input
+                  value={addressForm.phone}
+                  onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
+                  placeholder="+1 234 567 890"
+                  className="border-navy-200"
+                  data-testid="address-phone-input"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddressDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleSaveAddress}
+              disabled={savingAddress || !addressForm.name.trim()}
+              className="bg-navy-800 hover:bg-navy-700"
+              data-testid="confirm-save-address-button"
+            >
+              {savingAddress ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+              ) : (
+                editingAddressObj ? 'Save Changes' : 'Add Address'
               )}
             </Button>
           </DialogFooter>

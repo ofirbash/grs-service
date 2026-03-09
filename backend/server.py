@@ -156,7 +156,6 @@ class BranchCreate(BaseModel):
     name: str  # e.g., "Israel", "USA"
     code: str  # e.g., "IL", "US"
     address: str
-    return_address: str
     phone: Optional[str] = None
     email: Optional[str] = None
 
@@ -165,7 +164,6 @@ class BranchResponse(BaseModel):
     name: str
     code: str
     address: str
-    return_address: str
     phone: Optional[str] = None
     email: Optional[str] = None
     is_active: bool = True
@@ -3371,35 +3369,53 @@ async def update_pricing_config(data: PricingUpdateRequest, user: dict = Depends
 
 class AddressCreate(BaseModel):
     name: str
+    address: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
 
 class AddressUpdate(BaseModel):
-    name: str
+    name: Optional[str] = None
+    address: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
 
 @api_router.get("/addresses")
 async def get_addresses(user: dict = Depends(get_current_user)):
     """Get all addresses"""
     addresses = await db.addresses.find().sort("name", 1).to_list(1000)
-    return [{"id": str(a["_id"]), "name": a["name"]} for a in addresses]
+    return [{"id": str(a["_id"]), "name": a["name"], "address": a.get("address", ""), "email": a.get("email", ""), "phone": a.get("phone", "")} for a in addresses]
 
 @api_router.post("/addresses")
 async def create_address(data: AddressCreate, user: dict = Depends(require_admin)):
     """Create a new address"""
     existing = await db.addresses.find_one({"name": data.name})
     if existing:
-        raise HTTPException(status_code=400, detail="Address already exists")
-    result = await db.addresses.insert_one({"name": data.name, "created_at": datetime.utcnow()})
-    return {"id": str(result.inserted_id), "name": data.name}
+        raise HTTPException(status_code=400, detail="Address with this name already exists")
+    doc = {"name": data.name, "address": data.address, "email": data.email, "phone": data.phone, "created_at": datetime.utcnow()}
+    result = await db.addresses.insert_one(doc)
+    return {"id": str(result.inserted_id), "name": data.name, "address": data.address, "email": data.email, "phone": data.phone}
 
 @api_router.put("/addresses/{address_id}")
 async def update_address(address_id: str, data: AddressUpdate, user: dict = Depends(require_admin)):
     """Update an address"""
+    update_data = {k: v for k, v in data.dict().items() if v is not None}
+    update_data["updated_at"] = datetime.utcnow()
     result = await db.addresses.update_one(
         {"_id": ObjectId(address_id)},
-        {"$set": {"name": data.name, "updated_at": datetime.utcnow()}}
+        {"$set": update_data}
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Address not found")
-    return {"id": address_id, "name": data.name}
+    updated = await db.addresses.find_one({"_id": ObjectId(address_id)})
+    return {"id": address_id, "name": updated["name"], "address": updated.get("address", ""), "email": updated.get("email", ""), "phone": updated.get("phone", "")}
+
+@api_router.delete("/addresses/{address_id}")
+async def delete_address(address_id: str, user: dict = Depends(require_admin)):
+    """Delete an address"""
+    result = await db.addresses.delete_one({"_id": ObjectId(address_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Address not found")
+    return {"message": "Address deleted"}
 
 # ============== USERS MANAGEMENT (Super Admin) ==============
 

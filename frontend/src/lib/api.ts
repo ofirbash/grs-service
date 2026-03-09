@@ -276,7 +276,6 @@ export const branchesApi = {
     name: string;
     code: string;
     address: string;
-    return_address: string;
     phone?: string;
     email?: string;
   }) => {
@@ -287,7 +286,6 @@ export const branchesApi = {
     name?: string;
     code?: string;
     address?: string;
-    return_address?: string;
     phone?: string;
     email?: string;
   }) => {
@@ -331,12 +329,16 @@ export const addressesApi = {
     const response = await api.get('/addresses');
     return response.data;
   },
-  create: async (name: string) => {
-    const response = await api.post('/addresses', { name });
+  create: async (data: { name: string; address?: string; email?: string; phone?: string }) => {
+    const response = await api.post('/addresses', data);
     return response.data;
   },
-  update: async (id: string, name: string) => {
-    const response = await api.put(`/addresses/${id}`, { name });
+  update: async (id: string, data: { name?: string; address?: string; email?: string; phone?: string }) => {
+    const response = await api.put(`/addresses/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/addresses/${id}`);
     return response.data;
   },
 };
