@@ -317,9 +317,26 @@ export const settingsApi = {
   updatePricing: async (data: {
     brackets: Array<{ min_value: number; max_value: number; fees: Record<string, number> }>;
     color_stability_fee: number;
+    mounted_jewellery_fee: number;
     service_types: string[];
   }) => {
     const response = await api.put('/pricing', data);
+    return response.data;
+  },
+};
+
+// Addresses API
+export const addressesApi = {
+  getAll: async () => {
+    const response = await api.get('/addresses');
+    return response.data;
+  },
+  create: async (name: string) => {
+    const response = await api.post('/addresses', { name });
+    return response.data;
+  },
+  update: async (id: string, name: string) => {
+    const response = await api.put(`/addresses/${id}`, { name });
     return response.data;
   },
 };

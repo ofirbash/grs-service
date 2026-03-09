@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { settingsApi, branchesApi, jobsApi, usersApi } from '@/lib/api';
+import { settingsApi, branchesApi, jobsApi, usersApi, addressesApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +81,7 @@ interface PricingBracket {
 interface PricingConfig {
   brackets: PricingBracket[];
   color_stability_fee: number;
+  mounted_jewellery_fee: number;
   service_types: string[];
 }
 
@@ -128,6 +129,7 @@ export default function SettingsPage() {
   const [pricing, setPricing] = useState<PricingConfig>({
     brackets: [],
     color_stability_fee: 50,
+    mounted_jewellery_fee: 50,
     service_types: ['Express', 'Normal', 'Recheck'],
   });
   const [editingPricing, setEditingPricing] = useState(false);
@@ -135,6 +137,7 @@ export default function SettingsPage() {
   const [pricingForm, setPricingForm] = useState<PricingConfig>({
     brackets: [],
     color_stability_fee: 50,
+    mounted_jewellery_fee: 50,
     service_types: [],
   });
   const [newServiceType, setNewServiceType] = useState('');
@@ -163,6 +166,17 @@ export default function SettingsPage() {
     phone: '',
   });
 
+  // Addresses State
+  interface Address {
+    id: string;
+    name: string;
+  }
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [newAddressName, setNewAddressName] = useState('');
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [editAddressName, setEditAddressName] = useState('');
+  const [savingAddress, setSavingAddress] = useState(false);
+
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -175,15 +189,17 @@ export default function SettingsPage() {
         branchesApi.getAll(),
         settingsApi.getPricing(),
         jobsApi.getAll(),
+        addressesApi.getAll(),
       ];
       if (isSuperAdmin) {
         promises.push(usersApi.getAll());
       }
-      const [dropdownsData, branchesData, pricingData, jobsData, usersData] = await Promise.all(promises);
+      const [dropdownsData, branchesData, pricingData, jobsData, addressesData, usersData] = await Promise.all(promises);
       setDropdowns(dropdownsData as DropdownSettings);
       setBranches(branchesData as Branch[]);
       setPricing(pricingData as PricingConfig);
       setPricingForm(pricingData as PricingConfig);
+      setAddresses(addressesData as Address[]);
       const used = new Set<string>();
       (jobsData as Array<{ service_type?: string }>).forEach((job) => {
         if (job.service_type) used.add(job.service_type);
@@ -423,6 +439,38 @@ export default function SettingsPage() {
       service_types: pricingForm.service_types.filter(t => t !== serviceType),
       brackets: updatedBrackets,
     });
+  };
+
+  // ============== ADDRESS HANDLERS ==============
+  const handleAddAddress = async () => {
+    if (!newAddressName.trim()) return;
+    setSavingAddress(true);
+    try {
+      await addressesApi.create(newAddressName.trim());
+      setNewAddressName('');
+      const data = await addressesApi.getAll();
+      setAddresses(data);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      alert(err.response?.data?.detail || 'Failed to add address');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  const handleUpdateAddress = async () => {
+    if (!editingAddress || !editAddressName.trim()) return;
+    setSavingAddress(true);
+    try {
+      await addressesApi.update(editingAddress.id, editAddressName.trim());
+      setEditingAddress(null);
+      const data = await addressesApi.getAll();
+      setAddresses(data);
+    } catch (error) {
+      console.error('Failed to update address:', error);
+    } finally {
+      setSavingAddress(false);
+    }
   };
 
   // ============== ADMIN USER HANDLERS ==============
@@ -837,6 +885,100 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Addresses Section */}
+          <Card className="border-navy-100">
+            <CardHeader>
+              <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                Addresses
+              </CardTitle>
+              <CardDescription>Manage shipment addresses (labs, offices, etc.)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="New address name..."
+                  value={newAddressName}
+                  onChange={(e) => setNewAddressName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddAddress(); }}
+                  className="w-64 border-navy-200"
+                  data-testid="new-address-input"
+                />
+                <Button
+                  onClick={handleAddAddress}
+                  disabled={savingAddress || !newAddressName.trim()}
+                  className="bg-navy-800 hover:bg-navy-700"
+                  data-testid="add-address-button"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </Button>
+              </div>
+
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-navy-50">
+                      <TableHead className="font-semibold text-navy-700">Address Name</TableHead>
+                      <TableHead className="font-semibold text-navy-700 w-24">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {addresses.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center py-6 text-navy-500">
+                          No addresses configured
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      addresses.map((addr) => (
+                        <TableRow key={addr.id} className="hover:bg-navy-50">
+                          <TableCell className="font-medium text-navy-800">
+                            {editingAddress?.id === addr.id ? (
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  value={editAddressName}
+                                  onChange={(e) => setEditAddressName(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') handleUpdateAddress(); }}
+                                  className="w-64"
+                                  autoFocus
+                                />
+                              </div>
+                            ) : (
+                              addr.name
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {editingAddress?.id === addr.id ? (
+                              <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" onClick={handleUpdateAddress} disabled={savingAddress} className="h-8 w-8 p-0">
+                                  <Save className="h-4 w-4 text-green-600" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => setEditingAddress(null)} className="h-8 w-8 p-0">
+                                  <X className="h-4 w-4 text-navy-500" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => { setEditingAddress(addr); setEditAddressName(addr.name); }}
+                                className="h-8 w-8 p-0 hover:bg-navy-100"
+                                data-testid={`edit-address-${addr.id}`}
+                              >
+                                <Pencil className="h-4 w-4 text-navy-600" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ==================== PRICING TAB ==================== */}
@@ -891,23 +1033,6 @@ export default function SettingsPage() {
               )}
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Color Stability Fee */}
-              <div className="p-4 bg-navy-50 rounded-lg">
-                <Label className="text-sm font-medium text-navy-800">Color Stability Test Fee (USD)</Label>
-                {editingPricing ? (
-                  <Input
-                    type="number"
-                    value={pricingForm.color_stability_fee}
-                    onChange={(e) => setPricingForm({ ...pricingForm, color_stability_fee: parseFloat(e.target.value) || 0 })}
-                    className="mt-2 w-32"
-                    data-testid="color-stability-fee-input"
-                  />
-                ) : (
-                  <p className="text-2xl font-bold text-navy-900 mt-1">${pricing.color_stability_fee}</p>
-                )}
-                <p className="text-sm text-navy-500 mt-1">Added to stone fee when color stability test is requested</p>
-              </div>
-
               {/* Pricing Brackets Table */}
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -1047,6 +1172,41 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 )}
+              </div>
+
+              {/* Additional Fees */}
+              <div className="p-4 bg-navy-50 rounded-lg space-y-4">
+                <Label className="text-sm font-semibold text-navy-800">Additional Fees</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-navy-600">Color Stability Test (USD)</Label>
+                    {editingPricing ? (
+                      <Input
+                        type="number"
+                        value={pricingForm.color_stability_fee}
+                        onChange={(e) => setPricingForm({ ...pricingForm, color_stability_fee: parseFloat(e.target.value) || 0 })}
+                        className="mt-1 w-32"
+                        data-testid="color-stability-fee-input"
+                      />
+                    ) : (
+                      <p className="text-xl font-bold text-navy-900 mt-1">${pricing.color_stability_fee}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-navy-600">Mounted Jewellery (USD)</Label>
+                    {editingPricing ? (
+                      <Input
+                        type="number"
+                        value={pricingForm.mounted_jewellery_fee}
+                        onChange={(e) => setPricingForm({ ...pricingForm, mounted_jewellery_fee: parseFloat(e.target.value) || 0 })}
+                        className="mt-1 w-32"
+                        data-testid="mounted-jewellery-fee-input"
+                      />
+                    ) : (
+                      <p className="text-xl font-bold text-navy-900 mt-1">${pricing.mounted_jewellery_fee}</p>
+                    )}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

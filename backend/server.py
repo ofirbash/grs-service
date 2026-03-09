@@ -2114,17 +2114,19 @@ async def delete_shipment(shipment_id: str, user: dict = Depends(require_admin))
 @api_router.get("/shipments/config/options")
 async def get_shipment_options(user: dict = Depends(get_current_user)):
     """Get available options for shipment creation (types, couriers, addresses)"""
-    # Get all branches for address options
+    # Get addresses from DB + branch names
     branches = await db.branches.find({"is_active": True}).to_list(100)
+    addresses = await db.addresses.find().to_list(1000)
+    
     address_options = [b["name"] for b in branches]
-    address_options.extend(["HK Lab", "GRS Switzerland", "Customer"])
+    address_options.extend([a["name"] for a in addresses])
     
     return {
         "shipment_types": SHIPMENT_TYPES,
         "couriers": COURIERS,
         "statuses": SHIPMENT_STATUSES,
         "job_statuses": JOB_STATUSES,
-        "address_options": list(set(address_options))
+        "address_options": sorted(list(set(address_options)))
     }
 
 # ============== VERBAL FINDINGS ENDPOINTS ==============
@@ -3321,6 +3323,7 @@ async def generate_shipment_pdf(job_id: str, user: dict = Depends(require_admin)
 class PricingUpdateRequest(BaseModel):
     brackets: List[dict]
     color_stability_fee: float
+    mounted_jewellery_fee: float = 50
     service_types: List[str] = ["Express", "Normal", "Recheck"]
 
 @api_router.get("/pricing")
@@ -3334,6 +3337,7 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
         return {
             "brackets": brackets,
             "color_stability_fee": pricing.get("color_stability_fee", COLOR_STABILITY_FEE),
+            "mounted_jewellery_fee": pricing.get("mounted_jewellery_fee", 50),
             "service_types": pricing.get("service_types", ["Express", "Normal", "Recheck"])
         }
     
@@ -3342,6 +3346,7 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
     return {
         "brackets": brackets,
         "color_stability_fee": COLOR_STABILITY_FEE,
+        "mounted_jewellery_fee": 50,
         "service_types": ["Express", "Normal", "Recheck"]
     }
 
@@ -3353,6 +3358,7 @@ async def update_pricing_config(data: PricingUpdateRequest, user: dict = Depends
         {"$set": {
             "brackets": data.brackets,
             "color_stability_fee": data.color_stability_fee,
+            "mounted_jewellery_fee": data.mounted_jewellery_fee,
             "service_types": data.service_types,
             "updated_at": datetime.utcnow()
         }},
@@ -3360,6 +3366,40 @@ async def update_pricing_config(data: PricingUpdateRequest, user: dict = Depends
     )
     
     return {"message": "Pricing configuration updated successfully"}
+
+# ============== ADDRESSES MANAGEMENT ==============
+
+class AddressCreate(BaseModel):
+    name: str
+
+class AddressUpdate(BaseModel):
+    name: str
+
+@api_router.get("/addresses")
+async def get_addresses(user: dict = Depends(get_current_user)):
+    """Get all addresses"""
+    addresses = await db.addresses.find().sort("name", 1).to_list(1000)
+    return [{"id": str(a["_id"]), "name": a["name"]} for a in addresses]
+
+@api_router.post("/addresses")
+async def create_address(data: AddressCreate, user: dict = Depends(require_admin)):
+    """Create a new address"""
+    existing = await db.addresses.find_one({"name": data.name})
+    if existing:
+        raise HTTPException(status_code=400, detail="Address already exists")
+    result = await db.addresses.insert_one({"name": data.name, "created_at": datetime.utcnow()})
+    return {"id": str(result.inserted_id), "name": data.name}
+
+@api_router.put("/addresses/{address_id}")
+async def update_address(address_id: str, data: AddressUpdate, user: dict = Depends(require_admin)):
+    """Update an address"""
+    result = await db.addresses.update_one(
+        {"_id": ObjectId(address_id)},
+        {"$set": {"name": data.name, "updated_at": datetime.utcnow()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Address not found")
+    return {"id": address_id, "name": data.name}
 
 # ============== USERS MANAGEMENT (Super Admin) ==============
 
