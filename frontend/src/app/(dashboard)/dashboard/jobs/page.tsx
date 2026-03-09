@@ -723,6 +723,14 @@ export default function JobsPage() {
           .totals { margin-top: 20px; text-align: right; padding: 15px; background: #102a43; color: white; border-radius: 6px; }
           .totals .item { display: inline-block; margin-left: 30px; }
           .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ccc; text-align: center; color: #627d98; font-size: 12px; }
+          .terms { margin: 25px 0; padding: 15px; border: 1px solid #d9e2ec; border-radius: 6px; }
+          .terms h3 { margin: 0 0 10px 0; color: #334e68; font-size: 13px; }
+          .terms p { color: #486581; font-size: 11px; line-height: 1.6; margin: 4px 0; }
+          .terms-hebrew { margin-top: 12px; padding-top: 12px; border-top: 1px solid #d9e2ec; direction: rtl; text-align: right; }
+          .terms-hebrew p { font-size: 11px; }
+          .signature { margin: 30px 0; }
+          .signature p { color: #334e68; font-size: 13px; margin-bottom: 8px; }
+          .signature-line { border-bottom: 1px solid #334e68; width: 250px; height: 40px; }
           @media print { 
             body { padding: 20px; }
           }
@@ -806,6 +814,26 @@ export default function JobsPage() {
           <p>${job.notes}</p>
         </div>
         ` : ''}
+        
+        <div class="terms">
+          <h3>Terms & Conditions</h3>
+          <p>The customer agrees to pay the above fees immediately upon delivery of the goods, unconditional of results.</p>
+          <p>Refusal of payment will justify the non-return of goods to the customer.</p>
+          <p>The fees above are an estimated cost of certificates based on details supplied by the customer. The lab will determine the final fees after the inspection of the goods.</p>
+          ${(job.branch_name || '').toLowerCase().includes('israel') ? `
+          <div class="terms-hebrew">
+            <p>הלקוח מתחייב לשלם את העלויות הנקובות לעיל מיד עם מסירת הטובין ללא תלות בתוצאות המעבדה</p>
+            <p>סירוב לשלם את העלויות הנ"ל תהיה עילה מוצדקת לאי החזרת הטובין ללקוח</p>
+            <p>העלויות לעיל הינן הערכה של עלויות התעודות בהתבסס על הנתונים שנמסרו ע"י הלקוח.</p>
+            <p>המחיר הסופי ייקבע ע"י המעבדה לאחר בחינה של הטובין והערכת שוויים</p>
+          </div>
+          ` : ''}
+        </div>
+        
+        <div class="signature">
+          <p><strong>Client Signature:</strong></p>
+          <div class="signature-line"></div>
+        </div>
         
         <div class="footer">
           <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
