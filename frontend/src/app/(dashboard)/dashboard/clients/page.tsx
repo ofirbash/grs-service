@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { clientsApi, branchesApi } from '@/lib/api';
-import { useBranchFilterStore } from '@/lib/store';
+import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -60,6 +60,8 @@ export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [branchFilter, setBranchFilter] = useState('all');
   const { selectedBranchId } = useBranchFilterStore();
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.role === 'super_admin';
 
   // Create client dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -243,6 +245,7 @@ export default function ClientsPage() {
                 />
               </div>
             </div>
+            {isSuperAdmin && (
             <Select value={branchFilter} onValueChange={setBranchFilter}>
               <SelectTrigger className="w-full sm:w-48 border-navy-200" data-testid="clients-branch-filter">
                 <SelectValue placeholder="Filter by branch" />
@@ -256,6 +259,7 @@ export default function ClientsPage() {
                 ))}
               </SelectContent>
             </Select>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from 'react';
-import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi } from '@/lib/api';
-import { useBranchFilterStore } from '@/lib/store';
+import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesApi } from '@/lib/api';
+import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -136,6 +136,8 @@ export default function ShipmentsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const { user } = useAuthStore();
+  const [userBranchName, setUserBranchName] = useState('');
   
   // Create shipment dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -149,6 +151,18 @@ export default function ShipmentsPage() {
     tracking_number: '',
     notes: '',
   });
+
+  // Edit shipment
+  const [editingShipment, setEditingShipment] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    shipment_type: '',
+    courier: '',
+    source_address: '',
+    destination_address: '',
+    tracking_number: '',
+    notes: '',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // View shipment dialog
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -215,17 +229,23 @@ export default function ShipmentsPage() {
   const fetchData = async () => {
     try {
       const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
-      const [shipmentsData, jobsData, optionsData, dropdownData] = await Promise.all([
+      const [shipmentsData, jobsData, optionsData, dropdownData, branchesData] = await Promise.all([
         shipmentsApi.getAll(branchParam),
         jobsApi.getAll(branchParam),
         shipmentsApi.getOptions(),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
+        branchesApi.getAll(),
       ]);
       setShipments(shipmentsData);
-      // Filter jobs that are not in "done" status (jobs can be in multiple shipments)
       setAvailableJobs(jobsData.filter((j: Job) => j.status !== 'done'));
       setOptions(optionsData);
       setDropdownSettings(dropdownData);
+      
+      // Set user's branch name for default source address
+      if (user?.branch_id) {
+        const branch = branchesData.find((b: { id: string; name: string }) => b.id === user.branch_id);
+        if (branch) setUserBranchName(branch.name);
+      }
       
       // Initialize dropdowns if empty
       if (!dropdownData.identification?.length) {
@@ -319,6 +339,38 @@ export default function ShipmentsPage() {
       console.error('Failed to create shipment:', error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  // Edit shipment handler
+  const handleStartEditShipment = () => {
+    if (!selectedShipment) return;
+    setEditFormData({
+      shipment_type: selectedShipment.shipment_type,
+      courier: selectedShipment.courier,
+      source_address: selectedShipment.source_address,
+      destination_address: selectedShipment.destination_address,
+      tracking_number: selectedShipment.tracking_number || '',
+      notes: selectedShipment.notes || '',
+    });
+    setEditingShipment(true);
+  };
+
+  const handleSaveEditShipment = async () => {
+    if (!selectedShipment) return;
+    setSavingEdit(true);
+    try {
+      await shipmentsApi.update(selectedShipment.id, editFormData);
+      setEditingShipment(false);
+      fetchData();
+      // Refresh selected shipment
+      const updatedShipments = await shipmentsApi.getAll(selectedBranchId ? { branch_id: selectedBranchId } : {});
+      const updated = updatedShipments.find((s: Shipment) => s.id === selectedShipment.id);
+      if (updated) setSelectedShipment(updated);
+    } catch (error) {
+      console.error('Failed to update shipment:', error);
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -824,7 +876,10 @@ export default function ShipmentsPage() {
           <p className="text-navy-600">Manage shipments of jobs and stones</p>
         </div>
         <Button
-          onClick={() => setCreateDialogOpen(true)}
+          onClick={() => {
+            setFormData(prev => ({ ...prev, source_address: userBranchName || '' }));
+            setCreateDialogOpen(true);
+          }}
           className="bg-navy-800 hover:bg-navy-700"
           data-testid="create-shipment-button"
         >
@@ -1184,6 +1239,15 @@ export default function ShipmentsPage() {
                     <FileText className="h-4 w-4 mr-1" />
                     {generatingPdf ? 'Generating...' : 'Print PDF'}
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => editingShipment ? setEditingShipment(false) : handleStartEditShipment()}
+                    data-testid="edit-shipment-button"
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    {editingShipment ? 'Cancel Edit' : 'Edit'}
+                  </Button>
                   {selectedShipment.status !== 'delivered' && selectedShipment.status !== 'cancelled' && (
                     <Button
                       variant="outline"
@@ -1210,6 +1274,61 @@ export default function ShipmentsPage() {
 
           {selectedShipment && (
             <div className="space-y-4 py-4">
+              {editingShipment ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-navy-500">Type</Label>
+                      <Select value={editFormData.shipment_type} onValueChange={(v) => setEditFormData({...editFormData, shipment_type: v})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {options?.shipment_types.map((t) => (<SelectItem key={t} value={t}>{formatShipmentType(t)}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-navy-500">Courier</Label>
+                      <Select value={editFormData.courier} onValueChange={(v) => setEditFormData({...editFormData, courier: v})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {options?.couriers.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-navy-500">From</Label>
+                      <Select value={editFormData.source_address} onValueChange={(v) => setEditFormData({...editFormData, source_address: v})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {options?.address_options.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-navy-500">To</Label>
+                      <Select value={editFormData.destination_address} onValueChange={(v) => setEditFormData({...editFormData, destination_address: v})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {options?.address_options.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-navy-500">Tracking Number</Label>
+                      <Input value={editFormData.tracking_number} onChange={(e) => setEditFormData({...editFormData, tracking_number: e.target.value})} className="border-navy-200" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-navy-500">Notes</Label>
+                      <Input value={editFormData.notes} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} className="border-navy-200" />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button onClick={handleSaveEditShipment} disabled={savingEdit} className="bg-navy-800 hover:bg-navy-700" data-testid="save-shipment-edit-button">
+                      {savingEdit ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : 'Save Changes'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-navy-500">Type</Label>
@@ -1240,8 +1359,9 @@ export default function ShipmentsPage() {
                   <p className="font-medium text-navy-800">{selectedShipment.destination_address}</p>
                 </div>
               </div>
+              )}
 
-              {selectedShipment.notes && (
+              {selectedShipment.notes && !editingShipment && (
                 <div>
                   <Label className="text-navy-500">Notes</Label>
                   <p className="font-medium text-navy-800">{selectedShipment.notes}</p>

@@ -2221,8 +2221,8 @@ export default function JobsPage() {
 
       {/* Nested Stone Dialog - opens on top of job dialog */}
       <Dialog open={stoneDialogOpen} onOpenChange={setStoneDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Diamond className="h-5 w-5" />
               Stone - {viewingStone?.sku}
@@ -2245,7 +2245,7 @@ export default function JobsPage() {
           </DialogHeader>
 
           {viewingStone && (
-            <div className="space-y-6 py-4">
+            <div className="flex-1 overflow-y-auto space-y-6 py-4 pr-2">
               {/* Stone Info */}
               <div className="grid grid-cols-4 gap-4 p-4 bg-navy-50 rounded-lg">
                 <div>
