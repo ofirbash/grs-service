@@ -805,8 +805,15 @@ async def create_client(client: ClientCreate, user: dict = Depends(require_admin
                     </div>
                 </div>
                 """
+                # Use branch email as sender
+                welcome_branch = await db.branches.find_one({"_id": ObjectId(client.branch_id)})
+                wb_email = welcome_branch.get("email") if welcome_branch else None
+                wb_name = welcome_branch.get("name", "GRS") if welcome_branch else "GRS"
+                welcome_sender = f"{wb_name} <{wb_email}>" if wb_email else SENDER_EMAIL
+                
                 resend.Emails.send({
-                    "from": SENDER_EMAIL,
+                    "from": welcome_sender,
+                    "reply_to": welcome_sender,
                     "to": [email_lower],
                     "subject": "Welcome to GRS Global - Set Up Your Account",
                     "html": html_body,
@@ -2736,8 +2743,15 @@ async def send_notification_email(
     # Send email via Resend
     if resend.api_key:
         try:
+            # Use branch email as sender if available
+            branch = await db.branches.find_one({"_id": ObjectId(job["branch_id"])})
+            branch_email = branch.get("email") if branch else None
+            branch_name = branch.get("name", "GRS") if branch else "GRS"
+            sender = f"{branch_name} <{branch_email}>" if branch_email else SENDER_EMAIL
+            
             email_params = {
-                "from": SENDER_EMAIL,
+                "from": sender,
+                "reply_to": sender,
                 "to": [request.recipient_email],
                 "subject": subject,
                 "html": html_body
