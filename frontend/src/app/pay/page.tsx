@@ -108,7 +108,7 @@ function PaymentForm() {
   const amountUSD = paymentData?.total_fee || 0;
   const amountILS = Math.round(amountUSD * exchangeRate * 100) / 100;
   const displayAmount = currency === 'USD' ? amountUSD : amountILS;
-  const currencySymbol = currency === 'USD' ? '$' : '\u20AA';
+  const currencySymbol = currency === 'USD' ? '$' : 'ש"ח ';
   const tranzillaCurrency = currency === 'USD' ? '2' : '1';
 
   if (!token) {
@@ -229,7 +229,7 @@ function PaymentForm() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD ($)</SelectItem>
-                    <SelectItem value="ILS">ILS (\u20AA)</SelectItem>
+                    <SelectItem value="ILS">ILS (ש&quot;ח)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
