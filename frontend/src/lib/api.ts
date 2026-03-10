@@ -167,6 +167,10 @@ export const jobsApi = {
     const response = await api.post(`/jobs/${id}/generate-invoice`);
     return response.data;
   },
+  generatePaymentToken: async (id: string) => {
+    const response = await api.post(`/jobs/${id}/payment-token`);
+    return response.data;
+  },
   update: async (id: string, data: { notes?: string; status?: string }) => {
     const response = await api.put(`/jobs/${id}`, data);
     return response.data;

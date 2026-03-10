@@ -294,6 +294,9 @@ class JobResponse(BaseModel):
     lab_invoice_filename: Optional[str] = None
     invoice_url: Optional[str] = None
     invoice_filename: Optional[str] = None
+    payment_status: Optional[str] = None
+    payment_token: Optional[str] = None
+    payment_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -1041,6 +1044,9 @@ async def get_jobs(
             lab_invoice_filename=job.get("lab_invoice_filename"),
             invoice_url=job.get("invoice_url"),
             invoice_filename=job.get("invoice_filename"),
+            payment_status=job.get("payment_status"),
+            payment_token=job.get("payment_token"),
+            payment_url=f"{FRONTEND_URL}/pay?token={job['payment_token']}" if job.get("payment_token") and FRONTEND_URL else None,
             created_at=job["created_at"],
             updated_at=job["updated_at"]
         ))
@@ -1106,6 +1112,9 @@ async def get_job(job_id: str, user: dict = Depends(get_current_user)):
         lab_invoice_filename=job.get("lab_invoice_filename"),
         invoice_url=job.get("invoice_url"),
         invoice_filename=job.get("invoice_filename"),
+        payment_status=job.get("payment_status"),
+        payment_token=job.get("payment_token"),
+        payment_url=f"{FRONTEND_URL}/pay?token={job['payment_token']}" if job.get("payment_token") and FRONTEND_URL else None,
         created_at=job["created_at"],
         updated_at=job["updated_at"]
     )

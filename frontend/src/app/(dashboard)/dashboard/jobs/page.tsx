@@ -55,6 +55,7 @@ import {
   Clock,
   CheckCircle2,
   Receipt,
+  CreditCard,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
@@ -125,6 +126,9 @@ interface Job {
   lab_invoice_filename?: string;
   invoice_url?: string;
   invoice_filename?: string;
+  payment_status?: string;
+  payment_token?: string;
+  payment_url?: string;
   created_at: string;
 }
 
@@ -372,6 +376,10 @@ export default function JobsPage() {
   // Invoice generation
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const [viewInvoiceOpen, setViewInvoiceOpen] = useState(false);
+  
+  // Payment link
+  const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
+  const [copiedPaymentLink, setCopiedPaymentLink] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -1087,6 +1095,27 @@ export default function JobsPage() {
     }
   };
 
+  const handleGeneratePaymentLink = async () => {
+    if (!selectedJob) return;
+    setGeneratingPaymentLink(true);
+    try {
+      const result = await jobsApi.generatePaymentToken(selectedJob.id);
+      setSelectedJob(prev => prev ? { ...prev, payment_token: result.payment_token, payment_url: result.payment_url } : null);
+      fetchData();
+    } catch (error) {
+      console.error('Failed to generate payment link:', error);
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  const handleCopyPaymentLink = () => {
+    if (!selectedJob?.payment_url) return;
+    navigator.clipboard.writeText(selectedJob.payment_url);
+    setCopiedPaymentLink(true);
+    setTimeout(() => setCopiedPaymentLink(false), 2000);
+  };
+
   const toggleStoneSelection = (stoneId: string) => {
     setSelectedStones(prev => 
       prev.includes(stoneId) 
@@ -1241,6 +1270,7 @@ export default function JobsPage() {
                     <TableHead className="font-semibold text-navy-700">Value</TableHead>
                     <TableHead className="font-semibold text-navy-700">Fee</TableHead>
                     <TableHead className="font-semibold text-navy-700">Status</TableHead>
+                    {isAdmin && <TableHead className="font-semibold text-navy-700">Payment</TableHead>}
                     <TableHead className="font-semibold text-navy-700">Shipment</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1300,6 +1330,17 @@ export default function JobsPage() {
                       <TableCell onClick={() => openJobDetails(job)}>
                         {getStatusBadge(job.status)}
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell onClick={() => openJobDetails(job)}>
+                          {job.payment_status === 'paid' ? (
+                            <Badge className="bg-green-100 text-green-800 text-xs">Paid</Badge>
+                          ) : job.payment_token ? (
+                            <Badge variant="outline" className="text-amber-700 border-amber-300 text-xs">Pending</Badge>
+                          ) : (
+                            <span className="text-navy-400 text-xs">-</span>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
                         {job.shipment_info ? (
                           <div className="flex flex-col gap-1">
@@ -1750,6 +1791,69 @@ export default function JobsPage() {
                       <CheckCircle2 className="h-3 w-3 inline mr-1" />
                       Invoice ready - will be attached to &quot;Stones Returned&quot; email
                     </p>
+                  )}
+                </div>
+              )}
+
+              {/* Payment Section - Admin Only */}
+              {isAdmin && (
+                <div className="space-y-3 border-t pt-4">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Payment
+                    {selectedJob.payment_status === 'paid' ? (
+                      <Badge className="bg-green-100 text-green-800 text-xs">Paid</Badge>
+                    ) : selectedJob.payment_token ? (
+                      <Badge variant="outline" className="text-amber-700 border-amber-300 text-xs">Pending</Badge>
+                    ) : null}
+                  </Label>
+                  
+                  {selectedJob.payment_status === 'paid' ? (
+                    <p className="text-sm text-green-700 flex items-center gap-1">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Payment received
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {!selectedJob.payment_token ? (
+                        <Button
+                          variant="outline"
+                          onClick={handleGeneratePaymentLink}
+                          disabled={generatingPaymentLink}
+                          className="border-navy-300"
+                          data-testid="generate-payment-link-button"
+                        >
+                          {generatingPaymentLink ? (
+                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating...</>
+                          ) : (
+                            <><Link2 className="h-4 w-4 mr-2" />Generate Payment Link</>
+                          )}
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={selectedJob.payment_url || ''}
+                            readOnly
+                            className="text-xs font-mono bg-navy-50 border-navy-200 flex-1"
+                            data-testid="payment-link-input"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCopyPaymentLink}
+                            className={copiedPaymentLink ? 'bg-green-50 border-green-300 text-green-700' : 'border-navy-300'}
+                            data-testid="copy-payment-link-button"
+                          >
+                            {copiedPaymentLink ? (
+                              <><Check className="h-4 w-4 mr-1" />Copied</>
+                            ) : (
+                              'Copy'
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                      <p className="text-xs text-navy-500">Share this link with the customer to collect payment</p>
+                    </div>
                   )}
                 </div>
               )}
