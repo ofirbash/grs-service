@@ -808,8 +808,8 @@ async def create_client(client: ClientCreate, user: dict = Depends(require_admin
                 # Use branch email as sender
                 welcome_branch = await db.branches.find_one({"_id": ObjectId(client.branch_id)})
                 wb_email = welcome_branch.get("email") if welcome_branch else None
-                wb_name = welcome_branch.get("name", "GRS") if welcome_branch else "GRS"
-                welcome_sender = f"{wb_name} <{wb_email}>" if wb_email else SENDER_EMAIL
+                wb_sender = welcome_branch.get("sender_name", welcome_branch.get("name", "GRS")) if welcome_branch else "GRS"
+                welcome_sender = f"{wb_sender} <{wb_email}>" if wb_email else SENDER_EMAIL
                 
                 resend.Emails.send({
                     "from": welcome_sender,
@@ -2746,8 +2746,8 @@ async def send_notification_email(
             # Use branch email as sender if available
             branch = await db.branches.find_one({"_id": ObjectId(job["branch_id"])})
             branch_email = branch.get("email") if branch else None
-            branch_name = branch.get("name", "GRS") if branch else "GRS"
-            sender = f"{branch_name} <{branch_email}>" if branch_email else SENDER_EMAIL
+            branch_sender = branch.get("sender_name", branch.get("name", "GRS")) if branch else "GRS"
+            sender = f"{branch_sender} <{branch_email}>" if branch_email else SENDER_EMAIL
             
             email_params = {
                 "from": sender,
