@@ -7,8 +7,9 @@ import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gem, Loader2, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import Image from 'next/image';
+import { Loader2, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 
 function SetupPasswordForm() {
   const router = useRouter();
@@ -24,7 +25,7 @@ function SetupPasswordForm() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
         <Card className="w-full max-w-md border-navy-200 shadow-2xl">
           <CardContent className="p-8 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
@@ -67,7 +68,7 @@ function SetupPasswordForm() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
         <Card className="w-full max-w-md border-navy-200 shadow-2xl">
           <CardContent className="p-8 text-center">
             <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-green-500" />
@@ -80,18 +81,23 @@ function SetupPasswordForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 p-4">
-      <Card className="w-full max-w-md border-navy-200 shadow-2xl" data-testid="setup-password-card">
-        <CardHeader className="text-center space-y-3 pb-2">
-          <div className="mx-auto w-16 h-16 bg-navy-800 rounded-2xl flex items-center justify-center shadow-lg">
-            <Gem className="h-8 w-8 text-amber-400" />
+    <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
+      <Card className="w-full max-w-md border-0 shadow-2xl" data-testid="setup-password-card">
+        <CardContent className="pt-8 pb-8 px-8 space-y-4">
+          <div className="text-center space-y-3">
+            <Image
+              src="/logos/bashari-full.png"
+              alt="Bashari"
+              width={160}
+              height={70}
+              className="mx-auto"
+            />
+            <p className="text-xs text-navy-400 tracking-widest uppercase">Lab-Direct</p>
+            <p className="text-sm text-navy-600">Set up your account password</p>
           </div>
-          <CardTitle className="text-2xl font-bold text-navy-800">GRS Global</CardTitle>
-          <CardDescription className="text-navy-500">Set up your account password</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="bg-navy-50 border border-navy-200 rounded-lg p-3 flex items-start gap-2">
-            <Lock className="h-4 w-4 text-navy-500 mt-0.5 flex-shrink-0" />
+
+          <div className="bg-navy-50 border border-navy-200 rounded-md p-3 flex items-start gap-2">
+            <Lock className="h-4 w-4 text-navy-400 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-navy-600">
               Choose a secure password for your account. You&apos;ll use this to sign in to view your jobs and stones.
             </p>
@@ -135,7 +141,7 @@ function SetupPasswordForm() {
             <Button
               type="submit"
               disabled={isLoading || !password || !confirmPassword}
-              className="w-full bg-navy-800 hover:bg-navy-700"
+              className="w-full bg-navy-900 hover:bg-navy-800 h-10"
               data-testid="setup-submit-button"
             >
               {isLoading ? (
@@ -157,7 +163,7 @@ function SetupPasswordForm() {
 export default function SetupPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900">
+      <div className="min-h-screen flex items-center justify-center bg-navy-950">
         <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
       </div>
     }>

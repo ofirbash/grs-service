@@ -43,19 +43,24 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // GRS-inspired colors
+        // Bashari brand colors (GRS-inspired)
+        brand: {
+          red: '#E30613',
+          'red-dark': '#C20511',
+          'red-light': '#FF1A27',
+        },
         navy: {
-          50: '#f0f4f8',
-          100: '#d9e2ec',
-          200: '#bcccdc',
-          300: '#9fb3c8',
-          400: '#829ab1',
-          500: '#627d98',
-          600: '#486581',
-          700: '#334e68',
-          800: '#243b53',
-          900: '#102a43',
-          950: '#0a1929',
+          50: '#F7F7F8',
+          100: '#EBEBED',
+          200: '#D4D4D8',
+          300: '#A1A1AA',
+          400: '#71717A',
+          500: '#52525B',
+          600: '#3F3F46',
+          700: '#2D2D32',
+          800: '#1E1E22',
+          900: '#141417',
+          950: '#09090B',
         },
         gold: {
           50: '#fffbeb',
@@ -70,6 +75,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        serif: ['Playfair Display', 'Georgia', 'serif'],
       },
       borderRadius: {
         lg: "var(--radius)",

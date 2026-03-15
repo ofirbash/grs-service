@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gem, Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,77 +43,68 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-950 p-4">
-      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-10" />
-      
-      <Card className="w-full max-w-md relative z-10 shadow-2xl border-navy-700/50 bg-white/95 backdrop-blur">
-        <CardHeader className="space-y-4 text-center pb-2">
-          <div className="mx-auto w-16 h-16 bg-navy-800 rounded-xl flex items-center justify-center shadow-lg">
-            <Gem className="w-8 h-8 text-gold-400" />
+    <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
+      <Card className="w-full max-w-sm border-0 shadow-2xl" data-testid="login-card">
+        <CardContent className="pt-8 pb-8 px-8 space-y-6">
+          <div className="text-center space-y-4">
+            <Image
+              src="/logos/bashari-full.png"
+              alt="Bashari"
+              width={180}
+              height={80}
+              className="mx-auto"
+              priority
+            />
+            <p className="text-xs text-navy-400 tracking-widest uppercase">Lab-Direct</p>
           </div>
-          <div>
-            <CardTitle className="text-2xl font-bold text-navy-900">GRS Global</CardTitle>
-            <CardDescription className="text-navy-600">
-              Lab Logistics & ERP System
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg" data-testid="login-error">
-                {error}
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-navy-700">Email</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-xs text-navy-500 uppercase tracking-wider">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@bashari.com"
+                placeholder="your@email.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
-                className="border-navy-200 focus:border-navy-500 focus:ring-navy-500"
+                className="border-navy-200 h-10"
                 data-testid="login-email-input"
               />
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-navy-700">Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs text-navy-500 uppercase tracking-wider">Password</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Enter password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
-                className="border-navy-200 focus:border-navy-500 focus:ring-navy-500"
+                className="border-navy-200 h-10"
                 data-testid="login-password-input"
               />
             </div>
-            
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-2.5 text-xs text-red-700" data-testid="login-error">
+                {error}
+              </div>
+            )}
+
             <Button
               type="submit"
-              className="w-full bg-navy-800 hover:bg-navy-700 text-white h-11"
               disabled={isLoading}
+              className="w-full bg-navy-900 hover:bg-navy-800 h-10 text-sm tracking-wide"
               data-testid="login-submit-button"
             >
               {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                'Sign In'
+                'SIGN IN'
               )}
             </Button>
           </form>
-          
-          <div className="mt-6 text-center text-sm text-navy-500">
-            <p>Demo credentials: admin@bashari.com / admin123</p>
-          </div>
         </CardContent>
       </Card>
     </div>

@@ -778,20 +778,20 @@ async def create_client(client: ClientCreate, user: dict = Depends(require_admin
                 setup_url = f"{FRONTEND_URL}/setup-password?token={setup_token}"
                 html_body = f"""
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <div style="background: #102a43; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
-                        <h1 style="color: #f0b429; margin: 0; font-size: 24px;">GRS Global</h1>
+                    <div style="background: #141417; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+                        <h1 style="color: #FFFFFF; margin: 0; font-size: 24px;">Bashari Lab-Direct</h1>
                         <p style="color: #bcccdc; margin: 5px 0 0;">Lab Logistics & ERP System</p>
                     </div>
                     <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
-                        <h2 style="color: #102a43; margin-top: 0;">Welcome, {client.name}!</h2>
+                        <h2 style="color: #141417; margin-top: 0;">Welcome, {client.name}!</h2>
                         <p style="color: #334e68; line-height: 1.6;">
-                            Your account has been created on the GRS Global system. You can now track your gemstone testing jobs, view stone details, and stay updated on your orders.
+                            Your account has been created on the Bashari Lab-Direct system. You can now track your gemstone testing jobs, view stone details, and stay updated on your orders.
                         </p>
                         <p style="color: #334e68; line-height: 1.6;">
                             Please click the button below to set up your password and access your account:
                         </p>
                         <div style="text-align: center; margin: 30px 0;">
-                            <a href="{setup_url}" style="background: #102a43; color: #f0b429; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
+                            <a href="{setup_url}" style="background: #141417; color: #FFFFFF; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
                                 Set Up Your Password
                             </a>
                         </div>
@@ -800,7 +800,7 @@ async def create_client(client: ClientCreate, user: dict = Depends(require_admin
                         </p>
                         <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
                         <p style="color: #9fb3c8; font-size: 12px; text-align: center;">
-                            GRS Global Lab Logistics & ERP System
+                            Bashari Lab-Direct
                         </p>
                     </div>
                 </div>
@@ -815,7 +815,7 @@ async def create_client(client: ClientCreate, user: dict = Depends(require_admin
                     "from": welcome_sender,
                     "reply_to": welcome_sender,
                     "to": [email_lower],
-                    "subject": "Welcome to GRS Global - Set Up Your Account",
+                    "subject": "Welcome to Bashari Lab-Direct - Set Up Your Account",
                     "html": html_body,
                 })
                 logger.info(f"Setup email sent to {email_lower}")
@@ -2178,27 +2178,27 @@ async def add_verbal_finding(job_id: str, finding: VerbalFindingCreate, user: di
 EMAIL_NOTIFICATION_TYPES = {
     "stones_accepted": {
         "status": "stones_accepted",
-        "subject": "Job #{job_number}: Stones Received - GRS Global",
+        "subject": "Job #{job_number}: Stones Received - Bashari Lab-Direct",
         "description": "Initial drop-off confirmation with stones table and fees"
     },
     "verbal_uploaded": {
         "status": "verbal_uploaded",
-        "subject": "Job #{job_number} - Certificate #{cert_id}: Verbal Results - GRS Global",
+        "subject": "Job #{job_number} - Certificate #{cert_id}: Verbal Results - Bashari Lab-Direct",
         "description": "Lab findings with verbal results table"
     },
     "stones_returned": {
         "status": "stones_returned",
-        "subject": "Job #{job_number}: Stones Ready for Collection - GRS Global",
+        "subject": "Job #{job_number}: Stones Ready for Collection - Bashari Lab-Direct",
         "description": "Notice that stones have returned to office"
     },
     "cert_uploaded": {
         "status": "cert_uploaded",
-        "subject": "Job #{job_number}: Certificate Scans Available - GRS Global",
+        "subject": "Job #{job_number}: Certificate Scans Available - Bashari Lab-Direct",
         "description": "Digital certificate scans with download links"
     },
     "cert_returned": {
         "status": "cert_returned",
-        "subject": "Job #{job_number}: Physical Certificates Ready - GRS Global",
+        "subject": "Job #{job_number}: Physical Certificates Ready - Bashari Lab-Direct",
         "description": "Final collection notice for physical certificates"
     }
 }
@@ -2249,7 +2249,7 @@ def generate_stones_table_html(stones: list, include_fees: bool = False) -> str:
     return f"""
     <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
         <thead>
-            <tr style="background-color: #102a43; color: white;">
+            <tr style="background-color: #141417; color: white;">
                 <th style="padding: 12px; text-align: left;">SKU</th>
                 <th style="padding: 12px; text-align: left;">Type</th>
                 <th style="padding: 12px; text-align: center;">Weight</th>
@@ -2293,7 +2293,7 @@ def generate_verbal_results_table_html(stones: list, verbal_findings: list) -> s
     return f"""
     <table style="width: 100%; max-width: 900px; border-collapse: collapse; margin: 20px auto; font-size: 13px;">
         <thead>
-            <tr style="background-color: #102a43; color: white;">
+            <tr style="background-color: #141417; color: white;">
                 <th style="padding: 10px; text-align: center;">SKU</th>
                 <th style="padding: 10px; text-align: center;">Type</th>
                 <th style="padding: 10px; text-align: center;">Weight</th>
@@ -2326,7 +2326,7 @@ def generate_cert_scans_table_html(stones: list) -> str:
     return f"""
     <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
         <thead>
-            <tr style="background-color: #102a43; color: white;">
+            <tr style="background-color: #141417; color: white;">
                 <th style="padding: 12px; text-align: left;">SKU</th>
                 <th style="padding: 12px; text-align: left;">Type</th>
                 <th style="padding: 12px; text-align: left;">Weight</th>
@@ -2359,7 +2359,7 @@ def generate_fees_table_html(job: dict) -> str:
     return f"""
     <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
         <thead>
-            <tr style="background-color: #102a43; color: white;">
+            <tr style="background-color: #141417; color: white;">
                 <th style="padding: 12px; text-align: left;">Item</th>
                 <th style="padding: 12px; text-align: left;">Type</th>
                 <th style="padding: 12px; text-align: right;">Fee</th>
@@ -2377,8 +2377,8 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
     
     # Common header
     header = f"""
-    <div style="background-color: #102a43; padding: 20px; text-align: center;">
-        <h1 style="color: #fbbf24; margin: 0; font-size: 24px;">GRS Global</h1>
+    <div style="background-color: #141417; padding: 20px; text-align: center;">
+        <h1 style="color: #FFFFFF; margin: 0; font-size: 24px;">Bashari Lab-Direct</h1>
         <p style="color: white; margin: 5px 0 0 0; font-size: 14px;">Lab Logistics & ERP System</p>
     </div>
     """
@@ -2386,27 +2386,27 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
     # Common footer
     footer = f"""
     <div style="background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 12px; color: #6b7280;">
-        <p>This is an automated notification from GRS Global.</p>
+        <p>This is an automated notification from Bashari Lab-Direct.</p>
         <p>If you have any questions, please contact us.</p>
     </div>
     """
     
     if notification_type == "stones_accepted":
-        subject = f"Job #{job_number}: Stones Received - GRS Global"
+        subject = f"Job #{job_number}: Stones Received - Bashari Lab-Direct"
         stones_table = generate_stones_table_html(stones, include_fees=True)
         
         body = f"""
         <div style="padding: 30px;">
-            <h2 style="color: #102a43; margin-bottom: 20px;">Stones Received</h2>
+            <h2 style="color: #141417; margin-bottom: 20px;">Stones Received</h2>
             <p style="color: #374151; font-size: 16px;">Dear {client_name},</p>
             <p style="color: #374151; font-size: 16px;">Your stones have been received and logged into our system.</p>
             
-            <h3 style="color: #102a43; margin-top: 30px;">Job Details</h3>
+            <h3 style="color: #141417; margin-top: 30px;">Job Details</h3>
             <p><strong>Job Number:</strong> #{job_number}</p>
             <p><strong>Service Type:</strong> {job.get('service_type', 'Standard')}</p>
             <p><strong>Total Stones:</strong> {len(stones)}</p>
             
-            <h3 style="color: #102a43; margin-top: 30px;">Stones Received</h3>
+            <h3 style="color: #141417; margin-top: 30px;">Stones Received</h3>
             {stones_table}
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
@@ -2417,20 +2417,20 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
         
     elif notification_type == "verbal_uploaded":
         # Simple subject without certificate numbers
-        subject = f"Job #{job_number}: Verbal Results Available - GRS Global"
+        subject = f"Job #{job_number}: Verbal Results Available - Bashari Lab-Direct"
         verbal_table = generate_verbal_results_table_html(stones, verbal_findings)
         
         body = f"""
         <div style="padding: 30px;">
-            <h2 style="color: #102a43; margin-bottom: 20px;">Verbal Results Available</h2>
+            <h2 style="color: #141417; margin-bottom: 20px;">Verbal Results Available</h2>
             <p style="color: #374151; font-size: 16px;">Dear {client_name},</p>
             <p style="color: #374151; font-size: 16px;">The verbal findings for your stones are now available.</p>
             
-            <h3 style="color: #102a43; margin-top: 30px;">Job Details</h3>
+            <h3 style="color: #141417; margin-top: 30px;">Job Details</h3>
             <p><strong>Job Number:</strong> #{job_number}</p>
             <p><strong>Total Stones:</strong> {len(stones)}</p>
             
-            <h3 style="color: #102a43; margin-top: 30px;">Verbal Results</h3>
+            <h3 style="color: #141417; margin-top: 30px;">Verbal Results</h3>
             <div style="display: flex; justify-content: center;">
                 {verbal_table}
             </div>
@@ -2442,7 +2442,7 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
         """
         
     elif notification_type == "stones_returned":
-        subject = f"Job #{job_number}: Stones Ready for Collection - GRS Global"
+        subject = f"Job #{job_number}: Stones Ready for Collection - Bashari Lab-Direct"
         
         # Calculate totals
         total_estimated = sum(s.get('fee', 0) for s in stones)
@@ -2475,7 +2475,7 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
         fees_table = f"""
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
             <thead>
-                <tr style="background-color: #102a43; color: white;">
+                <tr style="background-color: #141417; color: white;">
                     <th style="padding: 10px; text-align: left;">SKU</th>
                     <th style="padding: 10px; text-align: left;">Type</th>
                     <th style="padding: 10px; text-align: right;">Estimated Fee</th>
@@ -2491,7 +2491,7 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
         
         body = f"""
         <div style="padding: 30px;">
-            <h2 style="color: #102a43; margin-bottom: 20px;">Stones Ready for Collection</h2>
+            <h2 style="color: #141417; margin-bottom: 20px;">Stones Ready for Collection</h2>
             <p style="color: #374151; font-size: 16px;">Dear {client_name},</p>
             <p style="color: #374151; font-size: 16px;">
                 <strong>Your stones have returned to our Israel office and are ready for collection.</strong>
@@ -2504,13 +2504,13 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
             </div>
             
             {f'''<div style="text-align: center; margin: 25px 0;">
-                <a href="{payment_url}" style="background: #102a43; color: #f0b429; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
+                <a href="{payment_url}" style="background: #141417; color: #FFFFFF; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">
                     Pay Now
                 </a>
                 <p style="color: #6b7280; font-size: 13px; margin-top: 10px;">Click above to pay securely online (Credit Card / Bit)</p>
             </div>''' if payment_url else ''}
             
-            <h3 style="color: #102a43; margin-top: 30px;">Fee Summary</h3>
+            <h3 style="color: #141417; margin-top: 30px;">Fee Summary</h3>
             {fees_table}
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
@@ -2520,18 +2520,18 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
         """
         
     elif notification_type == "cert_uploaded":
-        subject = f"Job #{job_number}: Certificate Scans Available - GRS Global"
+        subject = f"Job #{job_number}: Certificate Scans Available - Bashari Lab-Direct"
         scans_table = generate_cert_scans_table_html(stones)
         
         body = f"""
         <div style="padding: 30px;">
-            <h2 style="color: #102a43; margin-bottom: 20px;">Certificate Scans Available</h2>
+            <h2 style="color: #141417; margin-bottom: 20px;">Certificate Scans Available</h2>
             <p style="color: #374151; font-size: 16px;">Dear {client_name},</p>
             <p style="color: #374151; font-size: 16px;">
                 The digital certificate scans for your stones are now available for download.
             </p>
             
-            <h3 style="color: #102a43; margin-top: 30px;">Certificate Downloads</h3>
+            <h3 style="color: #141417; margin-top: 30px;">Certificate Downloads</h3>
             {scans_table}
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
@@ -2541,11 +2541,11 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
         """
         
     elif notification_type == "cert_returned":
-        subject = f"Job #{job_number}: Physical Certificates Ready - GRS Global"
+        subject = f"Job #{job_number}: Physical Certificates Ready - Bashari Lab-Direct"
         
         body = f"""
         <div style="padding: 30px;">
-            <h2 style="color: #102a43; margin-bottom: 20px;">Physical Certificates Ready</h2>
+            <h2 style="color: #141417; margin-bottom: 20px;">Physical Certificates Ready</h2>
             <p style="color: #374151; font-size: 16px;">Dear {client_name},</p>
             <p style="color: #374151; font-size: 16px;">
                 <strong>Your physical certificates have arrived at our office and are ready for final collection.</strong>
@@ -2557,21 +2557,21 @@ def build_notification_email_html(notification_type: str, job: dict, client: dic
                 </p>
             </div>
             
-            <h3 style="color: #102a43; margin-top: 30px;">Job Summary</h3>
+            <h3 style="color: #141417; margin-top: 30px;">Job Summary</h3>
             <p><strong>Job Number:</strong> #{job_number}</p>
             <p><strong>Total Stones:</strong> {len(stones)}</p>
             <p><strong>Total Certificates:</strong> {len([s for s in stones if s.get('certificate_scan_url')])}</p>
             
             <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-                Thank you for choosing GRS Global for your gemstone certification needs.
+                Thank you for choosing Bashari Lab-Direct for your gemstone certification needs.
             </p>
         </div>
         """
     else:
-        subject = f"Job #{job_number}: Update - GRS Global"
+        subject = f"Job #{job_number}: Update - Bashari Lab-Direct"
         body = f"""
         <div style="padding: 30px;">
-            <h2 style="color: #102a43;">Job Update</h2>
+            <h2 style="color: #141417;">Job Update</h2>
             <p>Dear {client_name},</p>
             <p>Your job #{job_number} has been updated. Please log in to view details.</p>
         </div>

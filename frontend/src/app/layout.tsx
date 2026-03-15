@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GRS Global - Lab Logistics ERP",
-  description: "Laboratory logistics and ERP management system for gemstone testing",
+  title: "Bashari Lab-Direct",
+  description: "Lab logistics and ERP management system by Bashari",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="antialiased font-sans">
         {children}
       </body>
     </html>

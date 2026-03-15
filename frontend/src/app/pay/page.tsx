@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Gem, Loader2, CheckCircle2, AlertCircle, CreditCard, ArrowRightLeft } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, CreditCard, ArrowRightLeft } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -113,7 +113,7 @@ function PaymentForm() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
         <Card className="w-full max-w-md shadow-2xl">
           <CardContent className="p-8 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
@@ -127,15 +127,15 @@ function PaymentForm() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900">
-        <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+      <div className="min-h-screen flex items-center justify-center bg-navy-950">
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
         <Card className="w-full max-w-md shadow-2xl">
           <CardContent className="p-8 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
@@ -149,7 +149,7 @@ function PaymentForm() {
 
   if (paymentComplete) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
         <Card className="w-full max-w-md shadow-2xl">
           <CardContent className="p-8 text-center">
             <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-green-500" />
@@ -165,14 +165,15 @@ function PaymentForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900 p-4 flex items-start justify-center pt-8">
+    <div className="min-h-screen bg-navy-950 p-4 flex items-start justify-center pt-8">
       <Card className="w-full max-w-2xl shadow-2xl" data-testid="payment-card">
         <CardHeader className="text-center border-b border-navy-100 pb-6">
-          <div className="mx-auto w-14 h-14 bg-navy-800 rounded-2xl flex items-center justify-center shadow-lg mb-3">
-            <Gem className="h-7 w-7 text-amber-400" />
-          </div>
-          <CardTitle className="text-2xl font-bold text-navy-800">GRS Global</CardTitle>
-          <p className="text-navy-500 text-sm">Secure Payment</p>
+          <img
+            src="/logos/bashari-full.png"
+            alt="Bashari"
+            className="mx-auto h-12 mb-2"
+          />
+          <p className="text-navy-400 text-xs tracking-widest uppercase">Secure Payment</p>
         </CardHeader>
 
         <CardContent className="space-y-6 pt-6">
@@ -278,7 +279,7 @@ function PaymentForm() {
                     <input type="hidden" name="lang" value="il" />
                     <input type="hidden" name="nologo" value="1" />
                     <input type="hidden" name="contact" value={paymentData.client_name} />
-                    <input type="hidden" name="pdesc" value={`Job #${paymentData.job_number} - GRS Global`} />
+                    <input type="hidden" name="pdesc" value={`Job #${paymentData.job_number} - Bashari Lab-Direct`} />
                     <input type="hidden" name="success_url_address" value={`${window.location.origin}/pay?token=${token}&status=success`} />
                     <input type="hidden" name="fail_url_address" value={`${window.location.origin}/pay?token=${token}&status=fail`} />
                     <input type="hidden" name="notify_url_address" value={`${API_URL}/payment/${token}/notify`} />
@@ -315,7 +316,7 @@ function PaymentForm() {
           )}
 
           <p className="text-center text-xs text-navy-400 pt-2">
-            Secured by GRS Global Lab Logistics & ERP System
+            Secured by Bashari Lab-Direct
           </p>
         </CardContent>
       </Card>
@@ -326,8 +327,8 @@ function PaymentForm() {
 export default function PaymentPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-navy-900 via-navy-800 to-navy-900">
-        <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+      <div className="min-h-screen flex items-center justify-center bg-navy-950">
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     }>
       <PaymentForm />

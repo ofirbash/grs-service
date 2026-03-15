@@ -707,7 +707,7 @@ export default function JobsPage() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Job #${job.job_number} - GRS Global</title>
+        <title>Job #${job.job_number} - Bashari Lab-Direct</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 40px; max-width: 900px; margin: 0 auto; }
           h1 { color: #102a43; border-bottom: 2px solid #102a43; padding-bottom: 10px; }
@@ -746,7 +746,7 @@ export default function JobsPage() {
       </head>
       <body>
         <div class="header">
-          <div class="logo">GRS Global</div>
+          <div class="logo">Bashari Lab-Direct</div>
           <div>Job #${job.job_number}</div>
         </div>
         
@@ -845,7 +845,7 @@ export default function JobsPage() {
         
         <div class="footer">
           <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-          <p>GRS Global Lab Logistics & ERP System</p>
+          <p>Bashari Lab-Direct</p>
         </div>
       </body>
       </html>

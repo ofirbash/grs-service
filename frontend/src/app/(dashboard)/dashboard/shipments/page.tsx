@@ -447,7 +447,7 @@ export default function ShipmentsPage() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Job #${job.job_number} - GRS Global</title>
+        <title>Job #${job.job_number} - Bashari Lab-Direct</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 40px; max-width: 900px; margin: 0 auto; }
           h1 { color: #102a43; border-bottom: 2px solid #102a43; padding-bottom: 10px; }
@@ -471,7 +471,7 @@ export default function ShipmentsPage() {
       </head>
       <body>
         <div class="header">
-          <div class="logo">GRS Global</div>
+          <div class="logo">Bashari Lab-Direct</div>
           <div>Job #${job.job_number}</div>
         </div>
         
@@ -521,7 +521,7 @@ export default function ShipmentsPage() {
         
         <div class="footer">
           <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-          <p>GRS Global Lab Logistics & ERP System</p>
+          <p>Bashari Lab-Direct</p>
         </div>
       </body>
       </html>
@@ -686,7 +686,7 @@ export default function ShipmentsPage() {
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Shipment #${shipment.shipment_number} - GRS Global</title>
+          <title>Shipment #${shipment.shipment_number} - Bashari Lab-Direct</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 40px; max-width: 900px; margin: 0 auto; }
             h1 { color: #102a43; border-bottom: 2px solid #102a43; padding-bottom: 10px; }
@@ -719,7 +719,7 @@ export default function ShipmentsPage() {
         </head>
         <body>
           <div class="header">
-            <div class="logo">GRS Global</div>
+            <div class="logo">Bashari Lab-Direct</div>
             <div class="shipment-number">Shipment #${shipment.shipment_number}</div>
           </div>
           
@@ -792,7 +792,7 @@ export default function ShipmentsPage() {
           
           <div class="footer">
             <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-            <p>GRS Global Lab Logistics & ERP System</p>
+            <p>Bashari Lab-Direct</p>
           </div>
         </body>
         </html>
