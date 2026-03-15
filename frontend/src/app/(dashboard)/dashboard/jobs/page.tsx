@@ -1125,19 +1125,18 @@ export default function JobsPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "success" | "warning" | "destructive"> = {
-      draft: 'secondary',
-      stones_accepted: 'secondary',
-      sent_to_lab: 'default',
-      verbal_uploaded: 'default',
-      stones_returned: 'warning',
-      cert_uploaded: 'success',
-      cert_returned: 'success',
-      done: 'success',
-      // Legacy statuses for backward compatibility
-      received: 'secondary',
-      certificates_scanned: 'success',
-      certificates_sent: 'success',
+    const styles: Record<string, string> = {
+      draft: 'bg-navy-100 text-navy-600 border-navy-200',
+      stones_accepted: 'bg-navy-200 text-navy-800 border-navy-300',
+      sent_to_lab: 'bg-navy-900 text-white border-transparent',
+      verbal_uploaded: 'bg-navy-700 text-white border-transparent',
+      stones_returned: 'bg-brand-red text-white border-transparent',
+      cert_uploaded: 'bg-navy-900 text-white border-transparent',
+      cert_returned: 'bg-navy-800 text-white border-transparent',
+      done: 'bg-navy-950 text-white border-transparent',
+      received: 'bg-navy-100 text-navy-600 border-navy-200',
+      certificates_scanned: 'bg-navy-900 text-white border-transparent',
+      certificates_sent: 'bg-navy-800 text-white border-transparent',
     };
     const labels: Record<string, string> = {
       draft: 'Draft',
@@ -1148,12 +1147,11 @@ export default function JobsPage() {
       cert_uploaded: 'Cert. Uploaded',
       cert_returned: 'Cert. Returned',
       done: 'Done',
-      // Legacy status labels
       received: 'Draft',
       certificates_scanned: 'Cert. Uploaded',
       certificates_sent: 'Cert. Returned',
     };
-    return <Badge variant={variants[status] || 'secondary'}>{labels[status] || status.replace('_', ' ')}</Badge>;
+    return <Badge className={styles[status] || 'bg-navy-100 text-navy-600 border-navy-200'}>{labels[status] || status.replace('_', ' ')}</Badge>;
   };
 
   if (loading) {
@@ -1787,7 +1785,7 @@ export default function JobsPage() {
                       variant="outline"
                       onClick={handleGenerateInvoice}
                       disabled={generatingInvoice}
-                      className="border-navy-300 text-navy-900 hover:bg-green-50"
+                      className="border-navy-300 text-navy-900 hover:bg-navy-50"
                       data-testid="generate-invoice-button"
                     >
                       {generatingInvoice ? (
@@ -1869,7 +1867,7 @@ export default function JobsPage() {
                             variant="outline"
                             size="sm"
                             onClick={handleCopyPaymentLink}
-                            className={copiedPaymentLink ? 'bg-green-50 border-navy-300 text-navy-900' : 'border-navy-300'}
+                            className={copiedPaymentLink ? 'bg-navy-50 border-navy-300 text-navy-900' : 'border-navy-300'}
                             data-testid="copy-payment-link-button"
                           >
                             {copiedPaymentLink ? (
@@ -1964,15 +1962,15 @@ export default function JobsPage() {
                               key={notification.type}
                               className={`flex items-center justify-between p-3 rounded-lg border ${
                                 notification.is_sent 
-                                  ? 'bg-green-50 border-green-200' 
-                                  : 'bg-amber-50 border-amber-200'
+                                  ? 'bg-navy-50 border-navy-200' 
+                                  : 'bg-white border-navy-200'
                               }`}
                             >
                               <div className="flex items-center gap-2">
                                 {notification.is_sent ? (
                                   <CheckCircle2 className="h-4 w-4 text-navy-600" />
                                 ) : (
-                                  <Clock className="h-4 w-4 text-amber-600" />
+                                  <Clock className="h-4 w-4 text-navy-400" />
                                 )}
                                 <div>
                                   <p className="text-sm font-medium text-navy-900">
@@ -1989,7 +1987,7 @@ export default function JobsPage() {
                                 size="sm"
                                 variant={notification.is_sent ? "outline" : "default"}
                                 onClick={() => handlePreviewNotification(notification.type)}
-                                className={notification.is_sent ? "" : "bg-navy-700 hover:bg-navy-600"}
+                                className={notification.is_sent ? "border-navy-300" : "bg-brand-red hover:bg-brand-red-dark"}
                                 data-testid={`preview-notification-${notification.type}`}
                               >
                                 <Eye className="h-3 w-3 mr-1" />
@@ -2061,8 +2059,8 @@ export default function JobsPage() {
                   
                   if (groupedCerts.length > 0) {
                     return (
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                        <p className="text-sm font-medium text-amber-900">
+                      <div className="bg-navy-50 border border-navy-200 rounded-lg p-3">
+                        <p className="text-sm font-medium text-navy-900">
                           <strong>Certificates:</strong>{' '}
                           {groupedCerts.map(g => `Cert ${g.groupNumber}: ${g.stones.length} stone${g.stones.length > 1 ? 's' : ''} (${g.label})`).join(', ')}
                         </p>
@@ -2128,7 +2126,7 @@ export default function JobsPage() {
                                     setViewingStone(stone);
                                     setViewCertScanOpen(true);
                                   }}
-                                  className="text-navy-600 hover:text-navy-900 p-1 rounded hover:bg-green-50"
+                                  className="text-navy-600 hover:text-navy-900 p-1 rounded hover:bg-navy-50"
                                   title="View Certificate Scan"
                                   data-testid={`view-cert-${stone.id}`}
                                 >
@@ -2207,7 +2205,7 @@ export default function JobsPage() {
                                             setViewingStone(stone);
                                             setViewCertScanOpen(true);
                                           }}
-                                          className="text-navy-600 hover:text-navy-900 p-1 rounded hover:bg-green-50"
+                                          className="text-navy-600 hover:text-navy-900 p-1 rounded hover:bg-navy-50"
                                           title="View Certificate Scan"
                                           data-testid={`view-cert-${stone.id}`}
                                         >
@@ -2391,7 +2389,7 @@ export default function JobsPage() {
                   variant={verbalEditMode ? "default" : "outline"}
                   size="sm"
                   onClick={() => setVerbalEditMode(!verbalEditMode)}
-                  className={`ml-auto h-7 text-xs ${verbalEditMode ? 'bg-amber-600 hover:bg-amber-700' : 'border-navy-300 hover:bg-navy-100'}`}
+                  className={`ml-auto h-7 text-xs ${verbalEditMode ? 'bg-brand-red hover:bg-brand-red-dark' : 'border-navy-300 hover:bg-navy-100'}`}
                   data-testid="edit-stone-button"
                 >
                   <Pencil className="h-3 w-3 mr-1" />
@@ -3008,8 +3006,8 @@ export default function JobsPage() {
               </div>
 
               {!notificationPreview.can_send && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <p className="text-amber-800 text-sm">
+                <div className="bg-navy-50 border border-navy-200 rounded-lg p-4">
+                  <p className="text-navy-700 text-sm">
                     <strong>Note:</strong> Email sending is not configured. The API key may be missing.
                   </p>
                 </div>

@@ -132,20 +132,20 @@ export default function DashboardPage() {
   }, [selectedBranchId]);
 
   const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      draft: 'secondary',
-      stones_accepted: 'secondary',
-      sent_to_lab: 'default',
-      verbal_uploaded: 'default',
-      stones_returned: 'warning',
-      cert_uploaded: 'success',
-      cert_returned: 'success',
-      done: 'success',
-      pending: 'warning',
-      in_transit: 'default',
-      delivered: 'success',
+    const styles: Record<string, string> = {
+      draft: 'bg-navy-100 text-navy-600 border-navy-200',
+      stones_accepted: 'bg-navy-200 text-navy-800 border-navy-300',
+      sent_to_lab: 'bg-navy-900 text-white border-transparent',
+      verbal_uploaded: 'bg-navy-700 text-white border-transparent',
+      stones_returned: 'bg-brand-red text-white border-transparent',
+      cert_uploaded: 'bg-navy-900 text-white border-transparent',
+      cert_returned: 'bg-navy-800 text-white border-transparent',
+      done: 'bg-navy-950 text-white border-transparent',
+      pending: 'bg-brand-red text-white border-transparent',
+      in_transit: 'bg-navy-700 text-white border-transparent',
+      delivered: 'bg-navy-900 text-white border-transparent',
     };
-    return colors[status] || 'secondary';
+    return styles[status] || 'bg-navy-100 text-navy-600 border-navy-200';
   };
 
   const formatJobStatus = (status: string) => {
@@ -169,27 +169,13 @@ export default function DashboardPage() {
 
   const openShipmentModal = (shipment: Shipment) => {
     setSelectedShipment(shipment);
-    // Find jobs in this shipment
     const jobs = allJobs.filter(j => shipment.job_ids.includes(j.id));
     setShipmentJobs(jobs);
     setShipmentModalOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "success" | "warning" | "destructive"> = {
-      draft: 'secondary',
-      stones_accepted: 'secondary',
-      sent_to_lab: 'default',
-      verbal_uploaded: 'default',
-      stones_returned: 'warning',
-      cert_uploaded: 'success',
-      cert_returned: 'success',
-      done: 'success',
-      pending: 'warning',
-      in_transit: 'default',
-      delivered: 'success',
-    };
-    return <Badge variant={variants[status] || 'secondary'}>{formatJobStatus(status)}</Badge>;
+    return <Badge className={getStatusColor(status)}>{formatJobStatus(status)}</Badge>;
   };
 
   if (loading) {
@@ -290,7 +276,7 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <Badge variant={getStatusColor(shipment.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>
+                        <Badge className={getStatusColor(shipment.status)}>
                           {shipment.status}
                         </Badge>
                         <p className="text-xs text-navy-500 mt-1">
@@ -340,7 +326,7 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <Badge variant={getStatusColor(job.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>
+                        <Badge className={getStatusColor(job.status)}>
                           {formatJobStatus(job.status)}
                         </Badge>
                         <p className="text-xs text-navy-500 mt-1">
@@ -372,7 +358,7 @@ export default function DashboardPage() {
                   key={status}
                   className="flex items-center gap-2 px-4 py-2 bg-navy-50 rounded-lg"
                 >
-                  <Badge variant={getStatusColor(status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>
+                  <Badge className={getStatusColor(status)}>
                     {formatJobStatus(status)}
                   </Badge>
                   <span className="font-semibold text-navy-900">{count}</span>
@@ -542,7 +528,7 @@ export default function DashboardPage() {
                 <div>
                   <Label className="text-navy-500">Status</Label>
                   <div className="mt-1">
-                    <Badge variant={getStatusColor(selectedShipment.status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>
+                    <Badge className={getStatusColor(selectedShipment.status)}>
                       {selectedShipment.status}
                     </Badge>
                   </div>

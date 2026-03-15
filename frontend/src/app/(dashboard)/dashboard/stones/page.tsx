@@ -437,7 +437,7 @@ export default function StonesPage() {
                   variant={verbalEditMode ? "default" : "outline"}
                   size="sm"
                   onClick={() => setVerbalEditMode(!verbalEditMode)}
-                  className={`ml-auto h-7 text-xs ${verbalEditMode ? 'bg-amber-600 hover:bg-amber-700' : 'border-navy-300 hover:bg-navy-100'}`}
+                  className={`ml-auto h-7 text-xs ${verbalEditMode ? 'bg-brand-red hover:bg-brand-red-dark' : 'border-navy-300 hover:bg-navy-100'}`}
                   data-testid="edit-stone-button"
                 >
                   <Pencil className="h-3 w-3 mr-1" />
