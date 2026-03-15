@@ -1175,7 +1175,7 @@ export default function JobsPage() {
         {isAdmin && (
           <Button
             onClick={() => setCreateDialogOpen(true)}
-            className="bg-navy-800 hover:bg-navy-700"
+            className="bg-navy-900 hover:bg-navy-800"
             data-testid="create-job-button"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -1185,7 +1185,7 @@ export default function JobsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-navy-100">
+      <Card className="border-navy-200">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -1221,8 +1221,8 @@ export default function JobsPage() {
       </Card>
 
       {/* Jobs Table */}
-      <Card className="border-navy-100">
-        <CardHeader className="border-b border-navy-100">
+      <Card className="border-navy-200">
+        <CardHeader className="border-b border-navy-200">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
               <Briefcase className="h-5 w-5" />
@@ -1293,7 +1293,7 @@ export default function JobsPage() {
                         </TableCell>
                       )}
                       <TableCell 
-                        className="font-medium text-navy-800"
+                        className="font-medium text-navy-900"
                         onClick={() => openJobDetails(job)}
                       >
                         #{job.job_number}
@@ -1362,9 +1362,9 @@ export default function JobsPage() {
 
       {/* Create Job Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={handleCreateDialogClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">Create New Job</DialogTitle>
+            <DialogTitle className="text-xl text-navy-900">Create New Job</DialogTitle>
             <DialogDescription>Create a new job with stones for testing</DialogDescription>
           </DialogHeader>
 
@@ -1382,7 +1382,7 @@ export default function JobsPage() {
 
           <div className="space-y-6 py-4">
             {/* Job Details */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Client <span className="text-red-500">*</span></Label>
                 <Select
@@ -1460,8 +1460,8 @@ export default function JobsPage() {
                 </Button>
               </div>
 
-              <div className="border border-navy-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr,100px,120px,120px,auto] gap-2 p-3 bg-navy-50 text-sm font-medium text-navy-700">
+              <div className="border border-navy-200 rounded-lg overflow-x-auto">
+                <div className="grid grid-cols-[1fr,100px,120px,120px,auto] gap-2 p-3 bg-navy-50 min-w-[540px] text-sm font-medium text-navy-700">
                   <div>Type <span className="text-red-500">*</span></div>
                   <div>Weight <span className="text-red-500">*</span></div>
                   <div>Shape</div>
@@ -1471,7 +1471,7 @@ export default function JobsPage() {
                 {stones.map((stone, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-[1fr,100px,120px,120px,auto] gap-2 p-3 border-t border-navy-200"
+                    className="grid grid-cols-[1fr,100px,120px,120px,auto] gap-2 p-3 border-t min-w-[540px] border-navy-200"
                   >
                     <Select
                       value={stone.stone_type}
@@ -1548,7 +1548,7 @@ export default function JobsPage() {
             <Button
               onClick={handleCreateJob}
               disabled={creating || !isFormValid()}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-create-job-button"
             >
               {creating ? (
@@ -1572,7 +1572,7 @@ export default function JobsPage() {
           setSelectedStones([]);
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Job #{selectedJob?.job_number}</span>
@@ -1606,18 +1606,18 @@ export default function JobsPage() {
           {selectedJob && (
             <div className="space-y-4 py-4">
               {/* Job Details */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label className="text-navy-500">Client</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.client_name || 'N/A'}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.client_name || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Branch</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.branch_name || 'N/A'}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.branch_name || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Service Type</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.service_type}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.service_type}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Status</Label>
@@ -1646,11 +1646,11 @@ export default function JobsPage() {
                 </div>
                 <div>
                   <Label className="text-navy-500">Total Value</Label>
-                  <p className="font-medium text-navy-800">${selectedJob.total_value.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedJob.total_value.toLocaleString()}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Total Est. Fees</Label>
-                  <p className="font-medium text-navy-800">${selectedJob.total_fee.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedJob.total_fee.toLocaleString()}</p>
                 </div>
                 {(() => {
                   const totalActual = selectedJob.stones.reduce((sum, s) => sum + (s.actual_fee ?? s.fee), 0);
@@ -1678,7 +1678,7 @@ export default function JobsPage() {
               ) : selectedJob.notes ? (
                 <div>
                   <Label className="text-navy-500">Notes</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.notes}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.notes}</p>
                 </div>
               ) : null}
 
@@ -1687,7 +1687,7 @@ export default function JobsPage() {
                 <div className="flex justify-end">
                   <Button
                     onClick={handleUpdateJob}
-                    className="bg-navy-800 hover:bg-navy-700"
+                    className="bg-navy-900 hover:bg-navy-800"
                     data-testid="save-job-button"
                   >
                     Save Changes
@@ -1947,7 +1947,7 @@ export default function JobsPage() {
                                   <Clock className="h-4 w-4 text-amber-600" />
                                 )}
                                 <div>
-                                  <p className="text-sm font-medium text-navy-800">
+                                  <p className="text-sm font-medium text-navy-900">
                                     {NOTIFICATION_LABELS[notification.type] || notification.type}
                                   </p>
                                   {notification.last_sent && (
@@ -2212,7 +2212,7 @@ export default function JobsPage() {
       <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">Group Stones for Certificate</DialogTitle>
+            <DialogTitle className="text-xl text-navy-900">Group Stones for Certificate</DialogTitle>
             <DialogDescription>
               Create a certificate group for {selectedStones.length} selected stone(s).
               Maximum 30 stones per certificate.
@@ -2237,7 +2237,7 @@ export default function JobsPage() {
             <Button
               onClick={handleGroupStones}
               disabled={savingGroup || selectedStones.length === 0 || selectedStones.length > 30}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-group-button"
             >
               {savingGroup ? (
@@ -2283,7 +2283,7 @@ export default function JobsPage() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Weight (ct) <span className="text-red-500">*</span></Label>
                 <Input
@@ -2335,7 +2335,7 @@ export default function JobsPage() {
             <Button
               onClick={handleAddStoneToJob}
               disabled={addingStone || !newStone.stone_type || !newStone.weight || !newStone.value}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-add-stone-button"
             >
               {addingStone ? (
@@ -2353,7 +2353,7 @@ export default function JobsPage() {
 
       {/* Nested Stone Dialog - opens on top of job dialog */}
       <Dialog open={stoneDialogOpen} onOpenChange={setStoneDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-2xl w-[95vw] md:w-auto max-h-[80vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Diamond className="h-5 w-5" />
@@ -2382,23 +2382,23 @@ export default function JobsPage() {
               <div className="grid grid-cols-4 gap-4 p-4 bg-navy-50 rounded-lg">
                 <div>
                   <Label className="text-navy-500 text-xs">Type</Label>
-                  <p className="font-medium text-navy-800">{viewingStone.stone_type}</p>
+                  <p className="font-medium text-navy-900">{viewingStone.stone_type}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Weight</Label>
-                  <p className="font-medium text-navy-800">{viewingStone.weight} ct</p>
+                  <p className="font-medium text-navy-900">{viewingStone.weight} ct</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Shape</Label>
-                  <p className="font-medium text-navy-800">{viewingStone.shape}</p>
+                  <p className="font-medium text-navy-900">{viewingStone.shape}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Value</Label>
-                  <p className="font-medium text-navy-800">${viewingStone.value.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${viewingStone.value.toLocaleString()}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Est. Fee</Label>
-                  <p className="font-medium text-navy-800">${viewingStone.fee.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${viewingStone.fee.toLocaleString()}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Actual Fee</Label>
@@ -2435,14 +2435,14 @@ export default function JobsPage() {
                       </span>
                     </div>
                   ) : (
-                    <p className="font-medium text-navy-800">
+                    <p className="font-medium text-navy-900">
                       {viewingStone.color_stability_test ? 'Yes (+$50)' : 'No'}
                     </p>
                   )}
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Certificate Group</Label>
-                  <p className="font-medium text-navy-800">
+                  <p className="font-medium text-navy-900">
                     {viewingStone.certificate_group ? `Group ${viewingStone.certificate_group}` : '-'}
                   </p>
                 </div>
@@ -2451,7 +2451,7 @@ export default function JobsPage() {
               {/* Verbal Findings Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-navy-200 pb-2">
-                  <Label className="text-lg font-semibold flex items-center gap-2 text-navy-800">
+                  <Label className="text-lg font-semibold flex items-center gap-2 text-navy-900">
                     <FileText className="h-5 w-5" />
                     Verbal Findings
                   </Label>
@@ -2470,7 +2470,7 @@ export default function JobsPage() {
                   </div>
                 )}
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Certificate ID */}
                   <div className="space-y-1">
                     <Label className="text-sm text-navy-600">
@@ -2617,7 +2617,7 @@ export default function JobsPage() {
                     }
                   }}
                   disabled={savingStoneVerbal || !structuredFindings.certificate_id}
-                  className="bg-navy-800 hover:bg-navy-700 w-full"
+                  className="bg-navy-900 hover:bg-navy-800 w-full"
                   data-testid="save-stone-button"
                 >
                   {savingStoneVerbal ? (
@@ -2863,7 +2863,7 @@ export default function JobsPage() {
       <Dialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">
+            <DialogTitle className="text-xl text-navy-900">
               Update Job Status
             </DialogTitle>
             <DialogDescription>
@@ -2897,7 +2897,7 @@ export default function JobsPage() {
             <Button
               onClick={handleBulkStatusUpdate}
               disabled={updatingBulkStatus || !bulkStatus}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-bulk-status-button"
             >
               {updatingBulkStatus ? (
@@ -2941,16 +2941,16 @@ export default function JobsPage() {
               <div className="grid grid-cols-2 gap-4 p-4 bg-navy-50 rounded-lg">
                 <div>
                   <Label className="text-navy-500 text-xs">To</Label>
-                  <p className="font-medium text-navy-800">{notificationPreview.recipient_email}</p>
+                  <p className="font-medium text-navy-900">{notificationPreview.recipient_email}</p>
                   <p className="text-sm text-navy-600">{notificationPreview.recipient_name}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Job</Label>
-                  <p className="font-medium text-navy-800">#{notificationPreview.job_number}</p>
+                  <p className="font-medium text-navy-900">#{notificationPreview.job_number}</p>
                 </div>
                 <div className="col-span-2">
                   <Label className="text-navy-500 text-xs">Subject</Label>
-                  <p className="font-medium text-navy-800">{notificationPreview.subject}</p>
+                  <p className="font-medium text-navy-900">{notificationPreview.subject}</p>
                 </div>
                 {notificationPreview.attachments.length > 0 && (
                   <div className="col-span-2">
@@ -3017,7 +3017,7 @@ export default function JobsPage() {
 
       {/* View Client Invoice Dialog */}
       <Dialog open={viewInvoiceOpen} onOpenChange={setViewInvoiceOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-4xl w-[95vw] md:w-auto max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Receipt className="h-5 w-5" />
@@ -3039,7 +3039,7 @@ export default function JobsPage() {
             </Button>
             <Button
               onClick={() => window.open(selectedJob?.invoice_url, '_blank')}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
             >
               <FileText className="h-4 w-4 mr-2" />
               Download

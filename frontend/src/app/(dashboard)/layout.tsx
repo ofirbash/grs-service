@@ -141,7 +141,9 @@ export default function DashboardLayout({
         {/* Navigation */}
         <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
           {navigation.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const isActive = item.href === '/dashboard' 
+              ? pathname === '/dashboard' 
+              : pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.name}
@@ -206,7 +208,7 @@ export default function DashboardLayout({
         )}
       >
         {/* Top Bar */}
-        <header className="sticky top-0 z-40 h-14 bg-white border-b border-navy-100 flex items-center justify-between px-4 md:px-6 shadow-sm">
+        <header className="sticky top-0 z-40 h-14 bg-white border-b border-navy-200 flex items-center justify-between px-4 md:px-6 shadow-sm">
           <div className="flex items-center gap-3">
             {/* Mobile logo */}
             <div className="flex items-center gap-2 md:hidden">
@@ -221,7 +223,7 @@ export default function DashboardLayout({
             </div>
             <h1 className="text-sm font-semibold text-navy-800 hidden md:block">
               {navigation
-                .filter(n => pathname === n.href || pathname.startsWith(n.href + '/'))
+                .filter(n => n.href === '/dashboard' ? pathname === '/dashboard' : pathname === n.href || pathname.startsWith(n.href + '/'))
                 .sort((a, b) => b.href.length - a.href.length)[0]?.name || 'Dashboard'}
             </h1>
           </div>
@@ -264,7 +266,9 @@ export default function DashboardLayout({
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-navy-200 md:hidden" data-testid="mobile-nav">
         <div className="flex items-center justify-around h-14">
           {mobileNavItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const isActive = item.href === '/dashboard'
+              ? pathname === '/dashboard'
+              : pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.name}
@@ -300,7 +304,7 @@ export default function DashboardLayout({
           <div className="absolute inset-0 bg-black/30" />
           <div className="absolute bottom-14 left-0 right-0 bg-white border-t border-navy-200 rounded-t-xl shadow-xl p-4 space-y-1" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <span className="font-serif text-sm font-semibold text-navy-800">More</span>
+              <span className="font-serif text-sm font-semibold text-navy-900">More</span>
               <button onClick={() => setMobileMoreOpen(false)} className="text-navy-400">
                 <X className="h-5 w-5" />
               </button>

@@ -557,7 +557,7 @@ export default function SettingsPage() {
   if (!isAdmin) {
     return (
       <div className="space-y-6 animate-fadeIn" data-testid="settings-page">
-        <Card className="border-navy-100">
+        <Card className="border-navy-200">
           <CardContent className="p-8 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-amber-500" />
             <h3 className="text-lg font-semibold text-navy-800 mb-2">Access Restricted</h3>
@@ -581,7 +581,7 @@ export default function SettingsPage() {
         <TabsList className="bg-navy-100 p-1">
           <TabsTrigger
             value="dropdowns"
-            className="data-[state=active]:bg-white data-[state=active]:text-navy-800"
+            className="data-[state=active]:bg-white data-[state=active]:text-navy-900"
             data-testid="tab-dropdowns"
           >
             <ListFilter className="h-4 w-4 mr-2" />
@@ -589,7 +589,7 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger
             value="branches"
-            className="data-[state=active]:bg-white data-[state=active]:text-navy-800"
+            className="data-[state=active]:bg-white data-[state=active]:text-navy-900"
             data-testid="tab-branches"
           >
             <Building className="h-4 w-4 mr-2" />
@@ -597,7 +597,7 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger
             value="pricing"
-            className="data-[state=active]:bg-white data-[state=active]:text-navy-800"
+            className="data-[state=active]:bg-white data-[state=active]:text-navy-900"
             data-testid="tab-pricing"
           >
             <DollarSign className="h-4 w-4 mr-2" />
@@ -606,7 +606,7 @@ export default function SettingsPage() {
           {isSuperAdmin && (
           <TabsTrigger
             value="admins"
-            className="data-[state=active]:bg-white data-[state=active]:text-navy-800"
+            className="data-[state=active]:bg-white data-[state=active]:text-navy-900"
             data-testid="tab-admins"
           >
             <Shield className="h-4 w-4 mr-2" />
@@ -617,7 +617,7 @@ export default function SettingsPage() {
 
         {/* ==================== DROPDOWNS TAB ==================== */}
         <TabsContent value="dropdowns" className="space-y-6">
-          <Card className="border-navy-100">
+          <Card className="border-navy-200">
             <CardHeader>
               <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
                 <ListFilter className="h-5 w-5" />
@@ -666,7 +666,7 @@ export default function SettingsPage() {
                 </div>
                 <Button
                   onClick={() => setAddOptionDialogOpen(true)}
-                  className="bg-navy-800 hover:bg-navy-700"
+                  className="bg-navy-900 hover:bg-navy-800"
                   data-testid="add-dropdown-option-button"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -675,7 +675,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Options Table */}
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-navy-50">
@@ -702,7 +702,7 @@ export default function SettingsPage() {
                       
                       return filteredOptions.map((option, index) => (
                         <TableRow key={`${option.value}-${index}`} className="hover:bg-navy-50">
-                          <TableCell className="font-medium text-navy-800">
+                          <TableCell className="font-medium text-navy-900">
                             {editingOption?.value === option.value ? (
                               <Input
                                 value={editingOption.value}
@@ -722,7 +722,7 @@ export default function SettingsPage() {
                                     variant={editingOption.stone_types.includes(type) ? 'default' : 'outline'}
                                     className={`cursor-pointer ${
                                       editingOption.stone_types.includes(type)
-                                        ? 'bg-navy-800 hover:bg-navy-700'
+                                        ? 'bg-navy-900 hover:bg-navy-800'
                                         : 'hover:bg-navy-100'
                                     }`}
                                     onClick={() =>
@@ -815,7 +815,7 @@ export default function SettingsPage() {
 
         {/* ==================== BRANCHES TAB ==================== */}
         <TabsContent value="branches" className="space-y-6">
-          <Card className="border-navy-100">
+          <Card className="border-navy-200">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
@@ -827,7 +827,7 @@ export default function SettingsPage() {
               {isSuperAdmin && (
                 <Button
                   onClick={() => openBranchDialog()}
-                  className="bg-navy-800 hover:bg-navy-700"
+                  className="bg-navy-900 hover:bg-navy-800"
                   data-testid="add-branch-button"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -836,7 +836,7 @@ export default function SettingsPage() {
               )}
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-navy-50">
@@ -859,7 +859,7 @@ export default function SettingsPage() {
                     ) : (
                       branches.map((branch) => (
                         <TableRow key={branch.id} className="hover:bg-navy-50" data-testid={`branch-row-${branch.id}`}>
-                          <TableCell className="font-medium text-navy-800">{branch.name}</TableCell>
+                          <TableCell className="font-medium text-navy-900">{branch.name}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="bg-navy-50">
                               {branch.code}
@@ -898,7 +898,7 @@ export default function SettingsPage() {
           </Card>
 
           {/* Addresses Section */}
-          <Card className="border-navy-100">
+          <Card className="border-navy-200">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
@@ -909,7 +909,7 @@ export default function SettingsPage() {
               </div>
               <Button
                 onClick={() => openAddressDialog()}
-                className="bg-navy-800 hover:bg-navy-700"
+                className="bg-navy-900 hover:bg-navy-800"
                 data-testid="add-address-button"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -917,7 +917,7 @@ export default function SettingsPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-navy-50">
@@ -937,7 +937,7 @@ export default function SettingsPage() {
                     ) : (
                       addresses.map((addr) => (
                         <TableRow key={addr.id} className="hover:bg-navy-50">
-                          <TableCell className="font-medium text-navy-800">{addr.name}</TableCell>
+                          <TableCell className="font-medium text-navy-900">{addr.name}</TableCell>
                           <TableCell className="text-navy-600 max-w-[200px] truncate">{addr.address || '-'}</TableCell>
                           <TableCell className="text-navy-600">
                             <div className="text-sm">
@@ -968,7 +968,7 @@ export default function SettingsPage() {
 
         {/* ==================== PRICING TAB ==================== */}
         <TabsContent value="pricing" className="space-y-6">
-          <Card className="border-navy-100">
+          <Card className="border-navy-200">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
@@ -999,7 +999,7 @@ export default function SettingsPage() {
                   <Button
                     onClick={handleSavePricing}
                     disabled={savingPricing}
-                    className="bg-navy-800 hover:bg-navy-700"
+                    className="bg-navy-900 hover:bg-navy-800"
                     data-testid="save-pricing-button"
                   >
                     {savingPricing ? (
@@ -1021,7 +1021,7 @@ export default function SettingsPage() {
               {/* Pricing Brackets Table */}
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-navy-800">Value Brackets</h3>
+                  <h3 className="font-semibold text-navy-900">Value Brackets</h3>
                   {editingPricing && (
                     <Button
                       onClick={addBracket}
@@ -1036,7 +1036,7 @@ export default function SettingsPage() {
                   )}
                 </div>
 
-                <div className="border rounded-lg overflow-hidden">
+                <div className="border rounded-lg overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-navy-50">
@@ -1086,7 +1086,7 @@ export default function SettingsPage() {
                                   data-testid={`bracket-${index}-${st.toLowerCase()}-fee`}
                                 />
                               ) : (
-                                <Badge className="bg-navy-100 text-navy-800">${bracket.fees?.[st] ?? 0}</Badge>
+                                <Badge className="bg-navy-100 text-navy-900">${bracket.fees?.[st] ?? 0}</Badge>
                               )}
                             </TableCell>
                           ))}
@@ -1112,7 +1112,7 @@ export default function SettingsPage() {
 
               {/* Service Types */}
               <div className="p-4 bg-navy-50 rounded-lg">
-                <Label className="text-sm font-medium text-navy-800">Available Service Types</Label>
+                <Label className="text-sm font-medium text-navy-900">Available Service Types</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {(editingPricing ? pricingForm.service_types : pricing.service_types).map((type) => (
                     <Badge key={type} className="bg-navy-800 text-white flex items-center gap-1">
@@ -1149,7 +1149,7 @@ export default function SettingsPage() {
                       onClick={handleAddServiceType}
                       disabled={!newServiceType.trim()}
                       size="sm"
-                      className="bg-navy-800 hover:bg-navy-700 h-8"
+                      className="bg-navy-900 hover:bg-navy-800 h-8"
                       data-testid="add-service-type-button"
                     >
                       <Plus className="h-3 w-3 mr-1" />
@@ -1161,8 +1161,8 @@ export default function SettingsPage() {
 
               {/* Additional Fees */}
               <div className="p-4 bg-navy-50 rounded-lg space-y-4">
-                <Label className="text-sm font-semibold text-navy-800">Additional Fees</Label>
-                <div className="grid grid-cols-2 gap-4">
+                <Label className="text-sm font-semibold text-navy-900">Additional Fees</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm text-navy-600">Color Stability Test (USD)</Label>
                     {editingPricing ? (
@@ -1200,7 +1200,7 @@ export default function SettingsPage() {
         {/* ==================== ADMIN USERS TAB ==================== */}
         {isSuperAdmin && (
         <TabsContent value="admins" className="space-y-6">
-          <Card className="border-navy-100">
+          <Card className="border-navy-200">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
@@ -1211,7 +1211,7 @@ export default function SettingsPage() {
               </div>
               <Button
                 onClick={() => openAdminDialog()}
-                className="bg-navy-800 hover:bg-navy-700"
+                className="bg-navy-900 hover:bg-navy-800"
                 data-testid="add-admin-button"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -1219,7 +1219,7 @@ export default function SettingsPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-navy-50">
@@ -1240,7 +1240,7 @@ export default function SettingsPage() {
                     ) : (
                       adminUsers.map((admin) => (
                         <TableRow key={admin.id} className="hover:bg-navy-50" data-testid={`admin-row-${admin.id}`}>
-                          <TableCell className="font-medium text-navy-800">{admin.full_name}</TableCell>
+                          <TableCell className="font-medium text-navy-900">{admin.full_name}</TableCell>
                           <TableCell className="text-navy-600">{admin.email}</TableCell>
                           <TableCell>
                             {admin.role === 'super_admin' ? (
@@ -1281,7 +1281,7 @@ export default function SettingsPage() {
       <Dialog open={adminDialogOpen} onOpenChange={setAdminDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">
+            <DialogTitle className="text-xl text-navy-900">
               {editingAdmin ? 'Edit Admin User' : 'Create Admin User'}
             </DialogTitle>
             <DialogDescription>
@@ -1382,7 +1382,7 @@ export default function SettingsPage() {
             <Button
               onClick={handleSaveAdmin}
               disabled={savingAdmin || !adminForm.full_name || !adminForm.email || !adminForm.role || (!editingAdmin && !adminForm.password)}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-save-admin-button"
             >
               {savingAdmin ? (
@@ -1402,7 +1402,7 @@ export default function SettingsPage() {
       <Dialog open={addOptionDialogOpen} onOpenChange={setAddOptionDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">
+            <DialogTitle className="text-xl text-navy-900">
               Add {selectedField.charAt(0).toUpperCase() + selectedField.slice(1)} Option
             </DialogTitle>
             <DialogDescription>
@@ -1435,7 +1435,7 @@ export default function SettingsPage() {
                     variant={newOptionStoneTypes.includes(type) ? 'default' : 'outline'}
                     className={`cursor-pointer ${
                       newOptionStoneTypes.includes(type)
-                        ? 'bg-navy-800 hover:bg-navy-700'
+                        ? 'bg-navy-900 hover:bg-navy-800'
                         : 'hover:bg-navy-100'
                     }`}
                     onClick={() => toggleStoneType(type, newOptionStoneTypes, setNewOptionStoneTypes)}
@@ -1454,7 +1454,7 @@ export default function SettingsPage() {
             <Button
               onClick={handleAddOption}
               disabled={savingDropdown || !newOptionValue.trim()}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-add-option-button"
             >
               {savingDropdown ? (
@@ -1474,7 +1474,7 @@ export default function SettingsPage() {
       <Dialog open={branchDialogOpen} onOpenChange={setBranchDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">
+            <DialogTitle className="text-xl text-navy-900">
               {editingBranch ? 'Edit Branch' : 'Add New Branch'}
             </DialogTitle>
             <DialogDescription>
@@ -1483,7 +1483,7 @@ export default function SettingsPage() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="branchName">Name *</Label>
                 <Input
@@ -1521,7 +1521,7 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="branchPhone">Phone</Label>
                 <Input
@@ -1555,7 +1555,7 @@ export default function SettingsPage() {
             <Button
               onClick={handleSaveBranch}
               disabled={savingBranch || !branchForm.name || !branchForm.code || !branchForm.address}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-save-branch-button"
             >
               {savingBranch ? (
@@ -1575,7 +1575,7 @@ export default function SettingsPage() {
       <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">
+            <DialogTitle className="text-xl text-navy-900">
               {editingAddressObj ? 'Edit Address' : 'Add New Address'}
             </DialogTitle>
             <DialogDescription>
@@ -1604,7 +1604,7 @@ export default function SettingsPage() {
                 data-testid="address-address-input"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Contact Email</Label>
                 <Input
@@ -1634,7 +1634,7 @@ export default function SettingsPage() {
             <Button
               onClick={handleSaveAddress}
               disabled={savingAddress || !addressForm.name.trim()}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-save-address-button"
             >
               {savingAddress ? (

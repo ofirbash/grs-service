@@ -278,7 +278,7 @@ export default function StonesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-navy-800">Stones</h1>
+          <h1 className="text-2xl font-bold text-navy-900">Stones</h1>
           <p className="text-navy-500">Manage all stones across jobs</p>
         </div>
       </div>
@@ -318,11 +318,12 @@ export default function StonesPage() {
       {/* Stones Table */}
       <Card>
         <CardContent className="p-0">
-          <div className="flex items-center gap-2 px-6 py-4 border-b border-navy-100">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-navy-200">
             <Diamond className="h-5 w-5 text-navy-600" />
-            <span className="font-semibold text-navy-800">All Stones ({filteredStones.length})</span>
+            <span className="font-semibold text-navy-900">All Stones ({filteredStones.length})</span>
           </div>
           
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-navy-50">
@@ -394,12 +395,13 @@ export default function StonesPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
       {/* Stone Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-2xl w-[95vw] md:w-auto max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Diamond className="h-5 w-5" />
@@ -428,23 +430,23 @@ export default function StonesPage() {
               <div className="grid grid-cols-3 gap-4 p-4 bg-navy-50 rounded-lg">
                 <div>
                   <Label className="text-navy-500 text-xs">Type</Label>
-                  <p className="font-medium text-navy-800">{selectedStone.stone_type}</p>
+                  <p className="font-medium text-navy-900">{selectedStone.stone_type}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Weight</Label>
-                  <p className="font-medium text-navy-800">{selectedStone.weight} ct</p>
+                  <p className="font-medium text-navy-900">{selectedStone.weight} ct</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Shape</Label>
-                  <p className="font-medium text-navy-800">{selectedStone.shape}</p>
+                  <p className="font-medium text-navy-900">{selectedStone.shape}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Value</Label>
-                  <p className="font-medium text-navy-800">${selectedStone.value.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedStone.value.toLocaleString()}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Est. Fee</Label>
-                  <p className="font-medium text-navy-800">${selectedStone.fee.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedStone.fee.toLocaleString()}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Actual Fee</Label>
@@ -481,14 +483,14 @@ export default function StonesPage() {
                       </span>
                     </div>
                   ) : (
-                    <p className="font-medium text-navy-800">
+                    <p className="font-medium text-navy-900">
                       {selectedStone.color_stability_test ? 'Yes (+$50)' : 'No'}
                     </p>
                   )}
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Certificate Group</Label>
-                  <p className="font-medium text-navy-800">
+                  <p className="font-medium text-navy-900">
                     {selectedStone.certificate_group ? `Group ${selectedStone.certificate_group}` : '-'}
                   </p>
                 </div>
@@ -497,7 +499,7 @@ export default function StonesPage() {
               {/* Verbal Findings Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-navy-200 pb-2">
-                  <Label className="text-lg font-semibold flex items-center gap-2 text-navy-800">
+                  <Label className="text-lg font-semibold flex items-center gap-2 text-navy-900">
                     <FileText className="h-5 w-5" />
                     Verbal Findings
                   </Label>
@@ -518,7 +520,7 @@ export default function StonesPage() {
                   </div>
                 )}
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Certificate ID */}
                   <div className="space-y-1">
                     <Label className="text-sm text-navy-600">
@@ -657,7 +659,7 @@ export default function StonesPage() {
                     }
                   }}
                   disabled={savingVerbal || !structuredFindings.certificate_id}
-                  className="bg-navy-800 hover:bg-navy-700 w-full"
+                  className="bg-navy-900 hover:bg-navy-800 w-full"
                   data-testid="save-stone-button"
                 >
                   {savingVerbal ? (

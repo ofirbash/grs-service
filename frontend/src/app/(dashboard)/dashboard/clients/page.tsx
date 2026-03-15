@@ -221,7 +221,7 @@ export default function ClientsPage() {
         </div>
         <Button
           onClick={() => setCreateDialogOpen(true)}
-          className="bg-navy-800 hover:bg-navy-700"
+          className="bg-navy-900 hover:bg-navy-800"
           data-testid="create-client-button"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -230,7 +230,7 @@ export default function ClientsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-navy-100">
+      <Card className="border-navy-200">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -265,8 +265,8 @@ export default function ClientsPage() {
       </Card>
 
       {/* Clients Table */}
-      <Card className="border-navy-100">
-        <CardHeader className="border-b border-navy-100">
+      <Card className="border-navy-200">
+        <CardHeader className="border-b border-navy-200">
           <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
             <Users className="h-5 w-5" />
             All Clients ({filteredClients.length})
@@ -299,7 +299,7 @@ export default function ClientsPage() {
                       className="hover:bg-navy-50"
                       data-testid={`client-row-${client.id}`}
                     >
-                      <TableCell className="font-medium text-navy-800">{client.name}</TableCell>
+                      <TableCell className="font-medium text-navy-900">{client.name}</TableCell>
                       <TableCell className="text-navy-600">
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4 text-navy-400" />
@@ -359,15 +359,15 @@ export default function ClientsPage() {
 
       {/* Create Client Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">Add New Client</DialogTitle>
+            <DialogTitle className="text-xl text-navy-900">Add New Client</DialogTitle>
             <DialogDescription>Add a new client to your database</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {/* Row 1: Name & Company */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="name" className="text-sm">Name *</Label>
                 <Input
@@ -393,7 +393,7 @@ export default function ClientsPage() {
             </div>
 
             {/* Row 2: Primary Email & Phone */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="email" className="text-sm">Primary Email *</Label>
                 <Input
@@ -420,7 +420,7 @@ export default function ClientsPage() {
             </div>
 
             {/* Row 3: Secondary Email & Phone */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="secondary_email" className="text-sm">Secondary Email</Label>
                 <Input
@@ -447,7 +447,7 @@ export default function ClientsPage() {
             </div>
 
             {/* Row 4: Branch & Address */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="branch" className="text-sm">Branch *</Label>
                 <Select
@@ -500,7 +500,7 @@ export default function ClientsPage() {
             <Button
               onClick={handleCreateClient}
               disabled={creating || !formData.name || !formData.email || !formData.branch_id}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-create-client-button"
             >
               {creating ? (
@@ -518,15 +518,15 @@ export default function ClientsPage() {
 
       {/* Edit Client Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">Edit Client</DialogTitle>
+            <DialogTitle className="text-xl text-navy-900">Edit Client</DialogTitle>
             <DialogDescription>Update client information</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {/* Row 1: Name & Company */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="edit-name" className="text-sm">Name *</Label>
                 <Input
@@ -552,7 +552,7 @@ export default function ClientsPage() {
             </div>
 
             {/* Row 2: Primary Email & Phone */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="edit-email" className="text-sm">Primary Email *</Label>
                 <Input
@@ -579,7 +579,7 @@ export default function ClientsPage() {
             </div>
 
             {/* Row 3: Secondary Email & Phone */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="edit-secondary-email" className="text-sm">Secondary Email</Label>
                 <Input
@@ -606,7 +606,7 @@ export default function ClientsPage() {
             </div>
 
             {/* Row 4: Branch & Address */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="edit-branch" className="text-sm">Branch *</Label>
                 <Select
@@ -659,7 +659,7 @@ export default function ClientsPage() {
             <Button
               onClick={handleUpdateClient}
               disabled={updating || !editFormData.name || !editFormData.email || !editFormData.branch_id}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-edit-client-button"
             >
               {updating ? (

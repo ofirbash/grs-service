@@ -167,7 +167,7 @@ function PaymentForm() {
   return (
     <div className="min-h-screen bg-navy-950 p-4 flex items-start justify-center pt-8">
       <Card className="w-full max-w-2xl shadow-2xl" data-testid="payment-card">
-        <CardHeader className="text-center border-b border-navy-100 pb-6">
+        <CardHeader className="text-center border-b border-navy-200 pb-6">
           <img
             src="/logos/bashari-full.png"
             alt="Bashari"
@@ -181,15 +181,15 @@ function PaymentForm() {
           <div className="grid grid-cols-3 gap-4 p-4 bg-navy-50 rounded-lg text-sm">
             <div>
               <Label className="text-navy-500 text-xs">Job</Label>
-              <p className="font-bold text-navy-800">#{paymentData?.job_number}</p>
+              <p className="font-bold text-navy-900">#{paymentData?.job_number}</p>
             </div>
             <div>
               <Label className="text-navy-500 text-xs">Client</Label>
-              <p className="font-medium text-navy-800">{paymentData?.client_name}</p>
+              <p className="font-medium text-navy-900">{paymentData?.client_name}</p>
             </div>
             <div>
               <Label className="text-navy-500 text-xs">Stones</Label>
-              <p className="font-medium text-navy-800">{paymentData?.total_stones}</p>
+              <p className="font-medium text-navy-900">{paymentData?.total_stones}</p>
             </div>
           </div>
 
@@ -259,7 +259,7 @@ function PaymentForm() {
               {!showIframe ? (
                 <Button
                   onClick={() => setShowIframe(true)}
-                  className="w-full bg-navy-800 hover:bg-navy-700 h-12 text-base"
+                  className="w-full bg-navy-900 hover:bg-navy-800 h-12 text-base"
                   data-testid="proceed-payment-button"
                 >
                   <CreditCard className="h-5 w-5 mr-2" />

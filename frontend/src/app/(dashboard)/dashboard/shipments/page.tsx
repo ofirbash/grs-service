@@ -880,7 +880,7 @@ export default function ShipmentsPage() {
             setFormData(prev => ({ ...prev, source_address: userBranchName || '' }));
             setCreateDialogOpen(true);
           }}
-          className="bg-navy-800 hover:bg-navy-700"
+          className="bg-navy-900 hover:bg-navy-800"
           data-testid="create-shipment-button"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -889,7 +889,7 @@ export default function ShipmentsPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-navy-100">
+      <Card className="border-navy-200">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -921,8 +921,8 @@ export default function ShipmentsPage() {
       </Card>
 
       {/* Shipments Table */}
-      <Card className="border-navy-100">
-        <CardHeader className="border-b border-navy-100">
+      <Card className="border-navy-200">
+        <CardHeader className="border-b border-navy-200">
           <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
             <Package className="h-5 w-5" />
             All Shipments ({filteredShipments.length})
@@ -959,7 +959,7 @@ export default function ShipmentsPage() {
                       onClick={() => openShipmentDetails(shipment)}
                       data-testid={`shipment-row-${shipment.shipment_number}`}
                     >
-                      <TableCell className="font-medium text-navy-800">
+                      <TableCell className="font-medium text-navy-900">
                         #{shipment.shipment_number}
                       </TableCell>
                       <TableCell className="text-navy-600">
@@ -1023,7 +1023,7 @@ export default function ShipmentsPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">Create New Shipment</DialogTitle>
+            <DialogTitle className="text-xl text-navy-900">Create New Shipment</DialogTitle>
             <DialogDescription>
               Create a shipment to send jobs to the lab or return stones
             </DialogDescription>
@@ -1031,7 +1031,7 @@ export default function ShipmentsPage() {
 
           <div className="space-y-6 py-4">
             {/* Shipment Details */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="shipment_type">Shipment Type *</Label>
                 <Select
@@ -1167,13 +1167,13 @@ export default function ShipmentsPage() {
                           )}
                         </div>
                         <div>
-                          <p className="font-medium text-navy-800">Job #{job.job_number}</p>
+                          <p className="font-medium text-navy-900">Job #{job.job_number}</p>
                           <p className="text-sm text-navy-500">{job.client_name || 'N/A'}</p>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-navy-600">{job.total_stones} stones</p>
-                        <p className="text-sm font-medium text-navy-800">
+                        <p className="text-sm font-medium text-navy-900">
                           ${job.total_value.toLocaleString()}
                         </p>
                       </div>
@@ -1202,7 +1202,7 @@ export default function ShipmentsPage() {
                 !formData.source_address ||
                 !formData.destination_address
               }
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-create-shipment-button"
             >
               {creating ? (
@@ -1223,7 +1223,7 @@ export default function ShipmentsPage() {
 
       {/* View Shipment Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Shipment #{selectedShipment?.shipment_number}</span>
@@ -1276,7 +1276,7 @@ export default function ShipmentsPage() {
             <div className="space-y-4 py-4">
               {editingShipment ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <Label className="text-navy-500">Type</Label>
                       <Select value={editFormData.shipment_type} onValueChange={(v) => setEditFormData({...editFormData, shipment_type: v})}>
@@ -1323,16 +1323,16 @@ export default function ShipmentsPage() {
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <Button onClick={handleSaveEditShipment} disabled={savingEdit} className="bg-navy-800 hover:bg-navy-700" data-testid="save-shipment-edit-button">
+                    <Button onClick={handleSaveEditShipment} disabled={savingEdit} className="bg-navy-900 hover:bg-navy-800" data-testid="save-shipment-edit-button">
                       {savingEdit ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : 'Save Changes'}
                     </Button>
                   </div>
                 </div>
               ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-navy-500">Type</Label>
-                  <p className="font-medium text-navy-800">
+                  <p className="font-medium text-navy-900">
                     {formatShipmentType(selectedShipment.shipment_type)}
                   </p>
                 </div>
@@ -1342,7 +1342,7 @@ export default function ShipmentsPage() {
                 </div>
                 <div>
                   <Label className="text-navy-500">Courier</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.courier}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.courier}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Tracking Number</Label>
@@ -1352,11 +1352,11 @@ export default function ShipmentsPage() {
                 </div>
                 <div>
                   <Label className="text-navy-500">From</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.source_address}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.source_address}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">To</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.destination_address}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.destination_address}</p>
                 </div>
               </div>
               )}
@@ -1364,7 +1364,7 @@ export default function ShipmentsPage() {
               {selectedShipment.notes && !editingShipment && (
                 <div>
                   <Label className="text-navy-500">Notes</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.notes}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.notes}</p>
                 </div>
               )}
 
@@ -1501,9 +1501,9 @@ export default function ShipmentsPage() {
 
       {/* Add Jobs to Shipment Dialog */}
       <Dialog open={addJobsDialogOpen} onOpenChange={setAddJobsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl w-[95vw] md:w-auto max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">
+            <DialogTitle className="text-xl text-navy-900">
               Add Jobs to Shipment #{selectedShipment?.shipment_number}
             </DialogTitle>
             <DialogDescription>
@@ -1546,13 +1546,13 @@ export default function ShipmentsPage() {
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-navy-800">Job #{job.job_number}</p>
+                        <p className="font-medium text-navy-900">Job #{job.job_number}</p>
                         <p className="text-sm text-navy-500">{job.client_name || 'N/A'}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-navy-600">{job.total_stones} stones</p>
-                      <p className="text-sm font-medium text-navy-800">
+                      <p className="text-sm font-medium text-navy-900">
                         ${job.total_value.toLocaleString()}
                       </p>
                     </div>
@@ -1574,7 +1574,7 @@ export default function ShipmentsPage() {
             <Button
               onClick={handleAddJobsToShipment}
               disabled={addingJobs || jobsToAdd.length === 0}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-add-jobs-button"
             >
               {addingJobs ? (
@@ -1600,7 +1600,7 @@ export default function ShipmentsPage() {
           setEditJobMode(false);
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Job #{selectedJob?.job_number}</span>
@@ -1710,7 +1710,7 @@ export default function ShipmentsPage() {
                 <div className="grid grid-cols-3 gap-4 p-4 bg-navy-50 rounded-lg">
                 <div>
                   <Label className="text-navy-500 text-xs">Service Type</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.service_type || 'N/A'}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.service_type || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Status</Label>
@@ -1718,15 +1718,15 @@ export default function ShipmentsPage() {
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Total Stones</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.total_stones}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.total_stones}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Total Value</Label>
-                  <p className="font-medium text-navy-800">${selectedJob.total_value.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedJob.total_value.toLocaleString()}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Total Fee</Label>
-                  <p className="font-medium text-navy-800">${selectedJob.total_fee.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedJob.total_fee.toLocaleString()}</p>
                 </div>
               </div>
               )}
@@ -1734,7 +1734,7 @@ export default function ShipmentsPage() {
               {selectedJob.notes && !editJobMode && (
                 <div>
                   <Label className="text-navy-500">Notes</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.notes}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.notes}</p>
                 </div>
               )}
 
@@ -1907,27 +1907,27 @@ export default function ShipmentsPage() {
               <div className="grid grid-cols-3 gap-4 p-4 bg-navy-50 rounded-lg">
                 <div>
                   <Label className="text-navy-500 text-xs">Type</Label>
-                  <p className="font-medium text-navy-800">{selectedStone.stone_type}</p>
+                  <p className="font-medium text-navy-900">{selectedStone.stone_type}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Weight</Label>
-                  <p className="font-medium text-navy-800">{selectedStone.weight} ct</p>
+                  <p className="font-medium text-navy-900">{selectedStone.weight} ct</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Shape</Label>
-                  <p className="font-medium text-navy-800">{selectedStone.shape}</p>
+                  <p className="font-medium text-navy-900">{selectedStone.shape}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Value</Label>
-                  <p className="font-medium text-navy-800">${selectedStone.value.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedStone.value.toLocaleString()}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Fee</Label>
-                  <p className="font-medium text-navy-800">${selectedStone.fee.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedStone.fee.toLocaleString()}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Certificate Group</Label>
-                  <p className="font-medium text-navy-800">
+                  <p className="font-medium text-navy-900">
                     {selectedStone.certificate_group ? `Group ${selectedStone.certificate_group}` : '-'}
                   </p>
                 </div>
@@ -1936,7 +1936,7 @@ export default function ShipmentsPage() {
               {/* Verbal Findings Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-navy-200 pb-2">
-                  <Label className="text-lg font-semibold flex items-center gap-2 text-navy-800">
+                  <Label className="text-lg font-semibold flex items-center gap-2 text-navy-900">
                     <FileText className="h-5 w-5" />
                     Verbal Findings
                   </Label>
@@ -1945,7 +1945,7 @@ export default function ShipmentsPage() {
                   )}
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Certificate ID */}
                   <div className="space-y-1">
                     <Label className="text-sm text-navy-600">Certificate ID</Label>
@@ -2048,7 +2048,7 @@ export default function ShipmentsPage() {
                     }
                   }}
                   disabled={savingVerbal}
-                  className="bg-navy-800 hover:bg-navy-700 w-full"
+                  className="bg-navy-900 hover:bg-navy-800 w-full"
                   data-testid="save-stone-verbal-button"
                 >
                   {savingVerbal ? (
@@ -2250,7 +2250,7 @@ export default function ShipmentsPage() {
       <Dialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800">
+            <DialogTitle className="text-xl text-navy-900">
               Update Job Status
             </DialogTitle>
             <DialogDescription>
@@ -2284,7 +2284,7 @@ export default function ShipmentsPage() {
             <Button
               onClick={handleBulkStatusUpdate}
               disabled={updatingBulkStatus || !bulkStatus}
-              className="bg-navy-800 hover:bg-navy-700"
+              className="bg-navy-900 hover:bg-navy-800"
               data-testid="confirm-bulk-status-button"
             >
               {updatingBulkStatus ? (

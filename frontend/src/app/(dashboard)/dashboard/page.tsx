@@ -204,7 +204,7 @@ export default function DashboardPage() {
     <div className="space-y-6 animate-fadeIn" data-testid="dashboard-page">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-navy-100" data-testid="stats-total-jobs">
+        <Card className="border-navy-200" data-testid="stats-total-jobs">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-navy-600">Total Jobs</CardTitle>
             <Briefcase className="h-5 w-5 text-navy-400" />
@@ -215,7 +215,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-navy-100" data-testid="stats-total-clients">
+        <Card className="border-navy-200" data-testid="stats-total-clients">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-navy-600">Total Clients</CardTitle>
             <Users className="h-5 w-5 text-navy-400" />
@@ -226,7 +226,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-navy-100" data-testid="stats-total-value">
+        <Card className="border-navy-200" data-testid="stats-total-value">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-navy-600">Total Value</CardTitle>
             <TrendingUp className="h-5 w-5 text-gold-500" />
@@ -239,7 +239,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-navy-100" data-testid="stats-total-fees">
+        <Card className="border-navy-200" data-testid="stats-total-fees">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-navy-600">Total Fees</CardTitle>
             <CheckCircle className="h-5 w-5 text-green-500" />
@@ -256,14 +256,14 @@ export default function DashboardPage() {
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Shipments */}
-        <Card className="border-navy-100" data-testid="recent-shipments-card">
-          <CardHeader className="border-b border-navy-100">
+        <Card className="border-navy-200" data-testid="recent-shipments-card">
+          <CardHeader className="border-b border-navy-200">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
                 <Package className="h-5 w-5 text-navy-600" />
                 Recent Shipments
               </CardTitle>
-              <a href="/dashboard/shipments" className="text-sm text-navy-600 hover:text-navy-800">
+              <a href="/dashboard/shipments" className="text-sm text-navy-600 hover:text-navy-900">
                 View all
               </a>
             </div>
@@ -282,7 +282,7 @@ export default function DashboardPage() {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-navy-800">
+                        <p className="font-medium text-navy-900">
                           Shipment #{shipment.shipment_number}
                         </p>
                         <p className="text-sm text-navy-500">
@@ -306,14 +306,14 @@ export default function DashboardPage() {
         </Card>
 
         {/* Recent Jobs */}
-        <Card className="border-navy-100" data-testid="recent-jobs-card">
-          <CardHeader className="border-b border-navy-100">
+        <Card className="border-navy-200" data-testid="recent-jobs-card">
+          <CardHeader className="border-b border-navy-200">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
                 <Briefcase className="h-5 w-5 text-navy-600" />
                 Recent Jobs
               </CardTitle>
-              <a href="/dashboard/jobs" className="text-sm text-navy-600 hover:text-navy-800">
+              <a href="/dashboard/jobs" className="text-sm text-navy-600 hover:text-navy-900">
                 View all
               </a>
             </div>
@@ -332,7 +332,7 @@ export default function DashboardPage() {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-navy-800">
+                        <p className="font-medium text-navy-900">
                           Job #{job.job_number}
                         </p>
                         <p className="text-sm text-navy-500">
@@ -358,8 +358,8 @@ export default function DashboardPage() {
 
       {/* Jobs by Status */}
       {stats?.jobs_by_status && Object.keys(stats.jobs_by_status).length > 0 && (
-        <Card className="border-navy-100" data-testid="jobs-by-status-card">
-          <CardHeader className="border-b border-navy-100">
+        <Card className="border-navy-200" data-testid="jobs-by-status-card">
+          <CardHeader className="border-b border-navy-200">
             <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
               <Clock className="h-5 w-5 text-navy-600" />
               Jobs by Status
@@ -375,7 +375,7 @@ export default function DashboardPage() {
                   <Badge variant={getStatusColor(status) as "default" | "secondary" | "destructive" | "outline" | "success" | "warning"}>
                     {formatJobStatus(status)}
                   </Badge>
-                  <span className="font-semibold text-navy-800">{count}</span>
+                  <span className="font-semibold text-navy-900">{count}</span>
                 </div>
               ))}
             </div>
@@ -402,18 +402,18 @@ export default function DashboardPage() {
           {selectedJob && (
             <div className="space-y-4 py-4">
               {/* Job Details */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label className="text-navy-500">Client</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.client_name || 'N/A'}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.client_name || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Branch</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.branch_name || 'N/A'}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.branch_name || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Service Type</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.service_type}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.service_type}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Status</Label>
@@ -421,11 +421,11 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <Label className="text-navy-500">Total Value</Label>
-                  <p className="font-medium text-navy-800">${selectedJob.total_value.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedJob.total_value.toLocaleString()}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Total Fee</Label>
-                  <p className="font-medium text-navy-800">${selectedJob.total_fee.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedJob.total_fee.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -433,7 +433,7 @@ export default function DashboardPage() {
               {selectedJob.notes && (
                 <div>
                   <Label className="text-navy-500">Notes</Label>
-                  <p className="font-medium text-navy-800">{selectedJob.notes}</p>
+                  <p className="font-medium text-navy-900">{selectedJob.notes}</p>
                 </div>
               )}
 
@@ -530,14 +530,14 @@ export default function DashboardPage() {
           {selectedShipment && (
             <div className="space-y-4 py-4">
               {/* Shipment Details */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label className="text-navy-500">Type</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.shipment_type}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.shipment_type}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Courier</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.courier}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.courier}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Status</Label>
@@ -549,27 +549,27 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <Label className="text-navy-500">From</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.source_address}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.source_address}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">To</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.destination_address}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.destination_address}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Tracking #</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.tracking_number || '-'}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.tracking_number || '-'}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Total Jobs</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.total_jobs}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.total_jobs}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Total Stones</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.total_stones}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.total_stones}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Total Value</Label>
-                  <p className="font-medium text-navy-800">${selectedShipment.total_value.toLocaleString()}</p>
+                  <p className="font-medium text-navy-900">${selectedShipment.total_value.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -577,7 +577,7 @@ export default function DashboardPage() {
               {selectedShipment.notes && (
                 <div>
                   <Label className="text-navy-500">Notes</Label>
-                  <p className="font-medium text-navy-800">{selectedShipment.notes}</p>
+                  <p className="font-medium text-navy-900">{selectedShipment.notes}</p>
                 </div>
               )}
 
