@@ -1380,7 +1380,7 @@ export default function SettingsPage() {
 
       {/* ==================== ADMIN USER DIALOG ==================== */}
       <Dialog open={adminDialogOpen} onOpenChange={setAdminDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">
               {editingAdmin ? 'Edit Admin User' : 'Create Admin User'}
@@ -1501,7 +1501,7 @@ export default function SettingsPage() {
 
       {/* ==================== ADD DROPDOWN OPTION DIALOG ==================== */}
       <Dialog open={addOptionDialogOpen} onOpenChange={setAddOptionDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">
               Add {selectedField.charAt(0).toUpperCase() + selectedField.slice(1)} Option
@@ -1573,7 +1573,7 @@ export default function SettingsPage() {
 
       {/* ==================== BRANCH DIALOG ==================== */}
       <Dialog open={branchDialogOpen} onOpenChange={setBranchDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">
               {editingBranch ? 'Edit Branch' : 'Add New Branch'}
@@ -1674,7 +1674,7 @@ export default function SettingsPage() {
 
       {/* ==================== ADDRESS DIALOG ==================== */}
       <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">
               {editingAddressObj ? 'Edit Address' : 'Add New Address'}

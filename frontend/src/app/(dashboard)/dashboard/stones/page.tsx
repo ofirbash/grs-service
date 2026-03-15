@@ -427,7 +427,7 @@ export default function StonesPage() {
 
       {/* Stone Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] md:w-auto max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Diamond className="h-5 w-5" />
@@ -785,7 +785,7 @@ export default function StonesPage() {
 
       {/* View Certificate Scan Dialog */}
       <Dialog open={viewCertOpen} onOpenChange={setViewCertOpen}>
-        <DialogContent className="max-w-5xl max-h-[95vh]">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Certificate Scan - {selectedStone?.sku}</DialogTitle>
           </DialogHeader>

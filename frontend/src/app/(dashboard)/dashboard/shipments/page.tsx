@@ -1044,7 +1044,7 @@ export default function ShipmentsPage() {
 
       {/* Create Shipment Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">Create New Shipment</DialogTitle>
             <DialogDescription>
@@ -1246,7 +1246,7 @@ export default function ShipmentsPage() {
 
       {/* View Shipment Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Shipment #{selectedShipment?.shipment_number}</span>
@@ -1524,7 +1524,7 @@ export default function ShipmentsPage() {
 
       {/* Add Jobs to Shipment Dialog */}
       <Dialog open={addJobsDialogOpen} onOpenChange={setAddJobsDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] md:w-auto max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">
               Add Jobs to Shipment #{selectedShipment?.shipment_number}
@@ -1623,7 +1623,7 @@ export default function ShipmentsPage() {
           setEditJobMode(false);
         }
       }}>
-        <DialogContent className="max-w-4xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Job #{selectedJob?.job_number}</span>
@@ -1913,7 +1913,7 @@ export default function ShipmentsPage() {
 
       {/* Nested Stone Dialog - opens on top of job dialog */}
       <Dialog open={stoneDialogOpen} onOpenChange={setStoneDialogOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Diamond className="h-5 w-5" />
@@ -2207,7 +2207,7 @@ export default function ShipmentsPage() {
 
       {/* View Certificate Scan Dialog */}
       <Dialog open={viewCertOpen} onOpenChange={setViewCertOpen}>
-        <DialogContent className="max-w-5xl max-h-[95vh]">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Certificate Scan - {selectedStone?.sku}</DialogTitle>
           </DialogHeader>
@@ -2239,7 +2239,7 @@ export default function ShipmentsPage() {
 
       {/* View Memo Dialog */}
       <Dialog open={viewMemoOpen} onOpenChange={setViewMemoOpen}>
-        <DialogContent className="max-w-5xl max-h-[95vh]">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Signed Memo - Job #{selectedJob?.job_number}</DialogTitle>
           </DialogHeader>
@@ -2271,7 +2271,7 @@ export default function ShipmentsPage() {
 
       {/* Bulk Status Update Dialog */}
       <Dialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">
               Update Job Status

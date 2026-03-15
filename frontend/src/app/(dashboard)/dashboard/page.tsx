@@ -371,7 +371,7 @@ export default function DashboardPage() {
 
       {/* Job Details Modal */}
       <Dialog open={jobModalOpen} onOpenChange={setJobModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Job #{selectedJob?.job_number}</span>
@@ -499,7 +499,7 @@ export default function DashboardPage() {
 
       {/* Shipment Details Modal */}
       <Dialog open={shipmentModalOpen} onOpenChange={setShipmentModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Shipment #{selectedShipment?.shipment_number}</span>
@@ -632,7 +632,7 @@ export default function DashboardPage() {
 
       {/* Certificate Scan Viewer */}
       <Dialog open={viewCertScanOpen} onOpenChange={setViewCertScanOpen}>
-        <DialogContent className="max-w-5xl max-h-[95vh]">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Certificate Scan - {viewingStone?.sku}</DialogTitle>
           </DialogHeader>

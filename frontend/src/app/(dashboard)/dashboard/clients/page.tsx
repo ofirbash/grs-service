@@ -246,7 +246,15 @@ export default function ClientsPage() {
           <p className="text-navy-600">Manage your client database</p>
         </div>
         <Button
-          onClick={() => setCreateDialogOpen(true)}
+          onClick={() => {
+            // Auto-set branch and phone prefix based on user
+            const defaultBranch = user?.branch_id || selectedBranchId || '';
+            const dp = defaultBranch ? getDefaultPrefix(defaultBranch, branches) : '+972';
+            setFormData(prev => ({ ...prev, branch_id: defaultBranch }));
+            setPhonePrefix(dp);
+            setSecondaryPhonePrefix(dp);
+            setCreateDialogOpen(true);
+          }}
           className="bg-navy-900 hover:bg-navy-800"
           data-testid="create-client-button"
         >
@@ -411,7 +419,7 @@ export default function ClientsPage() {
 
       {/* Create Client Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">Add New Client</DialogTitle>
             <DialogDescription>Add a new client to your database</DialogDescription>
@@ -599,7 +607,7 @@ export default function ClientsPage() {
 
       {/* Edit Client Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">Edit Client</DialogTitle>
             <DialogDescription>Update client information</DialogDescription>

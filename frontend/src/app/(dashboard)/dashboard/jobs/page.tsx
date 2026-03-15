@@ -1388,7 +1388,7 @@ export default function JobsPage() {
 
       {/* Create Job Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={handleCreateDialogClose}>
-        <DialogContent className="max-w-4xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">Create New Job</DialogTitle>
             <DialogDescription>Create a new job with stones for testing</DialogDescription>
@@ -1598,7 +1598,7 @@ export default function JobsPage() {
           setSelectedStones([]);
         }
       }}>
-        <DialogContent className="max-w-4xl w-[95vw] md:w-auto max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Job #{selectedJob?.job_number}</span>
@@ -2281,7 +2281,7 @@ export default function JobsPage() {
 
       {/* Add Stone Dialog */}
       <Dialog open={addStoneDialogOpen} onOpenChange={setAddStoneDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add Stone to Job #{selectedJob?.job_number}</DialogTitle>
             <DialogDescription>
@@ -2379,7 +2379,7 @@ export default function JobsPage() {
 
       {/* Nested Stone Dialog - opens on top of job dialog */}
       <Dialog open={stoneDialogOpen} onOpenChange={setStoneDialogOpen}>
-        <DialogContent className="max-w-2xl w-[95vw] md:w-auto max-h-[80vh] flex flex-col">
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Diamond className="h-5 w-5" />
@@ -2785,7 +2785,7 @@ export default function JobsPage() {
 
       {/* View Certificate Scan Dialog */}
       <Dialog open={viewCertScanOpen} onOpenChange={setViewCertScanOpen}>
-        <DialogContent className="max-w-5xl max-h-[95vh]">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Certificate Scan - {viewingStone?.sku}</DialogTitle>
           </DialogHeader>
@@ -2818,7 +2818,7 @@ export default function JobsPage() {
 
       {/* View Memo Dialog */}
       <Dialog open={viewMemoOpen} onOpenChange={setViewMemoOpen}>
-        <DialogContent className="max-w-5xl max-h-[95vh]">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh]">
           <DialogHeader>
             <DialogTitle>Signed Memo - Job #{selectedJob?.job_number}</DialogTitle>
           </DialogHeader>
@@ -2851,7 +2851,7 @@ export default function JobsPage() {
 
       {/* View Lab Invoice Dialog */}
       <Dialog open={viewLabInvoiceOpen} onOpenChange={setViewLabInvoiceOpen}>
-        <DialogContent className="max-w-5xl max-h-[95vh]">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               Lab Invoice - Job #{selectedJob?.job_number}
@@ -2887,7 +2887,7 @@ export default function JobsPage() {
 
       {/* Bulk Status Update Dialog */}
       <Dialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">
               Update Job Status
@@ -2946,7 +2946,7 @@ export default function JobsPage() {
           setNotificationPreview(null);
         }
       }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Mail className="h-5 w-5" />
@@ -3043,7 +3043,7 @@ export default function JobsPage() {
 
       {/* View Client Invoice Dialog */}
       <Dialog open={viewInvoiceOpen} onOpenChange={setViewInvoiceOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] md:w-auto max-h-[90vh]">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Receipt className="h-5 w-5" />
