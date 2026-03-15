@@ -1632,10 +1632,10 @@ export default function JobsPage() {
           {selectedJob && (
             <div className="space-y-4 py-4">
               {/* Job Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
-                  <Label className="text-navy-500">Client</Label>
-                  <p className="font-medium text-navy-900">{selectedJob.client_name || 'N/A'}</p>
+                  <Label className="text-navy-500 text-xs">Client</Label>
+                  <p className="font-medium text-navy-900 text-sm">{selectedJob.client_name || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Branch</Label>
@@ -2070,8 +2070,26 @@ export default function JobsPage() {
                   return null;
                 })()}
                 
-                {/* Stones Table - Single table with visual grouping */}
-                <div className="border rounded-lg overflow-hidden">
+                {/* Stones - Mobile Cards */}
+                <div className="md:hidden space-y-2">
+                  {selectedJob.stones.map((stone) => (
+                    <div
+                      key={stone.id}
+                      className="border border-navy-200 rounded-lg p-2.5 active:bg-navy-50"
+                      onClick={() => openStoneDialog(stone)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-semibold text-navy-900">{stone.sku}</span>
+                        <span className="text-xs font-medium text-navy-900">${stone.fee.toLocaleString()}</span>
+                      </div>
+                      <div className="text-xs text-navy-500 mt-0.5">{stone.stone_type} &middot; {stone.weight} ct &middot; {stone.shape}</div>
+                      {stone.certificate_group && <Badge variant="outline" className="text-[10px] mt-1">Cert {stone.certificate_group}</Badge>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Stones Table - Desktop */}
+                <div className="hidden md:block border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-navy-50">

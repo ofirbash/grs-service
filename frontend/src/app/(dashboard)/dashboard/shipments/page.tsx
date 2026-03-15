@@ -1352,10 +1352,10 @@ export default function ShipmentsPage() {
                   </div>
                 </div>
               ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <Label className="text-navy-500">Type</Label>
-                  <p className="font-medium text-navy-900">
+                  <Label className="text-navy-500 text-xs">Type</Label>
+                  <p className="font-medium text-navy-900 text-sm">
                     {formatShipmentType(selectedShipment.shipment_type)}
                   </p>
                 </div>
@@ -1409,7 +1409,21 @@ export default function ShipmentsPage() {
                   )}
                 </div>
                 {shipmentJobs.length > 0 ? (
-                  <div className="border rounded-lg overflow-hidden">
+                  <>
+                  {/* Mobile Cards */}
+                  <div className="md:hidden space-y-2">
+                    {shipmentJobs.map((job) => (
+                      <div key={job.id} className="border border-navy-200 rounded-lg p-2.5 active:bg-navy-50" onClick={() => { setSelectedJob(job); setJobDialogOpen(true); }}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-navy-900 text-sm">#{job.job_number}</span>
+                          {getStatusBadge(job.status)}
+                        </div>
+                        <div className="text-xs text-navy-500 mt-0.5">{job.client_name || '-'} &middot; {job.total_stones} stones &middot; ${job.total_value.toLocaleString()}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Desktop Table */}
+                  <div className="hidden md:block border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-navy-50">
@@ -1491,6 +1505,7 @@ export default function ShipmentsPage() {
                       </TableBody>
                     </Table>
                   </div>
+                  </>
                 ) : (
                   <p className="text-navy-400 text-center py-4">No jobs in this shipment</p>
                 )}
