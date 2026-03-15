@@ -388,30 +388,30 @@ export default function DashboardPage() {
           {selectedJob && (
             <div className="space-y-4 py-4">
               {/* Job Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
-                  <Label className="text-navy-500">Client</Label>
-                  <p className="font-medium text-navy-900">{selectedJob.client_name || 'N/A'}</p>
+                  <Label className="text-navy-500 text-xs">Client</Label>
+                  <p className="font-medium text-navy-900 text-sm">{selectedJob.client_name || 'N/A'}</p>
                 </div>
                 <div>
-                  <Label className="text-navy-500">Branch</Label>
-                  <p className="font-medium text-navy-900">{selectedJob.branch_name || 'N/A'}</p>
+                  <Label className="text-navy-500 text-xs">Branch</Label>
+                  <p className="font-medium text-navy-900 text-sm">{selectedJob.branch_name || 'N/A'}</p>
                 </div>
                 <div>
-                  <Label className="text-navy-500">Service Type</Label>
-                  <p className="font-medium text-navy-900">{selectedJob.service_type}</p>
+                  <Label className="text-navy-500 text-xs">Service Type</Label>
+                  <p className="font-medium text-navy-900 text-sm">{selectedJob.service_type}</p>
                 </div>
                 <div>
-                  <Label className="text-navy-500">Status</Label>
+                  <Label className="text-navy-500 text-xs">Status</Label>
                   <div className="mt-1">{getStatusBadge(selectedJob.status)}</div>
                 </div>
                 <div>
-                  <Label className="text-navy-500">Total Value</Label>
-                  <p className="font-medium text-navy-900">${selectedJob.total_value.toLocaleString()}</p>
+                  <Label className="text-navy-500 text-xs">Total Value</Label>
+                  <p className="font-medium text-navy-900 text-sm">${selectedJob.total_value.toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-navy-500">Total Fee</Label>
-                  <p className="font-medium text-navy-900">${selectedJob.total_fee.toLocaleString()}</p>
+                  <Label className="text-navy-500 text-xs">Total Fee</Label>
+                  <p className="font-medium text-navy-900 text-sm">${selectedJob.total_fee.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -430,7 +430,21 @@ export default function DashboardPage() {
                   Stones ({selectedJob.stones?.length || 0})
                 </Label>
                 
-                <div className="border rounded-lg overflow-hidden">
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-2">
+                  {selectedJob.stones?.map((stone) => (
+                    <div key={stone.id} className="border border-navy-200 rounded-lg p-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-semibold text-navy-900">{stone.sku}</span>
+                        <span className="text-xs font-medium text-navy-900">${stone.fee.toLocaleString()}</span>
+                      </div>
+                      <div className="text-xs text-navy-500 mt-0.5">{stone.stone_type} &middot; {stone.weight} ct &middot; {stone.shape}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table */}
+                <div className="hidden md:block border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-navy-50">
@@ -516,10 +530,10 @@ export default function DashboardPage() {
           {selectedShipment && (
             <div className="space-y-4 py-4">
               {/* Shipment Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
-                  <Label className="text-navy-500">Type</Label>
-                  <p className="font-medium text-navy-900">{selectedShipment.shipment_type}</p>
+                  <Label className="text-navy-500 text-xs">Type</Label>
+                  <p className="font-medium text-navy-900 text-sm">{selectedShipment.shipment_type}</p>
                 </div>
                 <div>
                   <Label className="text-navy-500">Courier</Label>
@@ -574,7 +588,21 @@ export default function DashboardPage() {
                   Jobs in Shipment ({shipmentJobs.length})
                 </Label>
                 
-                <div className="border rounded-lg overflow-hidden">
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-2">
+                  {shipmentJobs.map((job) => (
+                    <div key={job.id} className="border border-navy-200 rounded-lg p-2.5 active:bg-navy-50" onClick={() => { setShipmentModalOpen(false); setTimeout(() => openJobModal(job), 100); }}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-navy-900 text-sm">#{job.job_number}</span>
+                        {getStatusBadge(job.status)}
+                      </div>
+                      <div className="text-xs text-navy-500 mt-0.5">{job.client_name || '-'} &middot; {job.total_stones} stones &middot; ${job.total_value.toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table */}
+                <div className="hidden md:block border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-navy-50">
