@@ -54,6 +54,23 @@ interface Branch {
   code: string;
 }
 
+const COUNTRY_PREFIXES = [
+  { code: 'IL', flag: '\ud83c\uddee\ud83c\uddf1', prefix: '+972', label: 'Israel (+972)' },
+  { code: 'US', flag: '\ud83c\uddfa\ud83c\uddf8', prefix: '+1', label: 'USA (+1)' },
+  { code: 'GB', flag: '\ud83c\uddec\ud83c\udde7', prefix: '+44', label: 'UK (+44)' },
+  { code: 'HK', flag: '\ud83c\udded\ud83c\uddf0', prefix: '+852', label: 'Hong Kong (+852)' },
+  { code: 'CH', flag: '\ud83c\udde8\ud83c\udded', prefix: '+41', label: 'Switzerland (+41)' },
+  { code: 'TH', flag: '\ud83c\uddf9\ud83c\udded', prefix: '+66', label: 'Thailand (+66)' },
+  { code: 'IN', flag: '\ud83c\uddee\ud83c\uddf3', prefix: '+91', label: 'India (+91)' },
+];
+
+function getDefaultPrefix(branchId: string, branches: Branch[]): string {
+  const branch = branches.find(b => b.id === branchId);
+  if (!branch) return '+972';
+  if (branch.code === 'US') return '+1';
+  return '+972';
+}
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -78,6 +95,8 @@ export default function ClientsPage() {
     branch_id: '',
     notes: '',
   });
+  const [phonePrefix, setPhonePrefix] = useState('+972');
+  const [secondaryPhonePrefix, setSecondaryPhonePrefix] = useState('+972');
 
   // Edit client dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -94,6 +113,8 @@ export default function ClientsPage() {
     branch_id: '',
     notes: '',
   });
+  const [editPhonePrefix, setEditPhonePrefix] = useState('+972');
+  const [editSecondaryPhonePrefix, setEditSecondaryPhonePrefix] = useState('+972');
 
   useEffect(() => {
     fetchData();
@@ -126,9 +147,9 @@ export default function ClientsPage() {
         name: formData.name,
         email: formData.email,
         branch_id: formData.branch_id,
-        phone: formData.phone || undefined,
+        phone: formData.phone ? `${phonePrefix}${formData.phone}` : undefined,
         secondary_email: formData.secondary_email || undefined,
-        secondary_phone: formData.secondary_phone || undefined,
+        secondary_phone: formData.secondary_phone ? `${secondaryPhonePrefix}${formData.secondary_phone}` : undefined,
         company: formData.company || undefined,
         address: formData.address || undefined,
         notes: formData.notes || undefined,
@@ -157,6 +178,10 @@ export default function ClientsPage() {
       branch_id: client.branch_id,
       notes: client.notes || '',
     });
+    // Set phone prefixes based on client's branch
+    const dp = getDefaultPrefix(client.branch_id, branches);
+    setEditPhonePrefix(dp);
+    setEditSecondaryPhonePrefix(dp);
     setEditDialogOpen(true);
   };
 
@@ -172,9 +197,9 @@ export default function ClientsPage() {
         name: editFormData.name,
         email: editFormData.email,
         branch_id: editFormData.branch_id,
-        phone: editFormData.phone || undefined,
+        phone: editFormData.phone ? `${editPhonePrefix}${editFormData.phone}` : undefined,
         secondary_email: editFormData.secondary_email || undefined,
-        secondary_phone: editFormData.secondary_phone || undefined,
+        secondary_phone: editFormData.secondary_phone ? `${editSecondaryPhonePrefix}${editFormData.secondary_phone}` : undefined,
         company: editFormData.company || undefined,
         address: editFormData.address || undefined,
         notes: editFormData.notes || undefined,
@@ -288,7 +313,12 @@ export default function ClientsPage() {
                   key={client.id}
                   className="border border-navy-200 rounded-lg p-3"
                 >
-                  <div className="font-semibold text-navy-900 text-sm">{client.name}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-navy-900 text-sm">{client.name}</div>
+                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(client)} className="h-7 w-7 p-0">
+                      <Pencil className="h-3 w-3 text-navy-600" />
+                    </Button>
+                  </div>
                   <div className="text-xs text-navy-500 mt-0.5">{client.email}</div>
                   {client.company && <div className="text-xs text-navy-500">{client.company}</div>}
                   <div className="flex items-center justify-between mt-1 text-xs text-navy-400">
@@ -430,14 +460,26 @@ export default function ClientsPage() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="phone" className="text-sm">Primary Phone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+1 234 567 8900"
-                  className="border-navy-200"
-                  data-testid="client-phone-input"
-                />
+                <div className="flex gap-1">
+                  <Select value={phonePrefix} onValueChange={setPhonePrefix}>
+                    <SelectTrigger className="w-[100px] border-navy-200 text-xs flex-shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_PREFIXES.map((c) => (
+                        <SelectItem key={c.code} value={c.prefix}>{c.flag} {c.prefix}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="54 397 5801"
+                    className="border-navy-200"
+                    data-testid="client-phone-input"
+                  />
+                </div>
               </div>
             </div>
 
@@ -457,14 +499,26 @@ export default function ClientsPage() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="secondary_phone" className="text-sm">Secondary Phone</Label>
-                <Input
-                  id="secondary_phone"
-                  value={formData.secondary_phone}
-                  onChange={(e) => setFormData({ ...formData, secondary_phone: e.target.value })}
-                  placeholder="+1 234 567 8901"
-                  className="border-navy-200"
-                  data-testid="client-secondary-phone-input"
-                />
+                <div className="flex gap-1">
+                  <Select value={secondaryPhonePrefix} onValueChange={setSecondaryPhonePrefix}>
+                    <SelectTrigger className="w-[100px] border-navy-200 text-xs flex-shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_PREFIXES.map((c) => (
+                        <SelectItem key={c.code} value={c.prefix}>{c.flag} {c.prefix}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="secondary_phone"
+                    value={formData.secondary_phone}
+                    onChange={(e) => setFormData({ ...formData, secondary_phone: e.target.value })}
+                    placeholder="54 397 5801"
+                    className="border-navy-200"
+                    data-testid="client-secondary-phone-input"
+                  />
+                </div>
               </div>
             </div>
 
@@ -474,7 +528,12 @@ export default function ClientsPage() {
                 <Label htmlFor="branch" className="text-sm">Branch *</Label>
                 <Select
                   value={formData.branch_id}
-                  onValueChange={(value) => setFormData({ ...formData, branch_id: value })}
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, branch_id: value });
+                    const dp = getDefaultPrefix(value, branches);
+                    setPhonePrefix(dp);
+                    setSecondaryPhonePrefix(dp);
+                  }}
                 >
                   <SelectTrigger data-testid="client-branch-select">
                     <SelectValue placeholder="Select branch" />
@@ -589,14 +648,26 @@ export default function ClientsPage() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="edit-phone" className="text-sm">Primary Phone</Label>
-                <Input
-                  id="edit-phone"
-                  value={editFormData.phone}
-                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                  placeholder="+1 234 567 8900"
-                  className="border-navy-200"
-                  data-testid="edit-client-phone-input"
-                />
+                <div className="flex gap-1">
+                  <Select value={editPhonePrefix} onValueChange={setEditPhonePrefix}>
+                    <SelectTrigger className="w-[100px] border-navy-200 text-xs flex-shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_PREFIXES.map((c) => (
+                        <SelectItem key={c.code} value={c.prefix}>{c.flag} {c.prefix}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="edit-phone"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    placeholder="54 397 5801"
+                    className="border-navy-200"
+                    data-testid="edit-client-phone-input"
+                  />
+                </div>
               </div>
             </div>
 
@@ -616,14 +687,26 @@ export default function ClientsPage() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="edit-secondary-phone" className="text-sm">Secondary Phone</Label>
-                <Input
-                  id="edit-secondary-phone"
-                  value={editFormData.secondary_phone}
-                  onChange={(e) => setEditFormData({ ...editFormData, secondary_phone: e.target.value })}
-                  placeholder="+1 234 567 8901"
-                  className="border-navy-200"
-                  data-testid="edit-client-secondary-phone-input"
-                />
+                <div className="flex gap-1">
+                  <Select value={editSecondaryPhonePrefix} onValueChange={setEditSecondaryPhonePrefix}>
+                    <SelectTrigger className="w-[100px] border-navy-200 text-xs flex-shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_PREFIXES.map((c) => (
+                        <SelectItem key={c.code} value={c.prefix}>{c.flag} {c.prefix}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="edit-secondary-phone"
+                    value={editFormData.secondary_phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, secondary_phone: e.target.value })}
+                    placeholder="54 397 5801"
+                    className="border-navy-200"
+                    data-testid="edit-client-secondary-phone-input"
+                  />
+                </div>
               </div>
             </div>
 

@@ -936,7 +936,29 @@ export default function ShipmentsPage() {
               <p className="text-sm mt-1">Create your first shipment to get started</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-2 p-3">
+              {filteredShipments.map((shipment) => (
+                <div
+                  key={shipment.id}
+                  className="border border-navy-200 rounded-lg p-3 hover:bg-navy-50 cursor-pointer active:bg-navy-100"
+                  onClick={() => openShipmentDetails(shipment)}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-semibold text-navy-900">#{shipment.shipment_number}</span>
+                    {getStatusBadge(shipment.status)}
+                  </div>
+                  <div className="text-sm text-navy-600">{formatShipmentType(shipment.shipment_type)}</div>
+                  <div className="flex items-center justify-between text-xs text-navy-500 mt-1">
+                    <span>{shipment.courier} &middot; {shipment.source_address} → {shipment.destination_address}</span>
+                  </div>
+                  <div className="text-xs text-navy-400 mt-1">{shipment.total_jobs} job(s) &middot; {shipment.total_stones} stone(s)</div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-navy-50">
@@ -1015,6 +1037,7 @@ export default function ShipmentsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
