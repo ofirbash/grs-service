@@ -1247,7 +1247,34 @@ export default function JobsPage() {
               <p>No jobs found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-2 p-3">
+              {filteredJobs.map((job) => (
+                <div
+                  key={job.id}
+                  className="border border-navy-200 rounded-lg p-3 hover:bg-navy-50 cursor-pointer active:bg-navy-100"
+                  onClick={() => openJobDetails(job)}
+                  data-testid={`job-card-${job.job_number}`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-semibold text-navy-900">#{job.job_number}</span>
+                    {getStatusBadge(job.status)}
+                  </div>
+                  <div className="text-sm text-navy-600 mb-1">{job.client_name || 'N/A'} &middot; {job.branch_name || 'N/A'}</div>
+                  <div className="flex items-center justify-between text-xs text-navy-500">
+                    <span>{job.total_stones} stones &middot; {job.service_type}</span>
+                    <span className="font-medium text-navy-900">${job.total_fee.toLocaleString()}</span>
+                  </div>
+                  {job.payment_status === 'paid' && (
+                    <div className="mt-1.5"><Badge className="bg-navy-900 text-white text-[10px]">Paid</Badge></div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-navy-50">
@@ -1321,7 +1348,7 @@ export default function JobsPage() {
                             <div className="space-y-0.5">
                               <p className="font-medium">${job.total_fee.toLocaleString()}</p>
                               {hasDifferentActual && (
-                                <p className="text-xs text-green-600">Actual: ${totalActual.toLocaleString()}</p>
+                                <p className="text-xs text-navy-600">Actual: ${totalActual.toLocaleString()}</p>
                               )}
                             </div>
                           );
@@ -1333,9 +1360,9 @@ export default function JobsPage() {
                       {isAdmin && (
                         <TableCell onClick={() => openJobDetails(job)}>
                           {job.payment_status === 'paid' ? (
-                            <Badge className="bg-green-100 text-green-800 text-xs">Paid</Badge>
+                            <Badge className="bg-navy-900 text-white text-xs">Paid</Badge>
                           ) : job.payment_token ? (
-                            <Badge variant="outline" className="text-amber-700 border-amber-300 text-xs">Pending</Badge>
+                            <Badge variant="outline" className="text-navy-600 border-navy-300 text-xs">Pending</Badge>
                           ) : (
                             <span className="text-navy-400 text-xs">-</span>
                           )}
@@ -1356,6 +1383,7 @@ export default function JobsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -1658,7 +1686,7 @@ export default function JobsPage() {
                   return hasDifferentActual ? (
                     <div>
                       <Label className="text-navy-500">Total Actual Fees</Label>
-                      <p className="font-medium text-green-700">${totalActual.toLocaleString()}</p>
+                      <p className="font-medium text-navy-900">${totalActual.toLocaleString()}</p>
                     </div>
                   ) : null;
                 })()}
@@ -1751,7 +1779,7 @@ export default function JobsPage() {
                   <Label className="text-base font-semibold flex items-center gap-2">
                     <Receipt className="h-4 w-4" />
                     Client Invoice
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">For Email</Badge>
+                    <Badge variant="secondary" className="bg-navy-900 text-white text-xs">For Email</Badge>
                   </Label>
                   <p className="text-sm text-navy-500">Generate invoice with actual fees to send to client</p>
                   <div className="flex items-center gap-2">
@@ -1759,7 +1787,7 @@ export default function JobsPage() {
                       variant="outline"
                       onClick={handleGenerateInvoice}
                       disabled={generatingInvoice}
-                      className="border-green-300 text-green-700 hover:bg-green-50"
+                      className="border-navy-300 text-navy-900 hover:bg-green-50"
                       data-testid="generate-invoice-button"
                     >
                       {generatingInvoice ? (
@@ -1787,7 +1815,7 @@ export default function JobsPage() {
                     )}
                   </div>
                   {selectedJob.invoice_url && (
-                    <p className="text-xs text-green-600">
+                    <p className="text-xs text-navy-600">
                       <CheckCircle2 className="h-3 w-3 inline mr-1" />
                       Invoice ready - will be attached to &quot;Stones Returned&quot; email
                     </p>
@@ -1802,14 +1830,14 @@ export default function JobsPage() {
                     <CreditCard className="h-4 w-4" />
                     Payment
                     {selectedJob.payment_status === 'paid' ? (
-                      <Badge className="bg-green-100 text-green-800 text-xs">Paid</Badge>
+                      <Badge className="bg-navy-900 text-white text-xs">Paid</Badge>
                     ) : selectedJob.payment_token ? (
-                      <Badge variant="outline" className="text-amber-700 border-amber-300 text-xs">Pending</Badge>
+                      <Badge variant="outline" className="text-navy-600 border-navy-300 text-xs">Pending</Badge>
                     ) : null}
                   </Label>
                   
                   {selectedJob.payment_status === 'paid' ? (
-                    <p className="text-sm text-green-700 flex items-center gap-1">
+                    <p className="text-sm text-navy-900 flex items-center gap-1">
                       <CheckCircle2 className="h-4 w-4" />
                       Payment received
                     </p>
@@ -1841,7 +1869,7 @@ export default function JobsPage() {
                             variant="outline"
                             size="sm"
                             onClick={handleCopyPaymentLink}
-                            className={copiedPaymentLink ? 'bg-green-50 border-green-300 text-green-700' : 'border-navy-300'}
+                            className={copiedPaymentLink ? 'bg-green-50 border-navy-300 text-navy-900' : 'border-navy-300'}
                             data-testid="copy-payment-link-button"
                           >
                             {copiedPaymentLink ? (
@@ -1864,7 +1892,7 @@ export default function JobsPage() {
                   <Label className="text-base font-semibold flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     Lab Invoice
-                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">Admin Only</Badge>
+                    <Badge variant="secondary" className="bg-navy-200 text-navy-700 text-xs">Admin Only</Badge>
                   </Label>
                   <p className="text-sm text-navy-500">Internal document - not visible to customers</p>
                   <div className="flex items-center gap-2">
@@ -1914,7 +1942,7 @@ export default function JobsPage() {
                   <Label className="text-base font-semibold flex items-center gap-2">
                     <Mail className="h-4 w-4" />
                     Email Notifications
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">Review & Send</Badge>
+                    <Badge variant="secondary" className="bg-navy-200 text-navy-700 text-xs">Review & Send</Badge>
                   </Label>
                   <p className="text-sm text-navy-500">Send status update emails to the client. Review before sending.</p>
                   
@@ -1942,7 +1970,7 @@ export default function JobsPage() {
                             >
                               <div className="flex items-center gap-2">
                                 {notification.is_sent ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                  <CheckCircle2 className="h-4 w-4 text-navy-600" />
                                 ) : (
                                   <Clock className="h-4 w-4 text-amber-600" />
                                 )}
@@ -2089,7 +2117,7 @@ export default function JobsPage() {
                               <div>
                                 <span>${stone.fee.toLocaleString()}</span>
                                 {stone.actual_fee != null && stone.actual_fee !== stone.fee && (
-                                  <p className="text-xs text-green-600">Actual: ${stone.actual_fee.toLocaleString()}</p>
+                                  <p className="text-xs text-navy-600">Actual: ${stone.actual_fee.toLocaleString()}</p>
                                 )}
                               </div>
                             </TableCell>
@@ -2100,7 +2128,7 @@ export default function JobsPage() {
                                     setViewingStone(stone);
                                     setViewCertScanOpen(true);
                                   }}
-                                  className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
+                                  className="text-navy-600 hover:text-navy-900 p-1 rounded hover:bg-green-50"
                                   title="View Certificate Scan"
                                   data-testid={`view-cert-${stone.id}`}
                                 >
@@ -2166,7 +2194,7 @@ export default function JobsPage() {
                                     <div>
                                       <span>${stone.fee.toLocaleString()}</span>
                                       {stone.actual_fee != null && stone.actual_fee !== stone.fee && (
-                                        <p className="text-xs text-green-600">Actual: ${stone.actual_fee.toLocaleString()}</p>
+                                        <p className="text-xs text-navy-600">Actual: ${stone.actual_fee.toLocaleString()}</p>
                                       )}
                                     </div>
                                   </TableCell>
@@ -2179,7 +2207,7 @@ export default function JobsPage() {
                                             setViewingStone(stone);
                                             setViewCertScanOpen(true);
                                           }}
-                                          className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
+                                          className="text-navy-600 hover:text-navy-900 p-1 rounded hover:bg-green-50"
                                           title="View Certificate Scan"
                                           data-testid={`view-cert-${stone.id}`}
                                         >
@@ -2415,7 +2443,7 @@ export default function JobsPage() {
                       />
                     </div>
                   ) : (
-                    <p className={`font-medium ${viewingStone.actual_fee != null && viewingStone.actual_fee !== viewingStone.fee ? 'text-green-700' : 'text-navy-800'}`}>
+                    <p className={`font-medium ${viewingStone.actual_fee != null && viewingStone.actual_fee !== viewingStone.fee ? 'text-navy-900' : 'text-navy-800'}`}>
                       ${(viewingStone.actual_fee ?? viewingStone.fee).toLocaleString()}
                     </p>
                   )}
@@ -2458,7 +2486,7 @@ export default function JobsPage() {
                   {(() => {
                     const vf = viewingStone.verbal_findings;
                     const hasFindings = vf && typeof vf === 'object' && (vf as StructuredVerbalFindings).certificate_id;
-                    return hasFindings ? <Badge variant="secondary" className="bg-green-100 text-green-800">Completed</Badge> : null;
+                    return hasFindings ? <Badge variant="secondary" className="bg-navy-900 text-white">Completed</Badge> : null;
                   })()}
                 </div>
                 
@@ -2654,7 +2682,7 @@ export default function JobsPage() {
                 </div>
                 
                 {viewingStone.certificate_group && (
-                  <p className="text-sm text-amber-700 bg-amber-50 p-2 rounded">
+                  <p className="text-sm text-navy-600 bg-amber-50 p-2 rounded">
                     This stone is part of Certificate Group {viewingStone.certificate_group}. 
                     Uploading a scan will apply to all stones in this group.
                   </p>
@@ -2829,7 +2857,7 @@ export default function JobsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               Lab Invoice - Job #{selectedJob?.job_number}
-              <Badge variant="secondary" className="bg-amber-100 text-amber-800">Admin Only</Badge>
+              <Badge variant="secondary" className="bg-navy-200 text-navy-700">Admin Only</Badge>
             </DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ minHeight: '500px', maxHeight: '75vh' }}>
@@ -2957,7 +2985,7 @@ export default function JobsPage() {
                     <Label className="text-navy-500 text-xs">Attachments</Label>
                     <div className="flex gap-2 mt-1">
                       {notificationPreview.attachments.map((att, idx) => (
-                        <Badge key={idx} variant="secondary" className="bg-blue-100 text-blue-800">
+                        <Badge key={idx} variant="secondary" className="bg-navy-200 text-navy-700">
                           <FileText className="h-3 w-3 mr-1" />
                           {att.name}
                         </Badge>

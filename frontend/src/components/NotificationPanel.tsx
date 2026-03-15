@@ -157,7 +157,7 @@ export function NotificationPanel({ jobId, currentStatus, onNotificationSent }: 
 
   const getStatusIcon = (notif: NotificationStatus) => {
     if (notif.is_sent) {
-      return <Check className="h-4 w-4 text-green-600" />;
+      return <Check className="h-4 w-4 text-navy-600" />;
     }
     if (notif.is_available) {
       return <Clock className="h-4 w-4 text-amber-500" />;

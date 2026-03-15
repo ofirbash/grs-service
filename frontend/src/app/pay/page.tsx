@@ -157,7 +157,7 @@ function PaymentForm() {
             <p className="text-navy-600 mb-4">
               Thank you! Your payment for Job #{paymentData?.job_number} has been processed successfully.
             </p>
-            <Badge className="bg-green-100 text-green-800 text-sm px-4 py-1">Paid</Badge>
+            <Badge className="bg-navy-900 text-white text-sm px-4 py-1">Paid</Badge>
           </CardContent>
         </Card>
       </div>
@@ -298,7 +298,7 @@ function PaymentForm() {
             <div className="space-y-3">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
                 <p className="text-amber-800 text-sm font-medium">Payment Gateway (Test Mode)</p>
-                <p className="text-amber-700 text-xs mt-1">Tranzilla is not yet configured. You can simulate a payment for testing.</p>
+                <p className="text-navy-600 text-xs mt-1">Tranzilla is not yet configured. You can simulate a payment for testing.</p>
               </div>
               <Button
                 onClick={handleSimulatePayment}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { clientsApi, branchesApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -279,7 +280,27 @@ export default function ClientsPage() {
               <p>No clients found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-2 p-3">
+              {filteredClients.map((client) => (
+                <div
+                  key={client.id}
+                  className="border border-navy-200 rounded-lg p-3"
+                >
+                  <div className="font-semibold text-navy-900 text-sm">{client.name}</div>
+                  <div className="text-xs text-navy-500 mt-0.5">{client.email}</div>
+                  {client.company && <div className="text-xs text-navy-500">{client.company}</div>}
+                  <div className="flex items-center justify-between mt-1 text-xs text-navy-400">
+                    <span>{client.phone || '-'}</span>
+                    <Badge variant="outline" className="text-[10px]">{branches.find(b => b.id === client.branch_id)?.name || '-'}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-navy-50">
@@ -353,6 +374,7 @@ export default function ClientsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

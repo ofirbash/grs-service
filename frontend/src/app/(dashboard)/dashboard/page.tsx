@@ -229,7 +229,7 @@ export default function DashboardPage() {
         <Card className="border-navy-200" data-testid="stats-total-value">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-navy-600">Total Value</CardTitle>
-            <TrendingUp className="h-5 w-5 text-gold-500" />
+            <TrendingUp className="h-5 w-5 text-navy-400" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-navy-900">
@@ -242,7 +242,7 @@ export default function DashboardPage() {
         <Card className="border-navy-200" data-testid="stats-total-fees">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-navy-600">Total Fees</CardTitle>
-            <CheckCircle className="h-5 w-5 text-green-500" />
+            <CheckCircle className="h-5 w-5 text-navy-400" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-navy-900">
@@ -479,7 +479,7 @@ export default function DashboardPage() {
                                     setViewingStone(stone);
                                     setViewCertScanOpen(true);
                                   }}
-                                  className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50"
+                                  className="text-navy-600 hover:text-navy-900 p-1 rounded hover:bg-green-50"
                                   title="View Certificate Scan"
                                 >
                                   <FileText className="h-4 w-4" />

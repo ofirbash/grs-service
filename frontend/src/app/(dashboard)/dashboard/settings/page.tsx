@@ -760,7 +760,7 @@ export default function SettingsPage() {
                                     {savingDropdown ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
-                                      <Save className="h-4 w-4 text-green-600" />
+                                      <Save className="h-4 w-4 text-navy-600" />
                                     )}
                                   </Button>
                                   <Button
@@ -1244,9 +1244,9 @@ export default function SettingsPage() {
                           <TableCell className="text-navy-600">{admin.email}</TableCell>
                           <TableCell>
                             {admin.role === 'super_admin' ? (
-                              <Badge className="bg-purple-100 text-purple-800">Super Admin</Badge>
+                              <Badge className="bg-brand-red text-white">Super Admin</Badge>
                             ) : (
-                              <Badge className="bg-blue-100 text-blue-800">Branch Admin</Badge>
+                              <Badge className="bg-navy-200 text-navy-700">Branch Admin</Badge>
                             )}
                           </TableCell>
                           <TableCell className="text-navy-600">

@@ -323,7 +323,33 @@ export default function StonesPage() {
             <span className="font-semibold text-navy-900">All Stones ({filteredStones.length})</span>
           </div>
           
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-2 p-3">
+            {filteredStones.length === 0 ? (
+              <div className="p-6 text-center text-navy-500">No stones found</div>
+            ) : (
+              filteredStones.map((stone) => (
+                <div
+                  key={stone.id}
+                  className="border border-navy-200 rounded-lg p-3 hover:bg-navy-50 cursor-pointer active:bg-navy-100"
+                  onClick={() => handleOpenDetails(stone)}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-mono text-sm font-semibold text-navy-900">{stone.sku}</span>
+                    <span className="text-xs text-navy-500">Job #{stone.job_number}</span>
+                  </div>
+                  <div className="text-sm text-navy-600">{stone.stone_type} &middot; {stone.weight} ct</div>
+                  <div className="flex items-center justify-between mt-1 text-xs text-navy-500">
+                    <span>{stone.client_name}</span>
+                    <span className="font-medium text-navy-900">${stone.fee?.toLocaleString()}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-navy-50">
@@ -374,7 +400,7 @@ export default function StonesPage() {
                           setSelectedStone(stone);
                           setViewCertOpen(true);
                         }}
-                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                        className="text-navy-600 hover:text-navy-900 hover:bg-green-50"
                         data-testid={`view-cert-${stone.sku}`}
                         title="View Certificate Scan"
                       >
@@ -463,7 +489,7 @@ export default function StonesPage() {
                       />
                     </div>
                   ) : (
-                    <p className={`font-medium ${selectedStone.actual_fee != null && selectedStone.actual_fee !== selectedStone.fee ? 'text-green-700' : 'text-navy-800'}`}>
+                    <p className={`font-medium ${selectedStone.actual_fee != null && selectedStone.actual_fee !== selectedStone.fee ? 'text-navy-900' : 'text-navy-800'}`}>
                       ${(selectedStone.actual_fee ?? selectedStone.fee).toLocaleString()}
                     </p>
                   )}
@@ -696,7 +722,7 @@ export default function StonesPage() {
                 </div>
                 
                 {selectedStone.certificate_group && (
-                  <p className="text-sm text-amber-700 bg-amber-50 p-2 rounded">
+                  <p className="text-sm text-navy-600 bg-amber-50 p-2 rounded">
                     This stone is part of Certificate Group {selectedStone.certificate_group}. 
                     Uploading a scan will apply to all stones in this group.
                   </p>

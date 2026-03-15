@@ -1002,7 +1002,7 @@ export default function ShipmentsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleUpdateStatus(shipment.id, 'delivered')}
-                              className="text-xs text-green-600 border-green-200 hover:bg-green-50"
+                              className="text-xs text-navy-600 border-green-200 hover:bg-green-50"
                               data-testid={`mark-delivered-${shipment.shipment_number}`}
                             >
                               Mark Delivered
@@ -2084,7 +2084,7 @@ export default function ShipmentsPage() {
                 </div>
                 
                 {selectedStone.certificate_group && (
-                  <p className="text-sm text-amber-700 bg-amber-50 p-2 rounded">
+                  <p className="text-sm text-navy-600 bg-amber-50 p-2 rounded">
                     This stone is part of Certificate Group {selectedStone.certificate_group}. 
                     Uploading a scan will apply to all stones in this group.
                   </p>
