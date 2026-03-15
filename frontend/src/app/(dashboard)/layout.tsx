@@ -99,7 +99,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-navy-50 flex">
+    <div className="min-h-screen bg-navy-50 flex overflow-x-hidden">
       {/* Desktop Sidebar */}
       <aside
         className={cn(
@@ -203,7 +203,7 @@ export default function DashboardLayout({
       {/* Main Content */}
       <main
         className={cn(
-          "flex-1 transition-all duration-300 pb-16 md:pb-0",
+          "flex-1 transition-all duration-300 pb-16 md:pb-0 min-w-0 overflow-x-hidden",
           isCollapsed ? "md:ml-16" : "md:ml-60"
         )}
       >
