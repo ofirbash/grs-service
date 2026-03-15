@@ -578,10 +578,10 @@ export default function SettingsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-navy-100 p-1">
+        <TabsList className="bg-navy-100 p-1 overflow-x-auto flex w-full">
           <TabsTrigger
             value="dropdowns"
-            className="data-[state=active]:bg-white data-[state=active]:text-navy-900"
+            className="data-[state=active]:bg-white data-[state=active]:text-navy-900 text-xs sm:text-sm whitespace-nowrap"
             data-testid="tab-dropdowns"
           >
             <ListFilter className="h-4 w-4 mr-2" />
@@ -589,7 +589,7 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger
             value="branches"
-            className="data-[state=active]:bg-white data-[state=active]:text-navy-900"
+            className="data-[state=active]:bg-white data-[state=active]:text-navy-900 text-xs sm:text-sm whitespace-nowrap"
             data-testid="tab-branches"
           >
             <Building className="h-4 w-4 mr-2" />
@@ -597,7 +597,7 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger
             value="pricing"
-            className="data-[state=active]:bg-white data-[state=active]:text-navy-900"
+            className="data-[state=active]:bg-white data-[state=active]:text-navy-900 text-xs sm:text-sm whitespace-nowrap"
             data-testid="tab-pricing"
           >
             <DollarSign className="h-4 w-4 mr-2" />
@@ -606,7 +606,7 @@ export default function SettingsPage() {
           {isSuperAdmin && (
           <TabsTrigger
             value="admins"
-            className="data-[state=active]:bg-white data-[state=active]:text-navy-900"
+            className="data-[state=active]:bg-white data-[state=active]:text-navy-900 text-xs sm:text-sm whitespace-nowrap"
             data-testid="tab-admins"
           >
             <Shield className="h-4 w-4 mr-2" />
@@ -674,8 +674,29 @@ export default function SettingsPage() {
                 </Button>
               </div>
 
-              {/* Options Table */}
-              <div className="border rounded-lg overflow-x-auto">
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-2">
+                {dropdowns[selectedField]
+                  .filter(option => option.value.toLowerCase().includes(dropdownSearchTerm.toLowerCase()))
+                  .map((option, index) => (
+                  <div key={`${option.value}-${index}`} className="border border-navy-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-navy-900 text-sm">{option.value}</span>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => setEditingOption({ ...option })} className="h-7 w-7 p-0"><Pencil className="h-3 w-3 text-navy-600" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteOption(option.value)} className="h-7 w-7 p-0"><Trash2 className="h-3 w-3 text-red-600" /></Button>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {option.stone_types.map((type) => (
+                        <Badge key={type} variant="secondary" className="text-[10px]">{type}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop Table */}
+              <div className="hidden md:block border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-navy-50">
@@ -816,7 +837,7 @@ export default function SettingsPage() {
         {/* ==================== BRANCHES TAB ==================== */}
         <TabsContent value="branches" className="space-y-6">
           <Card className="border-navy-200">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
                   <Building className="h-5 w-5" />
@@ -836,7 +857,24 @@ export default function SettingsPage() {
               )}
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg overflow-x-auto">
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-2">
+                {branches.map((branch) => (
+                  <div key={branch.id} className="border border-navy-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-navy-900 text-sm">{branch.name}</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-navy-50 text-xs">{branch.code}</Badge>
+                        {isSuperAdmin && <Button variant="ghost" size="sm" onClick={() => openBranchDialog(branch)} className="h-7 w-7 p-0"><Pencil className="h-3 w-3 text-navy-600" /></Button>}
+                      </div>
+                    </div>
+                    <div className="text-xs text-navy-500 mt-1">{branch.address}</div>
+                    {(branch.email || branch.phone) && <div className="text-xs text-navy-400 mt-0.5">{branch.email} {branch.phone}</div>}
+                  </div>
+                ))}
+              </div>
+              {/* Desktop Table */}
+              <div className="hidden md:block border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-navy-50">
@@ -899,7 +937,7 @@ export default function SettingsPage() {
 
           {/* Addresses Section */}
           <Card className="border-navy-200">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
                   <Building className="h-5 w-5" />
@@ -917,7 +955,25 @@ export default function SettingsPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg overflow-x-auto">
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-2">
+                {addresses.map((addr) => (
+                  <div key={addr.id} className="border border-navy-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-navy-900 text-sm">{addr.name}</span>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openAddressDialog(addr)} className="h-7 w-7 p-0"><Pencil className="h-3 w-3 text-navy-600" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteAddress(addr)} className="h-7 w-7 p-0"><Trash2 className="h-3 w-3 text-red-600" /></Button>
+                      </div>
+                    </div>
+                    {addr.address && <div className="text-xs text-navy-500 mt-1">{addr.address}</div>}
+                    {(addr.email || addr.phone) && <div className="text-xs text-navy-400 mt-0.5">{addr.email} {addr.phone}</div>}
+                  </div>
+                ))}
+                {addresses.length === 0 && <div className="text-center py-4 text-navy-500 text-sm">No addresses configured</div>}
+              </div>
+              {/* Desktop Table */}
+              <div className="hidden md:block border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-navy-50">
@@ -969,7 +1025,7 @@ export default function SettingsPage() {
         {/* ==================== PRICING TAB ==================== */}
         <TabsContent value="pricing" className="space-y-6">
           <Card className="border-navy-200">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
                   <DollarSign className="h-5 w-5" />
@@ -1036,7 +1092,33 @@ export default function SettingsPage() {
                   )}
                 </div>
 
-                <div className="border rounded-lg overflow-x-auto">
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-2">
+                  {(editingPricing ? pricingForm.brackets : pricing.brackets).map((bracket, index) => (
+                    <div key={index} className="border border-navy-200 rounded-lg p-3 text-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-navy-900">${bracket.min_value.toLocaleString()} - ${bracket.max_value.toLocaleString()}</span>
+                        {editingPricing && (
+                          <Button variant="ghost" size="sm" onClick={() => removeBracket(index)} className="h-7 w-7 p-0"><Trash2 className="h-3 w-3 text-red-600" /></Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        {(editingPricing ? pricingForm.service_types : pricing.service_types).map((st) => (
+                          <div key={st}>
+                            <span className="text-navy-500">{st}</span>
+                            {editingPricing ? (
+                              <Input type="number" value={bracket.fees?.[st] ?? 0} onChange={(e) => updateBracket(index, st, parseFloat(e.target.value) || 0)} className="h-7 mt-0.5 text-xs" />
+                            ) : (
+                              <div className="font-medium text-navy-900">${bracket.fees?.[st] ?? 0}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Desktop Table */}
+                <div className="hidden md:block border rounded-lg overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-navy-50">
@@ -1201,7 +1283,7 @@ export default function SettingsPage() {
         {isSuperAdmin && (
         <TabsContent value="admins" className="space-y-6">
           <Card className="border-navy-200">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
                   <Shield className="h-5 w-5" />
@@ -1219,7 +1301,26 @@ export default function SettingsPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg overflow-x-auto">
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-2">
+                {adminUsers.map((admin) => (
+                  <div key={admin.id} className="border border-navy-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-navy-900 text-sm">{admin.full_name}</span>
+                      <Button variant="ghost" size="sm" onClick={() => openAdminDialog(admin)} className="h-7 w-7 p-0"><Pencil className="h-3 w-3 text-navy-600" /></Button>
+                    </div>
+                    <div className="text-xs text-navy-500 mt-0.5">{admin.email}</div>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Badge className={admin.role === 'super_admin' ? 'bg-brand-red text-white text-[10px]' : 'bg-navy-200 text-navy-700 text-[10px]'}>
+                        {admin.role === 'super_admin' ? 'Super Admin' : 'Branch Admin'}
+                      </Badge>
+                      <span className="text-xs text-navy-400">{admin.role === 'super_admin' ? 'Global' : branches.find(b => b.id === admin.branch_id)?.name || '-'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop Table */}
+              <div className="hidden md:block border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-navy-50">
