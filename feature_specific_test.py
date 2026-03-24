@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 
 class FeatureSpecificTester:
-    def __init__(self, base_url="https://erp-stone-system.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://bashari-lab-direct.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
