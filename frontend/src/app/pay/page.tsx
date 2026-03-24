@@ -72,7 +72,6 @@ function PaymentForm() {
   const [handshakeLoading, setHandshakeLoading] = useState(false);
   const [handshakeData, setHandshakeData] = useState<HandshakeData | null>(null);
   const [handshakeError, setHandshakeError] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'bit'>('card');
   const formRef = useRef<HTMLFormElement>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -334,28 +333,6 @@ function PaymentForm() {
             <>
               {!showIframe ? (
                 <div className="space-y-4">
-                  {/* Payment method toggle */}
-                  <div className="flex gap-2">
-                    <Button
-                      variant={paymentMethod === 'card' ? 'default' : 'outline'}
-                      className={`flex-1 h-11 ${paymentMethod === 'card' ? 'bg-[#141417] text-white hover:bg-[#2a2a2f]' : ''}`}
-                      onClick={() => setPaymentMethod('card')}
-                      data-testid="method-card"
-                    >
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Credit Card
-                    </Button>
-                    <Button
-                      variant={paymentMethod === 'bit' ? 'default' : 'outline'}
-                      className={`flex-1 h-11 ${paymentMethod === 'bit' ? 'bg-[#141417] text-white hover:bg-[#2a2a2f]' : ''}`}
-                      onClick={() => setPaymentMethod('bit')}
-                      data-testid="method-bit"
-                    >
-                      <Smartphone className="h-4 w-4 mr-2" />
-                      Bit
-                    </Button>
-                  </div>
-
                   {handshakeError && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
                       <p className="text-red-700 text-sm">{handshakeError}</p>
@@ -372,11 +349,15 @@ function PaymentForm() {
                       <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Connecting to payment gateway...</>
                     ) : (
                       <>
-                        {paymentMethod === 'card' ? <CreditCard className="h-5 w-5 mr-2" /> : <Smartphone className="h-5 w-5 mr-2" />}
+                        <CreditCard className="h-5 w-5 mr-2" />
                         Pay {currencySymbol}{displayAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </>
                     )}
                   </Button>
+
+                  <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                    <CreditCard className="h-3 w-3" /> Credit Card <span className="text-muted-foreground/50">|</span> <Smartphone className="h-3 w-3" /> Bit
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -416,8 +397,7 @@ function PaymentForm() {
                       <input type="hidden" name="buttonLabel" value="Complete Payment" />
                       <input type="hidden" name="contact" value={paymentData?.client_name || ''} />
                       <input type="hidden" name="pdesc" value={`Job #${paymentData?.job_number} - Bashari Lab-Direct`} />
-                      {paymentMethod === 'bit' && <input type="hidden" name="bit_pay" value="1" />}
-                      {paymentMethod === 'bit' && <input type="hidden" name="hide_cc" value="1" />}
+                      <input type="hidden" name="bit_pay" value="1" />
                       <input type="hidden" name="notify_url_address" value={`${API_URL}/payment/${token}/notify`} />
                     </form>
                   )}
