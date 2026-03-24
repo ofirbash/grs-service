@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Loader2, CheckCircle2, AlertCircle, CreditCard, ArrowRightLeft } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, CreditCard, ArrowRightLeft, Smartphone } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -43,13 +43,22 @@ interface PaymentData {
   total_stones: number;
   total_fee: number;
   stones: Stone[];
-  tranzilla_terminal: string;
-  has_tranzilla: boolean;
+  tranzila_terminal: string;
+  has_tranzila: boolean;
+}
+
+interface HandshakeData {
+  thtk: string;
+  supplier: string;
+  sum: number;
+  currency: string;
+  currency_code: string;
 }
 
 function PaymentForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const statusParam = searchParams.get('status');
 
   const [loading, setLoading] = useState(true);
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
@@ -60,12 +69,50 @@ function PaymentForm() {
   const [showIframe, setShowIframe] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const [handshakeLoading, setHandshakeLoading] = useState(false);
+  const [handshakeData, setHandshakeData] = useState<HandshakeData | null>(null);
+  const [handshakeError, setHandshakeError] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'bit'>('card');
+  const formRef = useRef<HTMLFormElement>(null);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!token) return;
     fetchPaymentDetails();
     fetchExchangeRate();
   }, [token]);
+
+  // Handle return from Tranzila success/fail redirect
+  useEffect(() => {
+    if (statusParam === 'success' && token) {
+      pollPaymentStatus();
+    }
+  }, [statusParam, token]);
+
+  // Poll payment status while iframe is visible
+  useEffect(() => {
+    if (showIframe && token) {
+      pollRef.current = setInterval(() => {
+        pollPaymentStatus();
+      }, 5000);
+      return () => {
+        if (pollRef.current) clearInterval(pollRef.current);
+      };
+    }
+  }, [showIframe, token]);
+
+  const pollPaymentStatus = async () => {
+    try {
+      const resp = await axios.get(`${API_URL}/payment/${token}/status`);
+      if (resp.data.status === 'paid') {
+        setPaymentComplete(true);
+        setShowIframe(false);
+        if (pollRef.current) clearInterval(pollRef.current);
+      }
+    } catch {
+      // silent
+    }
+  };
 
   const fetchPaymentDetails = async () => {
     try {
@@ -93,6 +140,31 @@ function PaymentForm() {
     }
   };
 
+  const initiatePayment = async () => {
+    setHandshakeLoading(true);
+    setHandshakeError('');
+    try {
+      const resp = await axios.post(`${API_URL}/payment/${token}/handshake`, {
+        currency,
+        exchange_rate: exchangeRate,
+      });
+      setHandshakeData(resp.data);
+      setShowIframe(true);
+
+      // Submit the form after state update
+      setTimeout(() => {
+        if (formRef.current) {
+          formRef.current.submit();
+        }
+      }, 200);
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || 'Failed to initialize payment. Please try again.';
+      setHandshakeError(msg);
+    } finally {
+      setHandshakeLoading(false);
+    }
+  };
+
   const handleSimulatePayment = async () => {
     setSimulating(true);
     try {
@@ -108,17 +180,22 @@ function PaymentForm() {
   const amountUSD = paymentData?.total_fee || 0;
   const amountILS = Math.round(amountUSD * exchangeRate * 100) / 100;
   const displayAmount = currency === 'USD' ? amountUSD : amountILS;
-  const currencySymbol = currency === 'USD' ? '$' : 'ש"ח ';
-  const tranzillaCurrency = currency === 'USD' ? '2' : '1';
+  const currencySymbol = currency === 'USD' ? '$' : '\u20AA';
+  const tranzilaCurrencyCode = currency === 'USD' ? '2' : '1';
+
+  // Determine the iframe URL params
+  const iframeBaseUrl = handshakeData
+    ? `https://direct.tranzila.com/${handshakeData.supplier}/iframenew.php`
+    : '';
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
-        <Card className="w-full max-w-md shadow-2xl">
+      <div className="min-h-screen flex items-center justify-center bg-[#141417] p-4">
+        <Card className="w-full max-w-md shadow-2xl border-0">
           <CardContent className="p-8 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-            <h3 className="text-lg font-semibold text-navy-800 mb-2">Invalid Link</h3>
-            <p className="text-navy-600">This payment link is invalid.</p>
+            <h3 className="text-lg font-semibold mb-2">Invalid Link</h3>
+            <p className="text-muted-foreground">This payment link is invalid.</p>
           </CardContent>
         </Card>
       </div>
@@ -127,7 +204,7 @@ function PaymentForm() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-navy-950">
+      <div className="min-h-screen flex items-center justify-center bg-[#141417]">
         <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     );
@@ -135,12 +212,12 @@ function PaymentForm() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
-        <Card className="w-full max-w-md shadow-2xl">
+      <div className="min-h-screen flex items-center justify-center bg-[#141417] p-4">
+        <Card className="w-full max-w-md shadow-2xl border-0">
           <CardContent className="p-8 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-            <h3 className="text-lg font-semibold text-navy-800 mb-2">Error</h3>
-            <p className="text-navy-600">{error}</p>
+            <h3 className="text-lg font-semibold mb-2">Error</h3>
+            <p className="text-muted-foreground">{error}</p>
           </CardContent>
         </Card>
       </div>
@@ -149,15 +226,15 @@ function PaymentForm() {
 
   if (paymentComplete) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
-        <Card className="w-full max-w-md shadow-2xl">
+      <div className="min-h-screen flex items-center justify-center bg-[#141417] p-4">
+        <Card className="w-full max-w-md shadow-2xl border-0">
           <CardContent className="p-8 text-center">
             <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-green-500" />
-            <h3 className="text-xl font-bold text-navy-800 mb-2">Payment Received</h3>
-            <p className="text-navy-600 mb-4">
+            <h3 className="text-xl font-bold mb-2">Payment Received</h3>
+            <p className="text-muted-foreground mb-4">
               Thank you! Your payment for Job #{paymentData?.job_number} has been processed successfully.
             </p>
-            <Badge className="bg-navy-900 text-white text-sm px-4 py-1">Paid</Badge>
+            <Badge className="bg-green-600 text-white text-sm px-4 py-1">Paid</Badge>
           </CardContent>
         </Card>
       </div>
@@ -165,31 +242,32 @@ function PaymentForm() {
   }
 
   return (
-    <div className="min-h-screen bg-navy-950 p-4 flex items-start justify-center pt-8">
-      <Card className="w-full max-w-2xl shadow-2xl" data-testid="payment-card">
-        <CardHeader className="text-center border-b border-navy-200 pb-6">
-          <img
-            src="/logos/bashari-full.png"
-            alt="Bashari"
-            className="mx-auto h-12 mb-2"
-          />
-          <p className="text-navy-400 text-xs tracking-widest uppercase">Secure Payment</p>
+    <div className="min-h-screen bg-[#141417] p-4 flex items-start justify-center pt-8">
+      <Card className="w-full max-w-2xl shadow-2xl border-0" data-testid="payment-card">
+        <CardHeader className="text-center border-b pb-6">
+          <div className="flex items-center justify-center gap-3 mb-1">
+            <div className="w-8 h-8 bg-[#141417] rounded-md flex items-center justify-center">
+              <span className="text-white text-xs font-bold">B</span>
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">Bashari Lab-Direct</h1>
+          </div>
+          <p className="text-muted-foreground text-xs tracking-widest uppercase">Secure Payment</p>
         </CardHeader>
 
         <CardContent className="space-y-6 pt-6">
           {/* Job Info */}
-          <div className="grid grid-cols-3 gap-4 p-4 bg-navy-50 rounded-lg text-sm">
+          <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
             <div>
-              <Label className="text-navy-500 text-xs">Job</Label>
-              <p className="font-bold text-navy-900">#{paymentData?.job_number}</p>
+              <Label className="text-muted-foreground text-xs">Job</Label>
+              <p className="font-bold">#{paymentData?.job_number}</p>
             </div>
             <div>
-              <Label className="text-navy-500 text-xs">Client</Label>
-              <p className="font-medium text-navy-900">{paymentData?.client_name}</p>
+              <Label className="text-muted-foreground text-xs">Client</Label>
+              <p className="font-medium">{paymentData?.client_name}</p>
             </div>
             <div>
-              <Label className="text-navy-500 text-xs">Stones</Label>
-              <p className="font-medium text-navy-900">{paymentData?.total_stones}</p>
+              <Label className="text-muted-foreground text-xs">Stones</Label>
+              <p className="font-medium">{paymentData?.total_stones}</p>
             </div>
           </div>
 
@@ -197,11 +275,11 @@ function PaymentForm() {
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow className="bg-navy-50">
-                  <TableHead className="text-navy-700 text-xs">SKU</TableHead>
-                  <TableHead className="text-navy-700 text-xs">Type</TableHead>
-                  <TableHead className="text-navy-700 text-xs">Weight</TableHead>
-                  <TableHead className="text-navy-700 text-xs text-right">Fee (USD)</TableHead>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="text-xs">SKU</TableHead>
+                  <TableHead className="text-xs">Type</TableHead>
+                  <TableHead className="text-xs">Weight</TableHead>
+                  <TableHead className="text-xs text-right">Fee (USD)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -220,77 +298,138 @@ function PaymentForm() {
           </div>
 
           {/* Currency Selector + Amount */}
-          <div className="p-5 bg-navy-50 rounded-lg space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium text-navy-700">Payment Currency</Label>
-              <div className="flex items-center gap-2">
-                <Select value={currency} onValueChange={setCurrency}>
+          {!showIframe && (
+            <div className="p-5 bg-muted/50 rounded-lg space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Payment Currency</Label>
+                <Select value={currency} onValueChange={(v) => { setCurrency(v); setHandshakeData(null); }}>
                   <SelectTrigger className="w-32 h-9" data-testid="currency-selector">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USD">USD ($)</SelectItem>
-                    <SelectItem value="ILS">ILS (ש&quot;ח)</SelectItem>
+                    <SelectItem value="ILS">ILS ({'\u20AA'})</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            {currency === 'ILS' && (
-              <div className="flex items-center gap-2 text-xs text-navy-500">
-                <ArrowRightLeft className="h-3 w-3" />
-                <span>
-                  Exchange rate: 1 USD = {loadingRate ? '...' : exchangeRate.toFixed(2)} ILS
-                </span>
+              {currency === 'ILS' && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <ArrowRightLeft className="h-3 w-3" />
+                  <span>Exchange rate: 1 USD = {loadingRate ? '...' : exchangeRate.toFixed(2)} ILS</span>
+                </div>
+              )}
+
+              <div className="text-center pt-2 border-t">
+                <p className="text-muted-foreground text-sm">Total Amount Due</p>
+                <p className="text-4xl font-bold mt-1" data-testid="payment-amount">
+                  {currencySymbol}{displayAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
-            )}
-
-            <div className="text-center pt-2 border-t border-navy-200">
-              <p className="text-navy-500 text-sm">Total Amount Due</p>
-              <p className="text-4xl font-bold text-navy-900 mt-1" data-testid="payment-amount">
-                {currencySymbol}{displayAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
             </div>
-          </div>
+          )}
 
-          {/* Payment Action */}
-          {paymentData?.has_tranzilla ? (
+          {/* Payment Methods */}
+          {paymentData?.has_tranzila ? (
             <>
               {!showIframe ? (
-                <Button
-                  onClick={() => setShowIframe(true)}
-                  className="w-full bg-navy-900 hover:bg-navy-800 h-12 text-base"
-                  data-testid="proceed-payment-button"
-                >
-                  <CreditCard className="h-5 w-5 mr-2" />
-                  Proceed to Payment
-                </Button>
-              ) : (
-                <div className="border rounded-lg overflow-hidden">
-                  <form
-                    action={`https://direct.tranzila.com/${paymentData.tranzilla_terminal}/iframenew.php`}
-                    target="tranzila-frame"
-                    method="POST"
-                    className="hidden"
-                    id="tranzila-form"
+                <div className="space-y-4">
+                  {/* Payment method toggle */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant={paymentMethod === 'card' ? 'default' : 'outline'}
+                      className={`flex-1 h-11 ${paymentMethod === 'card' ? 'bg-[#141417] text-white hover:bg-[#2a2a2f]' : ''}`}
+                      onClick={() => setPaymentMethod('card')}
+                      data-testid="method-card"
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Credit Card
+                    </Button>
+                    <Button
+                      variant={paymentMethod === 'bit' ? 'default' : 'outline'}
+                      className={`flex-1 h-11 ${paymentMethod === 'bit' ? 'bg-[#141417] text-white hover:bg-[#2a2a2f]' : ''}`}
+                      onClick={() => setPaymentMethod('bit')}
+                      data-testid="method-bit"
+                    >
+                      <Smartphone className="h-4 w-4 mr-2" />
+                      Bit
+                    </Button>
+                  </div>
+
+                  {handshakeError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                      <p className="text-red-700 text-sm">{handshakeError}</p>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={initiatePayment}
+                    disabled={handshakeLoading}
+                    className="w-full bg-[#141417] hover:bg-[#2a2a2f] text-white h-12 text-base"
+                    data-testid="proceed-payment-button"
                   >
-                    <input type="hidden" name="sum" value={displayAmount.toFixed(2)} />
-                    <input type="hidden" name="currency" value={tranzillaCurrency} />
-                    <input type="hidden" name="lang" value="il" />
-                    <input type="hidden" name="nologo" value="1" />
-                    <input type="hidden" name="contact" value={paymentData.client_name} />
-                    <input type="hidden" name="pdesc" value={`Job #${paymentData.job_number} - Bashari Lab-Direct`} />
-                    <input type="hidden" name="success_url_address" value={`${window.location.origin}/pay?token=${token}&status=success`} />
-                    <input type="hidden" name="fail_url_address" value={`${window.location.origin}/pay?token=${token}&status=fail`} />
-                    <input type="hidden" name="notify_url_address" value={`${API_URL}/payment/${token}/notify`} />
-                  </form>
-                  <iframe
-                    name="tranzila-frame"
-                    id="tranzila-frame"
-                    src={`https://direct.tranzila.com/${paymentData.tranzilla_terminal}/iframenew.php?sum=${displayAmount.toFixed(2)}&currency=${tranzillaCurrency}&lang=il&nologo=1&pdesc=Job%20%23${paymentData.job_number}&success_url_address=${encodeURIComponent(`${window.location.origin}/pay?token=${token}&status=success`)}&fail_url_address=${encodeURIComponent(`${window.location.origin}/pay?token=${token}&status=fail`)}&notify_url_address=${encodeURIComponent(`${API_URL}/payment/${token}/notify`)}`}
-                    allow="payment"
-                    style={{ width: '100%', height: '500px', border: 'none' }}
-                  />
+                    {handshakeLoading ? (
+                      <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Connecting to payment gateway...</>
+                    ) : (
+                      <>
+                        {paymentMethod === 'card' ? <CreditCard className="h-5 w-5 mr-2" /> : <Smartphone className="h-5 w-5 mr-2" />}
+                        Pay {currencySymbol}{displayAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Paying {currencySymbol}{handshakeData?.sum?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setShowIframe(false); setHandshakeData(null); if (pollRef.current) clearInterval(pollRef.current); }}
+                      data-testid="cancel-payment"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+
+                  {/* Hidden form that submits to the iframe */}
+                  {handshakeData && (
+                    <form
+                      ref={formRef}
+                      action={iframeBaseUrl}
+                      target="tranzila-frame"
+                      method="POST"
+                      className="hidden"
+                      id="tranzila-form"
+                    >
+                      <input type="hidden" name="sum" value={handshakeData.sum.toFixed(2)} />
+                      <input type="hidden" name="currency" value={handshakeData.currency_code} />
+                      <input type="hidden" name="new_process" value="1" />
+                      <input type="hidden" name="thtk" value={handshakeData.thtk} />
+                      <input type="hidden" name="lang" value="us" />
+                      <input type="hidden" name="nologo" value="1" />
+                      <input type="hidden" name="trBgColor" value="FFFFFF" />
+                      <input type="hidden" name="trTextColor" value="141417" />
+                      <input type="hidden" name="trButtonColor" value="141417" />
+                      <input type="hidden" name="buttonLabel" value="Complete Payment" />
+                      <input type="hidden" name="contact" value={paymentData?.client_name || ''} />
+                      <input type="hidden" name="pdesc" value={`Job #${paymentData?.job_number} - Bashari Lab-Direct`} />
+                      {paymentMethod === 'bit' && <input type="hidden" name="bit_pay" value="1" />}
+                      {paymentMethod === 'bit' && <input type="hidden" name="hide_cc" value="1" />}
+                      <input type="hidden" name="notify_url_address" value={`${API_URL}/payment/${token}/notify`} />
+                    </form>
+                  )}
+
+                  <div className="border rounded-lg overflow-hidden bg-white">
+                    <iframe
+                      name="tranzila-frame"
+                      id="tranzila-frame"
+                      allowPaymentRequest
+                      style={{ width: '100%', height: '500px', border: 'none' }}
+                    />
+                  </div>
                 </div>
               )}
             </>
@@ -298,12 +437,12 @@ function PaymentForm() {
             <div className="space-y-3">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
                 <p className="text-amber-800 text-sm font-medium">Payment Gateway (Test Mode)</p>
-                <p className="text-navy-600 text-xs mt-1">Tranzilla is not yet configured. You can simulate a payment for testing.</p>
+                <p className="text-muted-foreground text-xs mt-1">Tranzila is not configured. You can simulate a payment for testing.</p>
               </div>
               <Button
                 onClick={handleSimulatePayment}
                 disabled={simulating}
-                className="w-full bg-green-700 hover:bg-green-600 h-12 text-base"
+                className="w-full bg-green-700 hover:bg-green-600 text-white h-12 text-base"
                 data-testid="simulate-payment-button"
               >
                 {simulating ? (
@@ -315,8 +454,8 @@ function PaymentForm() {
             </div>
           )}
 
-          <p className="text-center text-xs text-navy-400 pt-2">
-            Secured by Bashari Lab-Direct
+          <p className="text-center text-xs text-muted-foreground pt-2">
+            Secured by Tranzila &middot; Bashari Lab-Direct
           </p>
         </CardContent>
       </Card>
@@ -327,7 +466,7 @@ function PaymentForm() {
 export default function PaymentPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-navy-950">
+      <div className="min-h-screen flex items-center justify-center bg-[#141417]">
         <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     }>
