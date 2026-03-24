@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -157,8 +157,9 @@ function PaymentForm() {
           formRef.current.submit();
         }
       }, 200);
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail || 'Failed to initialize payment. Please try again.';
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      const msg = axiosErr?.response?.data?.detail || 'Failed to initialize payment. Please try again.';
       setHandshakeError(msg);
     } finally {
       setHandshakeLoading(false);
@@ -181,7 +182,6 @@ function PaymentForm() {
   const amountILS = Math.round(amountUSD * exchangeRate * 100) / 100;
   const displayAmount = currency === 'USD' ? amountUSD : amountILS;
   const currencySymbol = currency === 'USD' ? '$' : '\u20AA';
-  const tranzilaCurrencyCode = currency === 'USD' ? '2' : '1';
 
   // Determine the iframe URL params
   const iframeBaseUrl = handshakeData
@@ -426,7 +426,6 @@ function PaymentForm() {
                     <iframe
                       name="tranzila-frame"
                       id="tranzila-frame"
-                      allowPaymentRequest
                       style={{ width: '100%', height: '500px', border: 'none' }}
                     />
                   </div>
