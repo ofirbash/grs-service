@@ -429,25 +429,47 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 ```
 /app
 ├── backend/
-│   ├── server.py           # FastAPI backend
+│   ├── server.py              # Slim FastAPI app (103 lines)
+│   ├── database.py            # MongoDB connection
+│   ├── auth.py                # JWT, password hashing, auth deps
+│   ├── models.py              # All Pydantic models
+│   ├── pricing.py             # Pricing engine + constants
+│   ├── utils.py               # SKU generation, helpers
+│   ├── email_templates.py     # Email HTML template builders
+│   ├── routes/
+│   │   ├── auth_routes.py     # Auth (login, register, 2FA, setup-password)
+│   │   ├── branches.py        # Branch CRUD
+│   │   ├── clients.py         # Client CRUD + auto-setup email
+│   │   ├── jobs.py            # Job CRUD + stone management
+│   │   ├── stones.py          # Stone endpoints (verbal, fees, cert scans)
+│   │   ├── shipments.py       # Shipment CRUD + status cascade
+│   │   ├── notifications.py   # Email notification preview/send/status
+│   │   ├── settings.py        # Dropdown settings
+│   │   ├── cloudinary_routes.py # Cloudinary signature/delete
+│   │   ├── pdf.py             # PDF generation (memo-in, invoice, shipment)
+│   │   ├── pricing_routes.py  # Pricing config endpoints
+│   │   ├── users.py           # Admin user management
+│   │   ├── dashboard.py       # Dashboard stats
+│   │   ├── payments.py        # Payment gateway endpoints
+│   │   ├── addresses.py       # Address CRUD
+│   │   └── documents.py       # Document upload
 │   ├── tests/
-│   │   └── test_jobs_api.py  # API tests
 │   ├── requirements.txt
 │   └── .env
 └── frontend/
     ├── src/
     │   ├── app/
     │   │   ├── layout.tsx          # Root layout
-    │   │   ├── page.tsx            # Root redirect
-    │   │   ├── globals.css         # Global styles
-    │   │   ├── login/
-    │   │   │   └── page.tsx        # Login page
+    │   │   ├── page.tsx            # Login page
+    │   │   ├── setup-password/     # Customer password setup
+    │   │   ├── pay/                # Payment page (public)
     │   │   └── (dashboard)/
     │   │       ├── layout.tsx      # Dashboard layout with sidebar
     │   │       └── dashboard/
     │   │           ├── page.tsx           # Main dashboard
+    │   │           ├── jobs/page.tsx      # Jobs management
+    │   │           ├── stones/page.tsx    # Stones management
     │   │           ├── shipments/page.tsx # Shipments management
-    │   │           ├── jobs/page.tsx      # Jobs management (TESTED)
     │   │           ├── clients/page.tsx   # Clients management
     │   │           └── settings/page.tsx  # Settings
     │   ├── components/ui/          # shadcn/ui components
@@ -468,6 +490,36 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - **Font**: Inter (system font stack)
 - **Components**: shadcn/ui with custom styling
 - **Layout**: Desktop-first with collapsible sidebar
+
+---
+
+### Session: Mar 24, 2026 - Backend Refactoring
+**Refactored monolithic server.py (3,815 lines) into modular architecture:**
+- ✅ `server.py` → 103 lines (slim app setup + router imports)
+- ✅ `database.py` → MongoDB connection module
+- ✅ `auth.py` → JWT, password hashing, auth dependencies
+- ✅ `models.py` → All Pydantic models (410 lines)
+- ✅ `pricing.py` → Pricing engine + constants
+- ✅ `utils.py` → SKU generation, stone type codes, logo download
+- ✅ `email_templates.py` → Email HTML template builders (379 lines)
+- ✅ `routes/auth_routes.py` → Auth endpoints (register, login, 2FA, setup-password)
+- ✅ `routes/branches.py` → Branch CRUD
+- ✅ `routes/clients.py` → Client CRUD with auto-setup email
+- ✅ `routes/jobs.py` → Job CRUD with stone management
+- ✅ `routes/stones.py` → Stone endpoints (verbal, fees, cert scans)
+- ✅ `routes/shipments.py` → Shipment CRUD with status cascade
+- ✅ `routes/notifications.py` → Email notification preview/send/status
+- ✅ `routes/settings.py` → Dropdown settings for verbal findings
+- ✅ `routes/cloudinary_routes.py` → Cloudinary signature/delete
+- ✅ `routes/pdf.py` → PDF generation (memo-in, invoice, shipment)
+- ✅ `routes/pricing_routes.py` → Pricing config endpoints
+- ✅ `routes/users.py` → Admin user management
+- ✅ `routes/dashboard.py` → Dashboard stats
+- ✅ `routes/payments.py` → Payment gateway endpoints
+- ✅ `routes/addresses.py` → Address CRUD
+- ✅ `routes/documents.py` → Document upload
+- ✅ **24/24 backend API tests passed (iteration_17)**
+- ✅ **All frontend pages verified working (login, dashboard, jobs, clients, stones, shipments)**
 
 ---
 
@@ -492,6 +544,7 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - `/app/test_reports/iteration_13.json` - Customer access control & dashboard navigation (Feb 23, 2026)
   - `/app/test_reports/iteration_15.json` - 5-Stage Email Notification System (Feb 24, 2026)
   - `/app/test_reports/iteration_16.json` - UI/UX fixes: unified edit mode, notification refresh, actual fees (Feb 24, 2026)
+  - `/app/test_reports/iteration_17.json` - Backend refactoring validation: 24/24 API tests passed, all frontend pages verified (Mar 24, 2026)
 
 ---
 
