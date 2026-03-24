@@ -502,24 +502,22 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ `pricing.py` → Pricing engine + constants
 - ✅ `utils.py` → SKU generation, stone type codes, logo download
 - ✅ `email_templates.py` → Email HTML template builders (379 lines)
-- ✅ `routes/auth_routes.py` → Auth endpoints (register, login, 2FA, setup-password)
-- ✅ `routes/branches.py` → Branch CRUD
-- ✅ `routes/clients.py` → Client CRUD with auto-setup email
-- ✅ `routes/jobs.py` → Job CRUD with stone management
-- ✅ `routes/stones.py` → Stone endpoints (verbal, fees, cert scans)
-- ✅ `routes/shipments.py` → Shipment CRUD with status cascade
-- ✅ `routes/notifications.py` → Email notification preview/send/status
-- ✅ `routes/settings.py` → Dropdown settings for verbal findings
-- ✅ `routes/cloudinary_routes.py` → Cloudinary signature/delete
-- ✅ `routes/pdf.py` → PDF generation (memo-in, invoice, shipment)
-- ✅ `routes/pricing_routes.py` → Pricing config endpoints
-- ✅ `routes/users.py` → Admin user management
-- ✅ `routes/dashboard.py` → Dashboard stats
-- ✅ `routes/payments.py` → Payment gateway endpoints
-- ✅ `routes/addresses.py` → Address CRUD
-- ✅ `routes/documents.py` → Document upload
+- ✅ 16 route files in `routes/` directory
 - ✅ **24/24 backend API tests passed (iteration_17)**
-- ✅ **All frontend pages verified working (login, dashboard, jobs, clients, stones, shipments)**
+- ✅ **All frontend pages verified working**
+
+### Session: Mar 24, 2026 - Tranzila Payment Gateway Integration
+**Integrated Tranzila payment gateway with live API:**
+- ✅ Handshake flow: Backend calls `api.tranzila.com` to get secure `thtk` token
+- ✅ Iframe payment: Frontend embeds Tranzila's `iframenew.php` for PCI-compliant CC processing
+- ✅ BIT wallet payment support (`bit_pay=1` parameter)
+- ✅ Currency selector: USD or ILS with live exchange rate
+- ✅ Notify endpoint: Receives POST callbacks from Tranzila after payment
+- ✅ Payment status polling: Frontend polls every 5s during iframe interaction
+- ✅ Payment simulation: Test mode for when Tranzila is not configured
+- ✅ Branding: Bashari colors, no Tranzila logo, custom button labels
+- ✅ **12/12 backend payment API tests passed (iteration_18)**
+- Terminal: `grsil`, credentials stored in `.env`
 
 ---
 
@@ -545,6 +543,7 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - `/app/test_reports/iteration_15.json` - 5-Stage Email Notification System (Feb 24, 2026)
   - `/app/test_reports/iteration_16.json` - UI/UX fixes: unified edit mode, notification refresh, actual fees (Feb 24, 2026)
   - `/app/test_reports/iteration_17.json` - Backend refactoring validation: 24/24 API tests passed, all frontend pages verified (Mar 24, 2026)
+  - `/app/test_reports/iteration_18.json` - Tranzila payment gateway: 12/12 payment API tests passed (Mar 24, 2026)
 
 ---
 
