@@ -2518,7 +2518,7 @@ export default function JobsPage() {
                   {/* Certificate ID */}
                   <div className="space-y-1">
                     <Label className="text-sm text-navy-600">
-                      Certificate ID <span className="text-red-500 font-bold">*</span>
+                      Certificate ID
                     </Label>
                     <Input
                       placeholder="Enter certificate ID..."
@@ -2528,9 +2528,6 @@ export default function JobsPage() {
                       disabled={!verbalEditMode}
                       data-testid="verbal-certificate-id"
                     />
-                    {verbalEditMode && !structuredFindings.certificate_id && (
-                      <p className="text-xs text-red-500">Required field</p>
-                    )}
                   </div>
                   
                   {/* Weight */}
@@ -2609,14 +2606,13 @@ export default function JobsPage() {
                 <Button
                   onClick={async () => {
                     if (!viewingStone) return;
-                    if (!structuredFindings.certificate_id) {
-                      alert('Certificate ID is required');
-                      return;
-                    }
                     setSavingStoneVerbal(true);
                     try {
-                      // Save verbal findings
-                      await stonesApi.updateStructuredVerbal(viewingStone.id, structuredFindings);
+                      // Only save verbal findings if any verbal data has been entered
+                      const hasVerbalData = structuredFindings.certificate_id || structuredFindings.identification || structuredFindings.color || structuredFindings.origin || structuredFindings.comment;
+                      if (hasVerbalData) {
+                        await stonesApi.updateStructuredVerbal(viewingStone.id, structuredFindings);
+                      }
                       
                       // Save fee changes if any
                       const newActualFee = stoneActualFee !== '' ? parseFloat(stoneActualFee) : undefined;
@@ -2637,7 +2633,7 @@ export default function JobsPage() {
                       // Update local state
                       const updatedStone = { 
                         ...viewingStone, 
-                        verbal_findings: structuredFindings,
+                        verbal_findings: hasVerbalData ? structuredFindings : viewingStone.verbal_findings,
                         actual_fee: hasActualFeeChange ? newActualFee : viewingStone.actual_fee,
                         color_stability_test: hasColorStabilityChange ? stoneColorStability : viewingStone.color_stability_test
                       };
@@ -2660,7 +2656,7 @@ export default function JobsPage() {
                       setSavingStoneVerbal(false);
                     }
                   }}
-                  disabled={savingStoneVerbal || !structuredFindings.certificate_id}
+                  disabled={savingStoneVerbal}
                   className="bg-navy-900 hover:bg-navy-800 w-full"
                   data-testid="save-stone-button"
                 >

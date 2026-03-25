@@ -550,7 +550,7 @@ export default function StonesPage() {
                   {/* Certificate ID */}
                   <div className="space-y-1">
                     <Label className="text-sm text-navy-600">
-                      Certificate ID <span className="text-red-500 font-bold">*</span>
+                      Certificate ID
                     </Label>
                     <Input
                       placeholder="Enter certificate ID..."
@@ -560,9 +560,6 @@ export default function StonesPage() {
                       disabled={!verbalEditMode}
                       data-testid="verbal-certificate-id"
                     />
-                    {verbalEditMode && !structuredFindings.certificate_id && (
-                      <p className="text-xs text-red-500">Required field</p>
-                    )}
                   </div>
                   
                   {/* Weight */}
@@ -641,14 +638,13 @@ export default function StonesPage() {
                 <Button
                   onClick={async () => {
                     if (!selectedStone) return;
-                    if (!structuredFindings.certificate_id) {
-                      alert('Certificate ID is required');
-                      return;
-                    }
                     setSavingVerbal(true);
                     try {
-                      // Save verbal findings
-                      await stonesApi.updateStructuredVerbal(selectedStone.id, structuredFindings);
+                      // Only save verbal findings if any verbal data has been entered
+                      const hasVerbalData = structuredFindings.certificate_id || structuredFindings.identification || structuredFindings.color || structuredFindings.origin || structuredFindings.comment;
+                      if (hasVerbalData) {
+                        await stonesApi.updateStructuredVerbal(selectedStone.id, structuredFindings);
+                      }
                       
                       // Save fee changes if any
                       const newActualFee = actualFee !== '' ? parseFloat(actualFee) : undefined;
@@ -669,7 +665,7 @@ export default function StonesPage() {
                       // Update local state
                       const updatedStone = { 
                         ...selectedStone, 
-                        verbal_findings: structuredFindings,
+                        verbal_findings: hasVerbalData ? structuredFindings : selectedStone.verbal_findings,
                         actual_fee: (hasActualFeeChange && newActualFee !== undefined) ? newActualFee : selectedStone.actual_fee,
                         color_stability_test: hasColorStabilityChange ? colorStabilityTest : selectedStone.color_stability_test
                       };
@@ -684,7 +680,7 @@ export default function StonesPage() {
                       setSavingVerbal(false);
                     }
                   }}
-                  disabled={savingVerbal || !structuredFindings.certificate_id}
+                  disabled={savingVerbal}
                   className="bg-navy-900 hover:bg-navy-800 w-full"
                   data-testid="save-stone-button"
                 >
