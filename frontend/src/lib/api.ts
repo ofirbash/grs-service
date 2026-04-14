@@ -212,7 +212,7 @@ export const stonesApi = {
     const response = await api.put(`/stones/${id}/verbal`, { structured_findings });
     return response.data;
   },
-  updateFees: async (id: string, data: { actual_fee?: number; color_stability_test?: boolean }) => {
+  updateFees: async (id: string, data: { actual_fee?: number; color_stability_test?: boolean; mounted?: boolean }) => {
     const response = await api.put(`/stones/${id}/fees`, data);
     return response.data;
   },

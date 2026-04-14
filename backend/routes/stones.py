@@ -9,7 +9,7 @@ from models import (
     VerbalFindingsUpdate, StoneFeeUpdate,
     GroupCertificateScanUpload, CertificateScanUpload
 )
-from pricing import COLOR_STABILITY_FEE
+from pricing import get_color_stability_fee_from_db, get_mounted_fee_from_db
 
 router = APIRouter()
 
@@ -95,7 +95,7 @@ async def update_stone_verbal(stone_id: str, data: VerbalFindingsUpdate, user: d
 
 @router.put("/stones/{stone_id}/fees")
 async def update_stone_fees(stone_id: str, data: StoneFeeUpdate, user: dict = Depends(require_admin)):
-    """Update actual fee and/or color stability test for a stone"""
+    """Update actual fee, color stability test, and/or mounted status for a stone"""
     job = await db.jobs.find_one({"stones.id": stone_id})
     if not job:
         raise HTTPException(status_code=404, detail="Stone not found")
@@ -104,21 +104,64 @@ async def update_stone_fees(stone_id: str, data: StoneFeeUpdate, user: dict = De
     if not stone:
         raise HTTPException(status_code=404, detail="Stone not found")
 
+    cs_fee = await get_color_stability_fee_from_db()
+    mounted_fee = await get_mounted_fee_from_db()
+
     update_data = {"updated_at": datetime.utcnow()}
     fee_adjustment = 0
 
+    # Handle color stability test toggle
     if data.color_stability_test is not None:
         update_data["stones.$.color_stability_test"] = data.color_stability_test
         current_cst = stone.get('color_stability_test', False)
         if data.color_stability_test and not current_cst:
-            fee_adjustment = COLOR_STABILITY_FEE
-            new_fee = stone.get('fee', 0) + COLOR_STABILITY_FEE
+            fee_adjustment += cs_fee
+            new_fee = stone.get('fee', 0) + cs_fee
             update_data["stones.$.fee"] = new_fee
         elif not data.color_stability_test and current_cst:
-            fee_adjustment = -COLOR_STABILITY_FEE
-            new_fee = max(0, stone.get('fee', 0) - COLOR_STABILITY_FEE)
+            fee_adjustment -= cs_fee
+            new_fee = max(0, stone.get('fee', 0) - cs_fee)
             update_data["stones.$.fee"] = new_fee
 
+    # Handle mounted toggle
+    if data.mounted is not None:
+        update_data["stones.$.mounted"] = data.mounted
+        current_mounted = stone.get('mounted', False)
+
+        if data.mounted and not current_mounted:
+            # Check if mounted fee already applies via another stone in same cert group
+            cert_group = stone.get('certificate_group')
+            should_add_fee = True
+
+            if cert_group is not None:
+                # Check if any OTHER stone in this group is already mounted
+                for s in job.get('stones', []):
+                    if s.get('id') != stone_id and s.get('certificate_group') == cert_group and s.get('mounted'):
+                        should_add_fee = False
+                        break
+
+            if should_add_fee:
+                fee_adjustment += mounted_fee
+                current_fee = update_data.get("stones.$.fee", stone.get('fee', 0))
+                update_data["stones.$.fee"] = current_fee + mounted_fee
+
+        elif not data.mounted and current_mounted:
+            # Check if any OTHER stone in same cert group is still mounted
+            cert_group = stone.get('certificate_group')
+            should_remove_fee = True
+
+            if cert_group is not None:
+                for s in job.get('stones', []):
+                    if s.get('id') != stone_id and s.get('certificate_group') == cert_group and s.get('mounted'):
+                        should_remove_fee = False
+                        break
+
+            if should_remove_fee:
+                fee_adjustment -= mounted_fee
+                current_fee = update_data.get("stones.$.fee", stone.get('fee', 0))
+                update_data["stones.$.fee"] = max(0, current_fee - mounted_fee)
+
+    # Handle actual fee
     if data.actual_fee is not None:
         update_data["stones.$.actual_fee"] = data.actual_fee
 
@@ -127,13 +170,22 @@ async def update_stone_fees(stone_id: str, data: StoneFeeUpdate, user: dict = De
         {"$set": update_data}
     )
 
+    # Update job total_fee
     if fee_adjustment != 0:
         await db.jobs.update_one(
             {"_id": job["_id"]},
             {"$inc": {"total_fee": fee_adjustment}}
         )
 
-    return {"message": "Stone fees updated successfully"}
+    # Return the updated job total for the frontend
+    updated_job = await db.jobs.find_one({"_id": job["_id"]})
+    updated_stone = next((s for s in updated_job.get('stones', []) if s.get('id') == stone_id), None)
+
+    return {
+        "message": "Stone fees updated successfully",
+        "stone": updated_stone,
+        "total_fee": updated_job.get("total_fee", 0)
+    }
 
 
 @router.put("/stones/group/certificate-scan")

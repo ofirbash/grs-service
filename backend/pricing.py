@@ -49,6 +49,14 @@ async def get_color_stability_fee_from_db():
     return COLOR_STABILITY_FEE
 
 
+async def get_mounted_fee_from_db():
+    """Fetch mounted jewellery fee from DB"""
+    pricing = await db.pricing_config.find_one({"type": "pricing"})
+    if pricing:
+        return pricing.get("mounted_jewellery_fee", 50)
+    return 50
+
+
 def calculate_stone_fee_from_brackets(value: float, service_type: str, color_stability_test: bool, brackets: list, color_stability_fee: float = 50) -> float:
     """Calculate fee for a single stone using provided brackets"""
     fee = 0

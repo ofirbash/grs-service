@@ -78,6 +78,7 @@ interface Stone {
   fee: number;
   actual_fee?: number;
   color_stability_test?: boolean;
+  mounted?: boolean;
   certificate_group?: number;
   verbal_findings?: string | StructuredVerbalFindings;
   certificate_scan_url?: string;
@@ -340,6 +341,7 @@ export default function JobsPage() {
   // Stone fee editing
   const [stoneActualFee, setStoneActualFee] = useState<string>('');
   const [stoneColorStability, setStoneColorStability] = useState<boolean>(false);
+  const [stoneMounted, setStoneMounted] = useState<boolean>(false);
   
   // Structured verbal findings
   const [dropdownSettings, setDropdownSettings] = useState<DropdownSettings>({
@@ -513,6 +515,7 @@ export default function JobsPage() {
     // Initialize fee fields
     setStoneActualFee(stone.actual_fee != null ? String(stone.actual_fee) : String(stone.fee));
     setStoneColorStability(stone.color_stability_test || false);
+    setStoneMounted(stone.mounted || false);
     
     // Always start in locked mode - user must click "Edit" to modify
     setVerbalEditMode(false);
@@ -2485,6 +2488,26 @@ export default function JobsPage() {
                   )}
                 </div>
                 <div>
+                  <Label className="text-navy-500 text-xs">Mounted (Jewellery)</Label>
+                  {verbalEditMode ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Switch
+                        checked={stoneMounted}
+                        onCheckedChange={setStoneMounted}
+                        className="scale-75"
+                        data-testid="stone-mounted-switch"
+                      />
+                      <span className="text-xs text-navy-600">
+                        {stoneMounted ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="font-medium text-navy-900">
+                      {viewingStone.mounted ? 'Yes' : 'No'}
+                    </p>
+                  )}
+                </div>
+                <div>
                   <Label className="text-navy-500 text-xs">Certificate Group</Label>
                   <p className="font-medium text-navy-900">
                     {viewingStone.certificate_group ? `Group ${viewingStone.certificate_group}` : '-'}
@@ -2618,32 +2641,33 @@ export default function JobsPage() {
                       const newActualFee = stoneActualFee !== '' ? parseFloat(stoneActualFee) : undefined;
                       const hasActualFeeChange = newActualFee !== viewingStone.fee;
                       const hasColorStabilityChange = stoneColorStability !== viewingStone.color_stability_test;
+                      const hasMountedChange = stoneMounted !== (viewingStone.mounted || false);
                       
-                      if (hasActualFeeChange || hasColorStabilityChange) {
-                        const feeUpdateData: { actual_fee?: number; color_stability_test?: boolean } = {};
+                      if (hasActualFeeChange || hasColorStabilityChange || hasMountedChange) {
+                        const feeUpdateData: { actual_fee?: number; color_stability_test?: boolean; mounted?: boolean } = {};
                         if (hasActualFeeChange && newActualFee !== undefined) {
                           feeUpdateData.actual_fee = newActualFee;
                         }
                         if (hasColorStabilityChange) {
                           feeUpdateData.color_stability_test = stoneColorStability;
                         }
+                        if (hasMountedChange) {
+                          feeUpdateData.mounted = stoneMounted;
+                        }
                         await stonesApi.updateFees(viewingStone.id, feeUpdateData);
                       }
                       
-                      // Update local state
-                      const updatedStone = { 
-                        ...viewingStone, 
-                        verbal_findings: hasVerbalData ? structuredFindings : viewingStone.verbal_findings,
-                        actual_fee: hasActualFeeChange ? newActualFee : viewingStone.actual_fee,
-                        color_stability_test: hasColorStabilityChange ? stoneColorStability : viewingStone.color_stability_test
-                      };
-                      setViewingStone(updatedStone);
-                      
+                      // Refetch the job to get updated stone data and total_fee
                       if (selectedJob) {
-                        const updatedStones = selectedJob.stones?.map(s => 
-                          s.id === viewingStone.id ? updatedStone : s
-                        );
-                        setSelectedJob({ ...selectedJob, stones: updatedStones });
+                        const refreshedJob = await jobsApi.getById(selectedJob.id);
+                        setSelectedJob(refreshedJob);
+                        const refreshedStone = refreshedJob.stones?.find((s: Stone) => s.id === viewingStone.id);
+                        if (refreshedStone) {
+                          setViewingStone(refreshedStone);
+                          setStoneActualFee(refreshedStone.actual_fee != null ? String(refreshedStone.actual_fee) : String(refreshedStone.fee));
+                          setStoneColorStability(refreshedStone.color_stability_test || false);
+                          setStoneMounted(refreshedStone.mounted || false);
+                        }
                       }
                       // Also update the main jobs list
                       fetchData();

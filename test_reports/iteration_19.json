@@ -1,0 +1,73 @@
+{
+  "summary": "Mounted Fee Feature Testing Complete - Fixed bug where 'mounted' field was missing from StoneResponse model. All 7 backend tests pass. Frontend UI verified working on both Jobs and Stones pages.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "Backend: PUT /api/stones/{stone_id}/fees with mounted=true adds $50 mounted fee",
+    "Backend: PUT /api/stones/{stone_id}/fees with mounted=false removes $50 mounted fee",
+    "Backend: Mounted fee only added once per certificate_group (second stone in same group doesn't add fee)",
+    "Backend: color_stability_test=true adds $50 fee",
+    "Backend: color_stability_test=false removes $50 fee",
+    "Backend: Both mounted and color_stability_test can be toggled together (+$100)",
+    "Backend: API response includes updated total_fee for frontend",
+    "Frontend Jobs: Stone detail dialog shows 'Mounted (Jewellery)' toggle in edit mode",
+    "Frontend Jobs: Toggling mounted ON increases stone fee by $50",
+    "Frontend Jobs: Toggling mounted ON increases job total_fee by $50",
+    "Frontend Jobs: Mounted state correctly displayed after save (Yes/No)",
+    "Frontend Stones: Stone detail dialog shows 'Mounted (Jewellery)' toggle in edit mode",
+    "Frontend Stones: Mounted state correctly displayed (Yes/No)"
+  ],
+
+  "bugs_fixed": [
+    {
+      "issue": "StoneResponse model missing 'mounted' field",
+      "file": "/app/backend/models.py",
+      "fix": "Added 'mounted: Optional[bool] = None' to StoneResponse class",
+      "impact": "Frontend was not receiving mounted state from API, causing UI to always show 'No'"
+    }
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_mounted_fee.py",
+    "/app/test_reports/pytest/mounted_fee_results.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [
+    "Backend mounted fee logic correctly handles certificate_group - only charges once per group",
+    "Frontend correctly refreshes job data after saving to update total_fee display",
+    "data-testid attributes present for mounted switch and save button"
+  ],
+
+  "updated_files": [
+    "/app/backend/models.py",
+    "/app/backend/tests/test_mounted_fee.py"
+  ],
+
+  "success_rate": {
+    "backend": "100% (7/7 tests passed)",
+    "frontend": "100% (all mounted toggle flows verified)"
+  },
+
+  "test_credentials": {
+    "admin": "admin@bashari.com / admin123"
+  },
+
+  "seed_data_creation": "Used existing Job #18 with 3 stones in certificate group 1",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Mounted fee feature fully tested and working. Bug fixed: StoneResponse model was missing 'mounted' field. Job #18 has stone RU300J1801 currently mounted (fee $730). The mounted fee is $50 and is only charged once per certificate group."
+}

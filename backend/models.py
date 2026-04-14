@@ -123,6 +123,7 @@ class StoneResponse(BaseModel):
     actual_fee: Optional[float] = None
     position: int
     certificate_group: Optional[int] = None
+    mounted: Optional[bool] = None
     verbal_findings: Optional[Union[str, Dict[str, Any]]] = None
     certificate_scan_url: Optional[str] = None
     job_id: Optional[str] = None
@@ -167,6 +168,7 @@ class VerbalFindingsUpdate(BaseModel):
 class StoneFeeUpdate(BaseModel):
     actual_fee: Optional[float] = None
     color_stability_test: Optional[bool] = None
+    mounted: Optional[bool] = None
 
 
 # Certificate Unit Models
