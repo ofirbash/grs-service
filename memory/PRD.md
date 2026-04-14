@@ -565,6 +565,15 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ Unmounting any stone in a group marks all group stones as unmounted (fee removed once)
 - ✅ Color stability test remains per-stone (independent of group)
 
+### Session: Apr 14, 2026 - Job Detail Dialog Layout Rearrangement
+- ✅ Restructured job detail dialog from single-column to 2-column layout on desktop (lg breakpoint)
+- ✅ Left column: Stones table (primary content, now visible immediately)
+- ✅ Right sidebar (280px): Action cards (Signed Memo, Client Invoice, Payment, Lab Invoice, Notifications)
+- ✅ Dialog widened from max-w-4xl to max-w-5xl to accommodate 2-column layout
+- ✅ Action sections converted to compact bordered cards with smaller buttons/text
+- ✅ Mobile layout preserved: single column with stones first, then actions stacked below
+- ✅ No mobile breakage verified on 390px viewport
+
 ---
 
 ## Test Credentials

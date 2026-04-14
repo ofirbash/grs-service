@@ -1601,7 +1601,7 @@ export default function JobsPage() {
           setSelectedStones([]);
         }
       }}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Job #{selectedJob?.job_number}</span>
@@ -1634,7 +1634,7 @@ export default function JobsPage() {
 
           {selectedJob && (
             <div className="space-y-4 py-4">
-              {/* Job Details */}
+              {/* Job Summary */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div>
                   <Label className="text-navy-500 text-xs">Client</Label>
@@ -1724,300 +1724,21 @@ export default function JobsPage() {
                 </div>
               )}
 
-              {/* Signed Memo Section - Admin Only for Upload */}
-              <div className="border-t pt-4">
-                <Label className="text-base font-semibold flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  Signed Memo
-                </Label>
-                <div className="mt-2 flex items-center gap-3">
-                  {isAdmin && (
-                    <>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleMemoUpload}
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                        className="hidden"
-                      />
-                      <Button
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                        data-testid="upload-memo-button"
-                      >
-                        {uploading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4 mr-2" />
-                            {selectedJob.signed_memo_url ? 'Replace Memo' : 'Upload Memo'}
-                          </>
-                        )}
-                      </Button>
-                    </>
-                  )}
-                  
-                  {selectedJob.signed_memo_url && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setViewMemoOpen(true)}
-                      data-testid="view-memo-button"
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Memo
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Invoice Section - Admin Only */}
-              {isAdmin && (
-                <div className="space-y-3 border-t pt-4">
-                  <Label className="text-base font-semibold flex items-center gap-2">
-                    <Receipt className="h-4 w-4" />
-                    Client Invoice
-                    <Badge variant="secondary" className="bg-navy-900 text-white text-xs">For Email</Badge>
-                  </Label>
-                  <p className="text-sm text-navy-500">Generate invoice with actual fees to send to client</p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={handleGenerateInvoice}
-                      disabled={generatingInvoice}
-                      className="border-navy-300 text-navy-900 hover:bg-navy-50"
-                      data-testid="generate-invoice-button"
-                    >
-                      {generatingInvoice ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Receipt className="h-4 w-4 mr-2" />
-                          {selectedJob.invoice_url ? 'Regenerate Invoice' : 'Generate Invoice'}
-                        </>
-                      )}
-                    </Button>
-                    
-                    {selectedJob.invoice_url && (
-                      <Button
-                        variant="outline"
-                        onClick={() => setViewInvoiceOpen(true)}
-                        data-testid="view-invoice-button"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Invoice
-                      </Button>
-                    )}
-                  </div>
-                  {selectedJob.invoice_url && (
-                    <p className="text-xs text-navy-600">
-                      <CheckCircle2 className="h-3 w-3 inline mr-1" />
-                      Invoice ready - will be attached to &quot;Stones Returned&quot; email
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Payment Section - Admin Only */}
-              {isAdmin && (
-                <div className="space-y-3 border-t pt-4">
-                  <Label className="text-base font-semibold flex items-center gap-2">
-                    <CreditCard className="h-4 w-4" />
-                    Payment
-                    {selectedJob.payment_status === 'paid' ? (
-                      <Badge className="bg-navy-900 text-white text-xs">Paid</Badge>
-                    ) : selectedJob.payment_token ? (
-                      <Badge variant="outline" className="text-navy-600 border-navy-300 text-xs">Pending</Badge>
-                    ) : null}
-                  </Label>
-                  
-                  {selectedJob.payment_status === 'paid' ? (
-                    <p className="text-sm text-navy-900 flex items-center gap-1">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Payment received
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {!selectedJob.payment_token ? (
+              {/* Two-column layout: Stones (left) + Actions sidebar (right) */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-4 border-t pt-4">
+                {/* LEFT: Stones Table */}
+                <div className="space-y-4 order-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-semibold flex items-center gap-2">
+                      <Gem className="h-4 w-4" />
+                      Stones ({selectedJob.stones.length} total)
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      {editMode && isAdmin && (
                         <Button
                           variant="outline"
-                          onClick={handleGeneratePaymentLink}
-                          disabled={generatingPaymentLink}
-                          className="border-navy-300"
-                          data-testid="generate-payment-link-button"
-                        >
-                          {generatingPaymentLink ? (
-                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating...</>
-                          ) : (
-                            <><Link2 className="h-4 w-4 mr-2" />Generate Payment Link</>
-                          )}
-                        </Button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={selectedJob.payment_url || ''}
-                            readOnly
-                            className="text-xs font-mono bg-navy-50 border-navy-200 flex-1"
-                            data-testid="payment-link-input"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCopyPaymentLink}
-                            className={copiedPaymentLink ? 'bg-navy-50 border-navy-300 text-navy-900' : 'border-navy-300'}
-                            data-testid="copy-payment-link-button"
-                          >
-                            {copiedPaymentLink ? (
-                              <><Check className="h-4 w-4 mr-1" />Copied</>
-                            ) : (
-                              'Copy'
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                      <p className="text-xs text-navy-500">Share this link with the customer to collect payment</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Lab Invoice Section - Admin Only */}
-              {isAdmin && (
-                <div className="space-y-2 border-t pt-4">
-                  <Label className="text-base font-semibold flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Lab Invoice
-                    <Badge variant="secondary" className="bg-navy-200 text-navy-700 text-xs">Admin Only</Badge>
-                  </Label>
-                  <p className="text-sm text-navy-500">Internal document - not visible to customers</p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={labInvoiceInputRef}
-                      type="file"
-                      onChange={handleLabInvoiceUpload}
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      className="hidden"
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => labInvoiceInputRef.current?.click()}
-                      disabled={uploadingLabInvoice}
-                      data-testid="upload-lab-invoice-button"
-                    >
-                      {uploadingLabInvoice ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4 mr-2" />
-                          {selectedJob.lab_invoice_url ? 'Replace Invoice' : 'Upload Invoice'}
-                        </>
-                      )}
-                    </Button>
-                    
-                    {selectedJob.lab_invoice_url && (
-                      <Button
-                        variant="outline"
-                        onClick={() => setViewLabInvoiceOpen(true)}
-                        data-testid="view-lab-invoice-button"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Invoice
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Email Notifications Section - Admin Only */}
-              {isAdmin && (
-                <div className="space-y-3 border-t pt-4">
-                  <Label className="text-base font-semibold flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Email Notifications
-                    <Badge variant="secondary" className="bg-navy-200 text-navy-700 text-xs">Review & Send</Badge>
-                  </Label>
-                  <p className="text-sm text-navy-500">Send status update emails to the client. Review before sending.</p>
-                  
-                  {loadingNotifications ? (
-                    <div className="flex items-center gap-2 text-navy-500 py-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading notifications...
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {notificationStatuses.filter(n => n.is_available).length === 0 ? (
-                        <p className="text-sm text-navy-400 italic py-2">
-                          No email notifications available for current status ({selectedJob.status.replace(/_/g, ' ')})
-                        </p>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {notificationStatuses.filter(n => n.is_available).map((notification) => (
-                            <div
-                              key={notification.type}
-                              className={`flex items-center justify-between p-3 rounded-lg border ${
-                                notification.is_sent 
-                                  ? 'bg-navy-50 border-navy-200' 
-                                  : 'bg-white border-navy-200'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2">
-                                {notification.is_sent ? (
-                                  <CheckCircle2 className="h-4 w-4 text-navy-600" />
-                                ) : (
-                                  <Clock className="h-4 w-4 text-navy-400" />
-                                )}
-                                <div>
-                                  <p className="text-sm font-medium text-navy-900">
-                                    {NOTIFICATION_LABELS[notification.type] || notification.type}
-                                  </p>
-                                  {notification.last_sent && (
-                                    <p className="text-xs text-navy-500">
-                                      Sent {new Date(notification.last_sent.sent_at).toLocaleDateString()}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant={notification.is_sent ? "outline" : "default"}
-                                onClick={() => handlePreviewNotification(notification.type)}
-                                className={notification.is_sent ? "border-navy-300" : "bg-brand-red hover:bg-brand-red-dark"}
-                                data-testid={`preview-notification-${notification.type}`}
-                              >
-                                <Eye className="h-3 w-3 mr-1" />
-                                {notification.is_sent ? 'Resend' : 'Review'}
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Stones Table with Certificate Grouping */}
-              <div className="space-y-4 border-t pt-4">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold flex items-center gap-2">
-                    <Gem className="h-4 w-4" />
-                    Stones ({selectedJob.stones.length} total)
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    {editMode && isAdmin && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAddStoneDialogOpen(true)}
+                          size="sm"
+                          onClick={() => setAddStoneDialogOpen(true)}
                         data-testid="add-stone-to-job-button"
                       >
                         <Plus className="h-4 w-4 mr-1" />
@@ -2242,6 +1963,235 @@ export default function JobsPage() {
                       })()}
                     </TableBody>
                   </Table>
+                </div>
+              </div>
+
+                {/* RIGHT SIDEBAR: Actions */}
+                <div className="space-y-3 order-2">
+                  {/* Signed Memo */}
+                  <div className="rounded-lg border border-navy-200 p-3 space-y-2">
+                    <Label className="text-sm font-semibold flex items-center gap-2">
+                      <Upload className="h-3.5 w-3.5" />
+                      Signed Memo
+                    </Label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isAdmin && (
+                        <>
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleMemoUpload}
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            className="hidden"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploading}
+                            className="text-xs"
+                            data-testid="upload-memo-button"
+                          >
+                            {uploading ? (
+                              <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Uploading...</>
+                            ) : (
+                              <><Upload className="h-3 w-3 mr-1" />{selectedJob.signed_memo_url ? 'Replace' : 'Upload'}</>
+                            )}
+                          </Button>
+                        </>
+                      )}
+                      {selectedJob.signed_memo_url && (
+                        <Button variant="outline" size="sm" onClick={() => setViewMemoOpen(true)} className="text-xs" data-testid="view-memo-button">
+                          <Eye className="h-3 w-3 mr-1" />View
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Client Invoice */}
+                  {isAdmin && (
+                    <div className="rounded-lg border border-navy-200 p-3 space-y-2">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <Receipt className="h-3.5 w-3.5" />
+                        Client Invoice
+                        <Badge variant="secondary" className="bg-navy-900 text-white text-[10px] px-1.5 py-0">Email</Badge>
+                      </Label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGenerateInvoice}
+                          disabled={generatingInvoice}
+                          className="text-xs border-navy-300"
+                          data-testid="generate-invoice-button"
+                        >
+                          {generatingInvoice ? (
+                            <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Generating...</>
+                          ) : (
+                            <><Receipt className="h-3 w-3 mr-1" />{selectedJob.invoice_url ? 'Regenerate' : 'Generate'}</>
+                          )}
+                        </Button>
+                        {selectedJob.invoice_url && (
+                          <Button variant="outline" size="sm" onClick={() => setViewInvoiceOpen(true)} className="text-xs" data-testid="view-invoice-button">
+                            <Eye className="h-3 w-3 mr-1" />View
+                          </Button>
+                        )}
+                      </div>
+                      {selectedJob.invoice_url && (
+                        <p className="text-[10px] text-navy-500">
+                          <CheckCircle2 className="h-2.5 w-2.5 inline mr-0.5" />
+                          Attached to &quot;Stones Returned&quot; email
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Payment */}
+                  {isAdmin && (
+                    <div className="rounded-lg border border-navy-200 p-3 space-y-2">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <CreditCard className="h-3.5 w-3.5" />
+                        Payment
+                        {selectedJob.payment_status === 'paid' ? (
+                          <Badge className="bg-navy-900 text-white text-[10px] px-1.5 py-0">Paid</Badge>
+                        ) : selectedJob.payment_token ? (
+                          <Badge variant="outline" className="text-navy-600 border-navy-300 text-[10px] px-1.5 py-0">Pending</Badge>
+                        ) : null}
+                      </Label>
+                      {selectedJob.payment_status === 'paid' ? (
+                        <p className="text-xs text-navy-900 flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />Payment received
+                        </p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {!selectedJob.payment_token ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleGeneratePaymentLink}
+                              disabled={generatingPaymentLink}
+                              className="text-xs border-navy-300 w-full"
+                              data-testid="generate-payment-link-button"
+                            >
+                              {generatingPaymentLink ? (
+                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Generating...</>
+                              ) : (
+                                <><Link2 className="h-3 w-3 mr-1" />Generate Payment Link</>
+                              )}
+                            </Button>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <Input
+                                value={selectedJob.payment_url || ''}
+                                readOnly
+                                className="text-[10px] font-mono bg-navy-50 border-navy-200 h-7"
+                                data-testid="payment-link-input"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleCopyPaymentLink}
+                                className={`text-xs w-full ${copiedPaymentLink ? 'bg-navy-50 border-navy-300 text-navy-900' : 'border-navy-300'}`}
+                                data-testid="copy-payment-link-button"
+                              >
+                                {copiedPaymentLink ? (
+                                  <><Check className="h-3 w-3 mr-1" />Copied</>
+                                ) : (
+                                  'Copy Link'
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Lab Invoice */}
+                  {isAdmin && (
+                    <div className="rounded-lg border border-navy-200 p-3 space-y-2">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <FileText className="h-3.5 w-3.5" />
+                        Lab Invoice
+                        <Badge variant="secondary" className="bg-navy-200 text-navy-700 text-[10px] px-1.5 py-0">Admin</Badge>
+                      </Label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input ref={labInvoiceInputRef} type="file" onChange={handleLabInvoiceUpload} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => labInvoiceInputRef.current?.click()}
+                          disabled={uploadingLabInvoice}
+                          className="text-xs"
+                          data-testid="upload-lab-invoice-button"
+                        >
+                          {uploadingLabInvoice ? (
+                            <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Uploading...</>
+                          ) : (
+                            <><Upload className="h-3 w-3 mr-1" />{selectedJob.lab_invoice_url ? 'Replace' : 'Upload'}</>
+                          )}
+                        </Button>
+                        {selectedJob.lab_invoice_url && (
+                          <Button variant="outline" size="sm" onClick={() => setViewLabInvoiceOpen(true)} className="text-xs" data-testid="view-lab-invoice-button">
+                            <Eye className="h-3 w-3 mr-1" />View
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Email Notifications */}
+                  {isAdmin && (
+                    <div className="rounded-lg border border-navy-200 p-3 space-y-2">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <Mail className="h-3.5 w-3.5" />
+                        Notifications
+                      </Label>
+                      {loadingNotifications ? (
+                        <div className="flex items-center gap-2 text-navy-500 py-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span className="text-xs">Loading...</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {notificationStatuses.filter(n => n.is_available).length === 0 ? (
+                            <p className="text-xs text-navy-400 italic">
+                              No notifications for &ldquo;{selectedJob.status.replace(/_/g, ' ')}&rdquo;
+                            </p>
+                          ) : (
+                            notificationStatuses.filter(n => n.is_available).map((notification) => (
+                              <div
+                                key={notification.type}
+                                className={`flex items-center justify-between p-2 rounded border text-xs ${
+                                  notification.is_sent ? 'bg-navy-50 border-navy-200' : 'bg-white border-navy-200'
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {notification.is_sent ? (
+                                    <CheckCircle2 className="h-3 w-3 text-navy-600 shrink-0" />
+                                  ) : (
+                                    <Clock className="h-3 w-3 text-navy-400 shrink-0" />
+                                  )}
+                                  <span className="font-medium text-navy-900 truncate">
+                                    {NOTIFICATION_LABELS[notification.type] || notification.type}
+                                  </span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant={notification.is_sent ? "outline" : "default"}
+                                  onClick={() => handlePreviewNotification(notification.type)}
+                                  className={`h-6 px-2 text-[10px] shrink-0 ml-1 ${notification.is_sent ? 'border-navy-300' : 'bg-brand-red hover:bg-brand-red-dark'}`}
+                                  data-testid={`preview-notification-${notification.type}`}
+                                >
+                                  {notification.is_sent ? 'Resend' : 'Review'}
+                                </Button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
