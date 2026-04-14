@@ -544,6 +544,20 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - `/app/test_reports/iteration_16.json` - UI/UX fixes: unified edit mode, notification refresh, actual fees (Feb 24, 2026)
   - `/app/test_reports/iteration_17.json` - Backend refactoring validation: 24/24 API tests passed, all frontend pages verified (Mar 24, 2026)
   - `/app/test_reports/iteration_18.json` - Tranzila payment gateway: 12/12 payment API tests passed (Mar 24, 2026)
+  - `/app/test_reports/iteration_19.json` - Mounted fee feature: 7/7 backend + all frontend flows passed (Apr 14, 2026)
+
+### Session: Apr 14, 2026 - Mounted Fee & Color Stability Fix
+- ✅ Completed "mounted" toggle for stones (marks stone as jewellery-mounted, adds configurable fee)
+- ✅ Mounted fee only charged once per certificate group (backend logic in /app/backend/routes/stones.py)
+- ✅ Added `mounted` field to Stone interfaces in both jobs/page.tsx and stones/page.tsx
+- ✅ Added `mounted` to stonesApi.updateFees type signature in api.ts
+- ✅ Added mounted toggle UI (Switch) to stone detail dialog on Jobs page
+- ✅ Added mounted toggle UI (Switch) to stone detail dialog on Stones page
+- ✅ Save handler in both pages sends mounted state to backend and refreshes data after save
+- ✅ Fixed StoneResponse model missing `mounted` field (bug found by testing agent)
+- ✅ Fixed duplicate junk code at end of jobs/page.tsx from previous session
+- ✅ Color stability test fee toggle working correctly ($50 add/remove)
+- ✅ total_fee updates dynamically after toggling mounted or color stability test
 
 ---
 
@@ -554,3 +568,16 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - **Customer Email**: customer@test.com
 - **Customer Password**: customer123
 - **Customer Role**: customer
+
+---
+
+## Upcoming Tasks (P1)
+- Documents refinement (printed docs)
+- Email refinement
+- SMS and/or WhatsApp notifications integration
+- Send welcome emails to all existing customers
+- Refine dashboard for clients and for admin
+
+## Future Tasks (P2)
+- Test mobile visibility
+- Prices - finalize (books, layouts etc)
