@@ -56,6 +56,7 @@ import {
   CheckCircle2,
   Receipt,
   CreditCard,
+  ExternalLink,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
@@ -332,6 +333,7 @@ export default function JobsPage() {
   // Nested Stone dialog (opens on top of job dialog)
   const [stoneDialogOpen, setStoneDialogOpen] = useState(false);
   const [viewingStone, setViewingStone] = useState<Stone | null>(null);
+  const [unsavedConfirmOpen, setUnsavedConfirmOpen] = useState(false);
   const [savingStoneVerbal, setSavingStoneVerbal] = useState(false);
   const [uploadingCertScan, setUploadingCertScan] = useState(false);
   const [viewCertScanOpen, setViewCertScanOpen] = useState(false);
@@ -521,6 +523,73 @@ export default function JobsPage() {
     setVerbalEditMode(false);
     
     setStoneDialogOpen(true);
+  };
+
+  const hasUnsavedStoneChanges = (): boolean => {
+    if (!verbalEditMode || !viewingStone) return false;
+    const newActualFee = stoneActualFee !== '' ? parseFloat(stoneActualFee) : undefined;
+    const hasActualFeeChange = newActualFee !== viewingStone.fee;
+    const hasColorStabilityChange = stoneColorStability !== viewingStone.color_stability_test;
+    const hasMountedChange = stoneMounted !== (viewingStone.mounted || false);
+    const hasVerbalData = structuredFindings.certificate_id || structuredFindings.identification || structuredFindings.color || structuredFindings.origin || structuredFindings.comment;
+    const vf = viewingStone.verbal_findings;
+    const existingFindings = (vf && typeof vf === 'object') ? vf as StructuredVerbalFindings : null;
+    const hasVerbalChange = hasVerbalData && (
+      structuredFindings.certificate_id !== (existingFindings?.certificate_id || '') ||
+      structuredFindings.identification !== (existingFindings?.identification || '') ||
+      structuredFindings.color !== (existingFindings?.color || '') ||
+      structuredFindings.origin !== (existingFindings?.origin || '') ||
+      structuredFindings.comment !== (existingFindings?.comment || '')
+    );
+    return hasActualFeeChange || hasColorStabilityChange || hasMountedChange || !!hasVerbalChange;
+  };
+
+  const handleStoneDialogClose = (open: boolean) => {
+    if (!open && verbalEditMode && hasUnsavedStoneChanges()) {
+      setUnsavedConfirmOpen(true);
+      return;
+    }
+    setStoneDialogOpen(open);
+  };
+
+  const handleSaveStone = async () => {
+    if (!viewingStone) return;
+    setSavingStoneVerbal(true);
+    try {
+      const hasVerbalData = structuredFindings.certificate_id || structuredFindings.identification || structuredFindings.color || structuredFindings.origin || structuredFindings.comment;
+      if (hasVerbalData) {
+        await stonesApi.updateStructuredVerbal(viewingStone.id, structuredFindings);
+      }
+      const newActualFee = stoneActualFee !== '' ? parseFloat(stoneActualFee) : undefined;
+      const hasActualFeeChange = newActualFee !== viewingStone.fee;
+      const hasColorStabilityChange = stoneColorStability !== viewingStone.color_stability_test;
+      const hasMountedChange = stoneMounted !== (viewingStone.mounted || false);
+      if (hasActualFeeChange || hasColorStabilityChange || hasMountedChange) {
+        const feeUpdateData: { actual_fee?: number; color_stability_test?: boolean; mounted?: boolean } = {};
+        if (hasActualFeeChange && newActualFee !== undefined) feeUpdateData.actual_fee = newActualFee;
+        if (hasColorStabilityChange) feeUpdateData.color_stability_test = stoneColorStability;
+        if (hasMountedChange) feeUpdateData.mounted = stoneMounted;
+        await stonesApi.updateFees(viewingStone.id, feeUpdateData);
+      }
+      if (selectedJob) {
+        const refreshedJob = await jobsApi.getById(selectedJob.id);
+        setSelectedJob(refreshedJob);
+        const refreshedStone = refreshedJob.stones?.find((s: Stone) => s.id === viewingStone.id);
+        if (refreshedStone) {
+          setViewingStone(refreshedStone);
+          setStoneActualFee(refreshedStone.actual_fee != null ? String(refreshedStone.actual_fee) : String(refreshedStone.fee));
+          setStoneColorStability(refreshedStone.color_stability_test || false);
+          setStoneMounted(refreshedStone.mounted || false);
+        }
+      }
+      fetchData();
+      setVerbalEditMode(false);
+    } catch (error) {
+      console.error('Failed to save:', error);
+      alert('Failed to save changes');
+    } finally {
+      setSavingStoneVerbal(false);
+    }
   };
 
   // Save stone fees from job modal
@@ -2091,7 +2160,7 @@ export default function JobsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={handleCopyPaymentLink}
-                                className={`text-xs w-full ${copiedPaymentLink ? 'bg-navy-50 border-navy-300 text-navy-900' : 'border-navy-300'}`}
+                                className={`text-xs flex-1 ${copiedPaymentLink ? 'bg-navy-50 border-navy-300 text-navy-900' : 'border-navy-300'}`}
                                 data-testid="copy-payment-link-button"
                               >
                                 {copiedPaymentLink ? (
@@ -2099,6 +2168,16 @@ export default function JobsPage() {
                                 ) : (
                                   'Copy Link'
                                 )}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(selectedJob.payment_url, '_blank')}
+                                className="text-xs flex-1 border-navy-300"
+                                data-testid="open-payment-link-button"
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                Open
                               </Button>
                             </div>
                           )}
@@ -2349,7 +2428,7 @@ export default function JobsPage() {
       </Dialog>
 
       {/* Nested Stone Dialog - opens on top of job dialog */}
-      <Dialog open={stoneDialogOpen} onOpenChange={setStoneDialogOpen}>
+      <Dialog open={stoneDialogOpen} onOpenChange={handleStoneDialogClose}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
@@ -2574,79 +2653,6 @@ export default function JobsPage() {
                     />
                   </div>
                 </div>
-                
-                {isAdmin && verbalEditMode && (
-                <Button
-                  onClick={async () => {
-                    if (!viewingStone) return;
-                    setSavingStoneVerbal(true);
-                    try {
-                      // Only save verbal findings if any verbal data has been entered
-                      const hasVerbalData = structuredFindings.certificate_id || structuredFindings.identification || structuredFindings.color || structuredFindings.origin || structuredFindings.comment;
-                      if (hasVerbalData) {
-                        await stonesApi.updateStructuredVerbal(viewingStone.id, structuredFindings);
-                      }
-                      
-                      // Save fee changes if any
-                      const newActualFee = stoneActualFee !== '' ? parseFloat(stoneActualFee) : undefined;
-                      const hasActualFeeChange = newActualFee !== viewingStone.fee;
-                      const hasColorStabilityChange = stoneColorStability !== viewingStone.color_stability_test;
-                      const hasMountedChange = stoneMounted !== (viewingStone.mounted || false);
-                      
-                      if (hasActualFeeChange || hasColorStabilityChange || hasMountedChange) {
-                        const feeUpdateData: { actual_fee?: number; color_stability_test?: boolean; mounted?: boolean } = {};
-                        if (hasActualFeeChange && newActualFee !== undefined) {
-                          feeUpdateData.actual_fee = newActualFee;
-                        }
-                        if (hasColorStabilityChange) {
-                          feeUpdateData.color_stability_test = stoneColorStability;
-                        }
-                        if (hasMountedChange) {
-                          feeUpdateData.mounted = stoneMounted;
-                        }
-                        await stonesApi.updateFees(viewingStone.id, feeUpdateData);
-                      }
-                      
-                      // Refetch the job to get updated stone data and total_fee
-                      if (selectedJob) {
-                        const refreshedJob = await jobsApi.getById(selectedJob.id);
-                        setSelectedJob(refreshedJob);
-                        const refreshedStone = refreshedJob.stones?.find((s: Stone) => s.id === viewingStone.id);
-                        if (refreshedStone) {
-                          setViewingStone(refreshedStone);
-                          setStoneActualFee(refreshedStone.actual_fee != null ? String(refreshedStone.actual_fee) : String(refreshedStone.fee));
-                          setStoneColorStability(refreshedStone.color_stability_test || false);
-                          setStoneMounted(refreshedStone.mounted || false);
-                        }
-                      }
-                      // Also update the main jobs list
-                      fetchData();
-                      // Lock the form after saving
-                      setVerbalEditMode(false);
-                    } catch (error) {
-                      console.error('Failed to save:', error);
-                      alert('Failed to save changes');
-                    } finally {
-                      setSavingStoneVerbal(false);
-                    }
-                  }}
-                  disabled={savingStoneVerbal}
-                  className="bg-navy-900 hover:bg-navy-800 w-full"
-                  data-testid="save-stone-button"
-                >
-                  {savingStoneVerbal ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-                )}
               </div>
 
               {/* Certificate Scan */}
@@ -2763,9 +2769,59 @@ export default function JobsPage() {
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStoneDialogOpen(false)}>
+          <DialogFooter className="flex-shrink-0 border-t pt-3 gap-2">
+            {isAdmin && verbalEditMode && (
+              <Button
+                onClick={handleSaveStone}
+                disabled={savingStoneVerbal}
+                className="bg-navy-900 hover:bg-navy-800"
+                data-testid="save-stone-button"
+              >
+                {savingStoneVerbal ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                ) : (
+                  <><Check className="h-4 w-4 mr-2" />Save Changes</>
+                )}
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => handleStoneDialogClose(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unsaved Changes Confirmation Dialog */}
+      <Dialog open={unsavedConfirmOpen} onOpenChange={setUnsavedConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Unsaved Changes</DialogTitle>
+            <DialogDescription>
+              You have unsaved changes. Would you like to save before closing?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUnsavedConfirmOpen(false);
+                setVerbalEditMode(false);
+                setStoneDialogOpen(false);
+              }}
+              data-testid="discard-changes-button"
+            >
+              Discard
+            </Button>
+            <Button
+              onClick={async () => {
+                setUnsavedConfirmOpen(false);
+                await handleSaveStone();
+                setStoneDialogOpen(false);
+              }}
+              className="bg-navy-900 hover:bg-navy-800"
+              data-testid="save-and-close-button"
+            >
+              Save & Close
             </Button>
           </DialogFooter>
         </DialogContent>

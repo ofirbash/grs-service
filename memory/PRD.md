@@ -574,6 +574,12 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ Mobile layout preserved: single column with stones first, then actions stacked below
 - ✅ No mobile breakage verified on 390px viewport
 
+### Session: Apr 14, 2026 - Payment Link UX + Stone Dialog UX
+- ✅ Payment link: added "Open" button (opens in new tab) alongside "Copy Link"
+- ✅ Stone dialog: Save button moved to sticky footer (always visible without scrolling)
+- ✅ Stone dialog: Unsaved changes confirmation when closing in edit mode ("Discard" / "Save & Close")
+- ✅ Extracted stone save handler into named `handleSaveStone` function for reuse
+
 ---
 
 ## Test Credentials
