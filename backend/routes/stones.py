@@ -123,43 +123,33 @@ async def update_stone_fees(stone_id: str, data: StoneFeeUpdate, user: dict = De
             new_fee = max(0, stone.get('fee', 0) - cs_fee)
             update_data["stones.$.fee"] = new_fee
 
-    # Handle mounted toggle
+    # Handle mounted toggle — propagates to ALL stones in the same certificate group
     if data.mounted is not None:
-        update_data["stones.$.mounted"] = data.mounted
         current_mounted = stone.get('mounted', False)
+        cert_group = stone.get('certificate_group')
 
-        if data.mounted and not current_mounted:
-            # Check if mounted fee already applies via another stone in same cert group
-            cert_group = stone.get('certificate_group')
-            should_add_fee = True
-
+        if data.mounted != current_mounted:
+            # Determine which stones to update
             if cert_group is not None:
-                # Check if any OTHER stone in this group is already mounted
-                for s in job.get('stones', []):
-                    if s.get('id') != stone_id and s.get('certificate_group') == cert_group and s.get('mounted'):
-                        should_add_fee = False
-                        break
+                group_stones = [s for s in job.get('stones', []) if s.get('certificate_group') == cert_group]
+            else:
+                group_stones = [stone]
 
-            if should_add_fee:
+            # Check if the group already had the mounted fee applied
+            group_already_mounted = any(s.get('mounted', False) for s in group_stones)
+
+            # Update mounted flag on ALL stones in the group
+            for s in group_stones:
+                await db.jobs.update_one(
+                    {"_id": job["_id"], "stones.id": s["id"]},
+                    {"$set": {"stones.$.mounted": data.mounted}}
+                )
+
+            # Fee adjustment: only once per group
+            if data.mounted and not group_already_mounted:
                 fee_adjustment += mounted_fee
-                current_fee = update_data.get("stones.$.fee", stone.get('fee', 0))
-                update_data["stones.$.fee"] = current_fee + mounted_fee
-
-        elif not data.mounted and current_mounted:
-            # Check if any OTHER stone in same cert group is still mounted
-            cert_group = stone.get('certificate_group')
-            should_remove_fee = True
-
-            if cert_group is not None:
-                for s in job.get('stones', []):
-                    if s.get('id') != stone_id and s.get('certificate_group') == cert_group and s.get('mounted'):
-                        should_remove_fee = False
-                        break
-
-            if should_remove_fee:
+            elif not data.mounted and group_already_mounted:
                 fee_adjustment -= mounted_fee
-                current_fee = update_data.get("stones.$.fee", stone.get('fee', 0))
-                update_data["stones.$.fee"] = max(0, current_fee - mounted_fee)
 
     # Handle actual fee
     if data.actual_fee is not None:

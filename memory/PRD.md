@@ -559,6 +559,12 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ Color stability test fee toggle working correctly ($50 add/remove)
 - ✅ total_fee updates dynamically after toggling mounted or color stability test
 
+### Session: Apr 14, 2026 - Mounted Group Propagation
+- ✅ Updated mounted toggle to propagate to ALL stones in the same certificate group
+- ✅ Mounting any stone in a group marks all group stones as mounted (fee added once)
+- ✅ Unmounting any stone in a group marks all group stones as unmounted (fee removed once)
+- ✅ Color stability test remains per-stone (independent of group)
+
 ---
 
 ## Test Credentials
