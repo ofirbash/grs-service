@@ -66,6 +66,7 @@ async def build_job_response(job: dict) -> JobResponse:
         total_stones=job["total_stones"],
         total_value=job["total_value"],
         total_fee=job["total_fee"],
+        discount=job.get("discount"),
         shipment_ids=shipment_ids,
         shipment_info=shipment_info,
         signed_memo_url=job.get("signed_memo_url"),
@@ -372,6 +373,9 @@ async def update_job(job_id: str, job_update: JobUpdate, user: dict = Depends(re
         if job_update.status not in valid_statuses:
             raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
         update_data["status"] = job_update.status
+
+    if job_update.discount is not None:
+        update_data["discount"] = job_update.discount
 
     await db.jobs.update_one(
         {"_id": ObjectId(job_id)},

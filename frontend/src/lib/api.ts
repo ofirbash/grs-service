@@ -167,11 +167,11 @@ export const jobsApi = {
     const response = await api.post(`/jobs/${id}/generate-invoice`);
     return response.data;
   },
-  generatePaymentToken: async (id: string) => {
-    const response = await api.post(`/jobs/${id}/payment-token`);
+  generatePaymentToken: async (id: string, data?: { is_adjustment?: boolean; adjustment_amount?: number }) => {
+    const response = await api.post(`/jobs/${id}/payment-token`, data || {});
     return response.data;
   },
-  update: async (id: string, data: { notes?: string; status?: string }) => {
+  update: async (id: string, data: { notes?: string; status?: string; discount?: number }) => {
     const response = await api.put(`/jobs/${id}`, data);
     return response.data;
   },

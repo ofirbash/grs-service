@@ -192,6 +192,7 @@ class JobStatusUpdate(BaseModel):
 class JobUpdate(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
+    discount: Optional[float] = None
 
 
 class NotificationLog(BaseModel):
@@ -218,6 +219,7 @@ class JobResponse(BaseModel):
     total_stones: int
     total_value: float
     total_fee: float
+    discount: Optional[float] = None
     shipment_ids: List[str] = []
     shipment_info: Optional[Dict[str, Any]] = None
     signed_memo_url: Optional[str] = None

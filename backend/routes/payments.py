@@ -34,12 +34,43 @@ async def get_exchange_rate():
 
 
 @router.post("/jobs/{job_id}/payment-token")
-async def generate_payment_token(job_id: str, user: dict = Depends(require_admin)):
-    """Generate a unique payment token for a job"""
+async def generate_payment_token(job_id: str, request: Request, user: dict = Depends(require_admin)):
+    """Generate a unique payment token for a job. Supports adjustment payments for already-paid jobs."""
     job = await db.jobs.find_one({"_id": ObjectId(job_id)})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+
+    is_adjustment = body.get("is_adjustment", False)
+    adjustment_amount = body.get("adjustment_amount")
+
+    # If job already paid and not an adjustment request, return existing token
+    if job.get("payment_status") == "paid" and not is_adjustment:
+        existing_token = job.get("payment_token")
+        if existing_token:
+            return {"payment_token": existing_token, "payment_url": f"{FRONTEND_URL}/pay?token={existing_token}"}
+
+    # For adjustment payments on paid jobs, create a fresh token
+    if is_adjustment and adjustment_amount is not None:
+        payment_token = str(uuid.uuid4())
+        await db.jobs.update_one(
+            {"_id": ObjectId(job_id)},
+            {"$set": {
+                "payment_token": payment_token,
+                "payment_status": "pending",
+                "payment_adjustment": True,
+                "payment_adjustment_amount": float(adjustment_amount),
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        return {"payment_token": payment_token, "payment_url": f"{FRONTEND_URL}/pay?token={payment_token}"}
+
+    # Normal flow: return existing or create new
     existing_token = job.get("payment_token")
     if existing_token:
         return {"payment_token": existing_token, "payment_url": f"{FRONTEND_URL}/pay?token={existing_token}"}
@@ -75,7 +106,14 @@ async def get_payment_details(token: str):
             "actual_fee": s.get("actual_fee"),
         })
 
-    total_fee = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []))
+    is_adjustment = job.get("payment_adjustment", False)
+    discount = job.get("discount", 0) or 0
+
+    if is_adjustment and job.get("payment_adjustment_amount") is not None:
+        total_fee = job["payment_adjustment_amount"]
+    else:
+        total_fee = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []))
+        total_fee = max(0, total_fee - discount)
 
     return {
         "status": "pending",
@@ -85,7 +123,9 @@ async def get_payment_details(token: str):
         "service_type": job.get("service_type", ""),
         "total_stones": job.get("total_stones", 0),
         "total_fee": total_fee,
+        "discount": discount if not is_adjustment else 0,
         "stones": stones_summary,
+        "is_adjustment": is_adjustment,
         "tranzila_terminal": TRANZILA_TERMINAL,
         "has_tranzila": bool(TRANZILA_TERMINAL and TRANZILA_PW),
     }
@@ -105,7 +145,14 @@ async def create_payment_handshake(token: str, request: Request):
     currency = body.get("currency", "USD")
     exchange_rate = body.get("exchange_rate", 3.65)
 
-    total_fee_usd = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []))
+    is_adjustment = job.get("payment_adjustment", False)
+    discount = job.get("discount", 0) or 0
+
+    if is_adjustment and job.get("payment_adjustment_amount") is not None:
+        total_fee_usd = job["payment_adjustment_amount"]
+    else:
+        total_fee_usd = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []))
+        total_fee_usd = max(0, total_fee_usd - discount)
 
     if currency == "ILS":
         amount = round(total_fee_usd * exchange_rate, 2)

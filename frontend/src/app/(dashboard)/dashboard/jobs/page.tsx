@@ -117,6 +117,7 @@ interface Job {
   total_stones: number;
   total_value: number;
   total_fee: number;
+  discount?: number;
   shipment_ids?: string[];
   shipment_info?: {
     shipment_number: number;
@@ -313,6 +314,7 @@ export default function JobsPage() {
   const [editFormData, setEditFormData] = useState({
     notes: '',
     status: '',
+    discount: '',
   });
 
   // Certificate grouping
@@ -384,6 +386,8 @@ export default function JobsPage() {
   // Payment link
   const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
   const [copiedPaymentLink, setCopiedPaymentLink] = useState(false);
+  const [adjustmentMode, setAdjustmentMode] = useState(false);
+  const [adjustmentAmount, setAdjustmentAmount] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -406,7 +410,7 @@ export default function JobsPage() {
       
       if (job) {
         setSelectedJob(job);
-        setEditFormData({ notes: job.notes || '', status: job.status });
+        setEditFormData({ notes: job.notes || '', status: job.status, discount: job.discount != null ? String(job.discount) : '' });
         setViewDialogOpen(true);
       }
     }
@@ -677,6 +681,7 @@ export default function JobsPage() {
     setEditFormData({
       notes: job.notes || '',
       status: job.status,
+      discount: job.discount != null ? String(job.discount) : '',
     });
     setEditMode(false);
     setSelectedStones([]);
@@ -694,6 +699,7 @@ export default function JobsPage() {
       await jobsApi.update(selectedJob.id, {
         notes: editFormData.notes,
         status: editFormData.status,
+        discount: editFormData.discount !== '' ? parseFloat(editFormData.discount) : 0,
       });
       fetchData();
       setEditMode(false);
@@ -1167,12 +1173,22 @@ export default function JobsPage() {
     }
   };
 
-  const handleGeneratePaymentLink = async () => {
+  const handleGeneratePaymentLink = async (isAdjustment = false) => {
     if (!selectedJob) return;
     setGeneratingPaymentLink(true);
     try {
-      const result = await jobsApi.generatePaymentToken(selectedJob.id);
-      setSelectedJob(prev => prev ? { ...prev, payment_token: result.payment_token, payment_url: result.payment_url } : null);
+      let result;
+      if (isAdjustment && adjustmentAmount) {
+        result = await jobsApi.generatePaymentToken(selectedJob.id, {
+          is_adjustment: true,
+          adjustment_amount: parseFloat(adjustmentAmount),
+        });
+        setAdjustmentMode(false);
+        setAdjustmentAmount('');
+      } else {
+        result = await jobsApi.generatePaymentToken(selectedJob.id);
+      }
+      setSelectedJob(prev => prev ? { ...prev, payment_token: result.payment_token, payment_url: result.payment_url, payment_status: isAdjustment ? 'pending' : prev.payment_status } : null);
       fetchData();
     } catch (error) {
       console.error('Failed to generate payment link:', error);
@@ -1760,6 +1776,36 @@ export default function JobsPage() {
                     </div>
                   ) : null;
                 })()}
+                <div>
+                  <Label className="text-navy-500">Discount</Label>
+                  {editMode ? (
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-navy-600 text-sm">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editFormData.discount}
+                        onChange={(e) => setEditFormData({ ...editFormData, discount: e.target.value })}
+                        className="h-7 w-24 border-navy-200 text-sm"
+                        placeholder="0"
+                        data-testid="job-discount-input"
+                      />
+                    </div>
+                  ) : (
+                    <p className="font-medium text-navy-900">
+                      {selectedJob.discount ? `-$${selectedJob.discount.toLocaleString()}` : '-'}
+                    </p>
+                  )}
+                </div>
+                {selectedJob.discount ? (
+                  <div>
+                    <Label className="text-navy-500 font-semibold">Net Total</Label>
+                    <p className="font-bold text-navy-900">
+                      ${Math.max(0, (selectedJob.stones.reduce((sum, s) => sum + (s.actual_fee ?? s.fee), 0)) - (selectedJob.discount || 0)).toLocaleString()}
+                    </p>
+                  </div>
+                ) : null}
               </div>
 
               {/* Notes */}
@@ -2127,17 +2173,69 @@ export default function JobsPage() {
                           <Badge variant="outline" className="text-navy-600 border-navy-300 text-[10px] px-1.5 py-0">Pending</Badge>
                         ) : null}
                       </Label>
-                      {selectedJob.payment_status === 'paid' ? (
-                        <p className="text-xs text-navy-900 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />Payment received
-                        </p>
+                      {selectedJob.payment_status === 'paid' && !adjustmentMode ? (
+                        <div className="space-y-1.5">
+                          <p className="text-xs text-navy-900 flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />Payment received
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setAdjustmentMode(true)}
+                            className="text-xs border-navy-300 w-full"
+                            data-testid="create-adjustment-button"
+                          >
+                            <CreditCard className="h-3 w-3 mr-1" />
+                            Create Adjustment Payment
+                          </Button>
+                        </div>
+                      ) : adjustmentMode ? (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] text-navy-500">Enter the adjustment amount to charge:</p>
+                          <div className="flex items-center gap-1">
+                            <span className="text-navy-600 text-xs">$</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={adjustmentAmount}
+                              onChange={(e) => setAdjustmentAmount(e.target.value)}
+                              className="text-xs h-7 border-navy-200"
+                              placeholder="0.00"
+                              data-testid="adjustment-amount-input"
+                            />
+                          </div>
+                          <div className="flex gap-1.5">
+                            <Button
+                              size="sm"
+                              onClick={() => handleGeneratePaymentLink(true)}
+                              disabled={generatingPaymentLink || !adjustmentAmount || parseFloat(adjustmentAmount) <= 0}
+                              className="text-xs flex-1 bg-navy-900 hover:bg-navy-800"
+                              data-testid="confirm-adjustment-button"
+                            >
+                              {generatingPaymentLink ? (
+                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Creating...</>
+                              ) : (
+                                'Create Link'
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setAdjustmentMode(false); setAdjustmentAmount(''); }}
+                              className="text-xs border-navy-300"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
                       ) : (
                         <div className="space-y-1.5">
                           {!selectedJob.payment_token ? (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={handleGeneratePaymentLink}
+                              onClick={() => handleGeneratePaymentLink()}
                               disabled={generatingPaymentLink}
                               className="text-xs border-navy-300 w-full"
                               data-testid="generate-payment-link-button"
@@ -2156,29 +2254,31 @@ export default function JobsPage() {
                                 className="text-[10px] font-mono bg-navy-50 border-navy-200 h-7"
                                 data-testid="payment-link-input"
                               />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleCopyPaymentLink}
-                                className={`text-xs flex-1 ${copiedPaymentLink ? 'bg-navy-50 border-navy-300 text-navy-900' : 'border-navy-300'}`}
-                                data-testid="copy-payment-link-button"
-                              >
-                                {copiedPaymentLink ? (
-                                  <><Check className="h-3 w-3 mr-1" />Copied</>
-                                ) : (
-                                  'Copy Link'
-                                )}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => window.open(selectedJob.payment_url, '_blank')}
-                                className="text-xs flex-1 border-navy-300"
-                                data-testid="open-payment-link-button"
-                              >
-                                <ExternalLink className="h-3 w-3 mr-1" />
-                                Open
-                              </Button>
+                              <div className="flex gap-1.5">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleCopyPaymentLink}
+                                  className={`text-xs flex-1 ${copiedPaymentLink ? 'bg-navy-50 border-navy-300 text-navy-900' : 'border-navy-300'}`}
+                                  data-testid="copy-payment-link-button"
+                                >
+                                  {copiedPaymentLink ? (
+                                    <><Check className="h-3 w-3 mr-1" />Copied</>
+                                  ) : (
+                                    'Copy Link'
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(selectedJob.payment_url, '_blank')}
+                                  className="text-xs flex-1 border-navy-300"
+                                  data-testid="open-payment-link-button"
+                                >
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  Open
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>

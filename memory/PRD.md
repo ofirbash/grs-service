@@ -580,6 +580,16 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ Stone dialog: Unsaved changes confirmation when closing in edit mode ("Discard" / "Save & Close")
 - ✅ Extracted stone save handler into named `handleSaveStone` function for reuse
 
+### Session: Apr 14, 2026 - Adjustment Payments & Job Discount
+- ✅ Adjustment payment: when job is paid, admin can create an adjustment payment with manual amount
+- ✅ Adjustment payment page shows notice: "This is an adjustment payment..."
+- ✅ Backend stores `payment_adjustment` and `payment_adjustment_amount` flags on job
+- ✅ Job-level discount: admin can set a discount in edit mode (e.g., $100 deducted from total)
+- ✅ Net Total shown when discount is active (Total Fees - Discount)
+- ✅ Discount applied in payment calculation (deducted from total before charging)
+- ✅ Discount NOT applied to adjustment payments (manual amount only)
+- ✅ Payment page shows discount info when applicable
+
 ---
 
 ## Test Credentials

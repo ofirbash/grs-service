@@ -42,7 +42,9 @@ interface PaymentData {
   service_type: string;
   total_stones: number;
   total_fee: number;
+  discount?: number;
   stones: Stone[];
+  is_adjustment?: boolean;
   tranzila_terminal: string;
   has_tranzila: boolean;
 }
@@ -254,6 +256,17 @@ function PaymentForm() {
         </CardHeader>
 
         <CardContent className="space-y-6 pt-6">
+          {/* Adjustment Notice */}
+          {paymentData?.is_adjustment && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+              <p className="font-semibold text-amber-900">Adjustment Payment</p>
+              <p className="text-amber-700 text-xs mt-1">
+                This is an adjustment payment for Job #{paymentData.job_number}. 
+                The amount reflects changes made after the original payment was processed.
+              </p>
+            </div>
+          )}
+
           {/* Job Info */}
           <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg text-sm">
             <div>
@@ -320,6 +333,11 @@ function PaymentForm() {
               )}
 
               <div className="text-center pt-2 border-t">
+                {paymentData?.discount && paymentData.discount > 0 && !paymentData.is_adjustment ? (
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Discount applied: -${paymentData.discount.toLocaleString()}
+                  </p>
+                ) : null}
                 <p className="text-muted-foreground text-sm">Total Amount Due</p>
                 <p className="text-4xl font-bold mt-1" data-testid="payment-amount">
                   {currencySymbol}{displayAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
