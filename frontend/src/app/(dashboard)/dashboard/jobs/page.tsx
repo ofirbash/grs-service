@@ -251,6 +251,14 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Read status filter from URL params
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      setStatusFilter(statusParam);
+    }
+  }, [searchParams]);
   const [serviceTypes, setServiceTypes] = useState<string[]>(['Express', 'Normal', 'Recheck']);
   const [csFeeCost, setCsFeeCost] = useState(50);
   const [mountedFeeCost, setMountedFeeCost] = useState(50);
@@ -1249,17 +1257,17 @@ export default function JobsPage() {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      draft: 'bg-navy-100 text-navy-600 border-navy-200',
-      stones_accepted: 'bg-navy-200 text-navy-800 border-navy-300',
-      sent_to_lab: 'bg-navy-900 text-white border-transparent',
-      verbal_uploaded: 'bg-navy-700 text-white border-transparent',
-      stones_returned: 'bg-brand-red text-white border-transparent',
-      cert_uploaded: 'bg-navy-900 text-white border-transparent',
-      cert_returned: 'bg-navy-800 text-white border-transparent',
-      done: 'bg-navy-950 text-white border-transparent',
-      received: 'bg-navy-100 text-navy-600 border-navy-200',
-      certificates_scanned: 'bg-navy-900 text-white border-transparent',
-      certificates_sent: 'bg-navy-800 text-white border-transparent',
+      draft: 'bg-[#d4dbe4] text-[#486581]',
+      stones_accepted: 'bg-[#b8c5d4] text-[#243b53]',
+      sent_to_lab: 'bg-[#8da2b8] text-white',
+      verbal_uploaded: 'bg-[#6b8aaa] text-white',
+      stones_returned: 'bg-[#4a7191] text-white',
+      cert_uploaded: 'bg-[#305a78] text-white',
+      cert_returned: 'bg-[#1d3f57] text-white',
+      done: 'bg-[#141417] text-white',
+      received: 'bg-[#d4dbe4] text-[#486581]',
+      certificates_scanned: 'bg-[#305a78] text-white',
+      certificates_sent: 'bg-[#1d3f57] text-white',
     };
     const labels: Record<string, string> = {
       draft: 'Draft',
