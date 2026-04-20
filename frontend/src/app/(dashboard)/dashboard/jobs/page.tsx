@@ -1364,7 +1364,12 @@ export default function JobsPage() {
                   <div className="text-sm text-navy-600 mb-1">{job.client_name || 'N/A'} &middot; {job.branch_name || 'N/A'}</div>
                   <div className="flex items-center justify-between text-xs text-navy-500">
                     <span>{job.total_stones} stones &middot; {job.service_type}</span>
-                    <span className="font-medium text-navy-900">${job.total_fee.toLocaleString()}</span>
+                    <div className="text-right">
+                      <span className="font-medium text-navy-900">${job.total_fee.toLocaleString()}</span>
+                      {job.discount ? (
+                        <p className="text-[10px] text-emerald-600 font-medium">${Math.max(0, job.total_fee - job.discount).toLocaleString()}</p>
+                      ) : null}
+                    </div>
                   </div>
                   {job.payment_status === 'paid' && (
                     <div className="mt-1.5"><Badge className="bg-navy-900 text-white text-[10px]">Paid</Badge></div>
@@ -1441,7 +1446,12 @@ export default function JobsPage() {
                         ${job.total_value.toLocaleString()}
                       </TableCell>
                       <TableCell className="text-navy-600 font-medium" onClick={() => openJobDetails(job)}>
-                        ${job.total_fee.toLocaleString()}
+                        <div>
+                          <span>${job.total_fee.toLocaleString()}</span>
+                          {job.discount ? (
+                            <p className="text-xs text-emerald-600 font-medium">${Math.max(0, job.total_fee - job.discount).toLocaleString()}</p>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell onClick={() => openJobDetails(job)}>
                         {getStatusBadge(job.status)}
