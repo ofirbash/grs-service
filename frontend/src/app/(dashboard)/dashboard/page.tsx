@@ -27,7 +27,6 @@ import {
   Briefcase, 
   Users, 
   TrendingUp, 
-  Clock, 
   CheckCircle,
   Gem,
   FileText,
@@ -342,32 +341,62 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Jobs by Status */}
-      {stats?.jobs_by_status && Object.keys(stats.jobs_by_status).length > 0 && (
-        <Card className="border-navy-200" data-testid="jobs-by-status-card">
-          <CardHeader className="border-b border-navy-200">
-            <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
-              <Clock className="h-5 w-5 text-navy-600" />
-              Jobs by Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="flex flex-wrap gap-3">
-              {Object.entries(stats.jobs_by_status).map(([status, count]) => (
-                <div
-                  key={status}
-                  className="flex items-center gap-2 px-4 py-2 bg-navy-50 rounded-lg"
-                >
-                  <Badge className={getStatusColor(status)}>
-                    {formatJobStatus(status)}
-                  </Badge>
-                  <span className="font-semibold text-navy-900">{count}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Jobs Pipeline */}
+      <Card className="border-navy-200" data-testid="jobs-by-status-card">
+        <CardHeader className="border-b border-navy-200 pb-3">
+          <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+            <Briefcase className="h-5 w-5 text-navy-600" />
+            Job Pipeline
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-5 pb-4">
+          {(() => {
+            const STATUS_PIPELINE = [
+              { key: 'draft', label: 'Draft', icon: '1', color: 'bg-navy-100 text-navy-700 border-navy-300' },
+              { key: 'stones_accepted', label: 'Stones Accepted', icon: '2', color: 'bg-navy-200 text-navy-800 border-navy-400' },
+              { key: 'sent_to_lab', label: 'Sent to Lab', icon: '3', color: 'bg-navy-700 text-white border-navy-800' },
+              { key: 'verbal_uploaded', label: 'Verbal Uploaded', icon: '4', color: 'bg-navy-600 text-white border-navy-700' },
+              { key: 'stones_returned', label: 'Stones Returned', icon: '5', color: 'bg-brand-red text-white border-red-700' },
+              { key: 'cert_uploaded', label: 'Cert. Uploaded', icon: '6', color: 'bg-navy-800 text-white border-navy-900' },
+              { key: 'cert_returned', label: 'Cert. Returned', icon: '7', color: 'bg-navy-900 text-white border-navy-950' },
+              { key: 'done', label: 'Done', icon: '8', color: 'bg-navy-950 text-white border-black' },
+            ];
+            const counts = stats?.jobs_by_status || {};
+            const totalJobs = stats?.total_jobs || 0;
+            return (
+              <div className="space-y-2">
+                {STATUS_PIPELINE.map((stage, idx) => {
+                  const count = (counts as Record<string, number>)[stage.key] || 0;
+                  const pct = totalJobs > 0 ? (count / totalJobs) * 100 : 0;
+                  return (
+                    <div key={stage.key} className="flex items-center gap-3 group">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${count > 0 ? stage.color : 'bg-navy-50 text-navy-300 border border-navy-200'}`}>
+                        {stage.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className={`text-sm font-medium ${count > 0 ? 'text-navy-900' : 'text-navy-400'}`}>
+                            {stage.label}
+                          </span>
+                          <span className={`text-sm font-bold tabular-nums ${count > 0 ? 'text-navy-900' : 'text-navy-300'}`}>
+                            {count}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${idx < 4 ? 'bg-navy-400' : idx < 6 ? 'bg-navy-700' : 'bg-navy-900'}`}
+                            style={{ width: `${Math.max(pct > 0 ? 4 : 0, pct)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
       {/* Job Details Modal */}
       <Dialog open={jobModalOpen} onOpenChange={setJobModalOpen}>
