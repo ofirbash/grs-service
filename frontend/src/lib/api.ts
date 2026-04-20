@@ -69,6 +69,10 @@ export const usersApi = {
     const response = await api.put(`/users/${id}`, data);
     return response.data;
   },
+  delete: async (id: string) => {
+    const response = await api.delete(`/users/${id}`);
+    return response.data;
+  },
 };
 
 // Shipments API

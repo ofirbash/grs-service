@@ -123,3 +123,20 @@ async def update_user_role(user_id: str, role: str = Body(..., embed=True), user
         raise HTTPException(status_code=404, detail="User not found")
 
     return {"message": "Role updated successfully"}
+
+
+@router.delete("/users/{user_id}")
+async def delete_admin_user(user_id: str, user: dict = Depends(require_super_admin)):
+    """Delete an admin user. Cannot delete yourself."""
+    if str(user["_id"]) == user_id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+
+    target = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if target["role"] not in ["super_admin", "branch_admin"]:
+        raise HTTPException(status_code=400, detail="Can only delete admin users")
+
+    await db.users.delete_one({"_id": ObjectId(user_id)})
+    return {"message": f"Admin user {target['email']} deleted successfully"}

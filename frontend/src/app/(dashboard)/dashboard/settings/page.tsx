@@ -155,6 +155,8 @@ export default function SettingsPage() {
   const [adminDialogOpen, setAdminDialogOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
   const [savingAdmin, setSavingAdmin] = useState(false);
+  const [deletingAdminId, setDeletingAdminId] = useState<string | null>(null);
+  const [confirmDeleteAdmin, setConfirmDeleteAdmin] = useState<AdminUser | null>(null);
   const [adminForm, setAdminForm] = useState({
     email: '',
     full_name: '',
@@ -543,6 +545,21 @@ export default function SettingsPage() {
       alert(err.response?.data?.detail || 'Failed to save admin user');
     } finally {
       setSavingAdmin(false);
+    }
+  };
+
+  const handleDeleteAdmin = async () => {
+    if (!confirmDeleteAdmin) return;
+    setDeletingAdminId(confirmDeleteAdmin.id);
+    try {
+      await usersApi.delete(confirmDeleteAdmin.id);
+      setConfirmDeleteAdmin(null);
+      fetchAllData();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      alert(err.response?.data?.detail || 'Failed to delete admin user');
+    } finally {
+      setDeletingAdminId(null);
     }
   };
 
@@ -1307,7 +1324,10 @@ export default function SettingsPage() {
                   <div key={admin.id} className="border border-navy-200 rounded-lg p-3">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-navy-900 text-sm">{admin.full_name}</span>
-                      <Button variant="ghost" size="sm" onClick={() => openAdminDialog(admin)} className="h-7 w-7 p-0"><Pencil className="h-3 w-3 text-navy-600" /></Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openAdminDialog(admin)} className="h-7 w-7 p-0"><Pencil className="h-3 w-3 text-navy-600" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmDeleteAdmin(admin)} className="h-7 w-7 p-0"><Trash2 className="h-3 w-3 text-red-600" /></Button>
+                      </div>
                     </div>
                     <div className="text-xs text-navy-500 mt-0.5">{admin.email}</div>
                     <div className="flex items-center gap-2 mt-1.5">
@@ -1356,15 +1376,26 @@ export default function SettingsPage() {
                               : branches.find(b => b.id === admin.branch_id)?.name || '-'}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openAdminDialog(admin)}
-                              className="h-8 w-8 p-0 hover:bg-navy-100"
-                              data-testid={`edit-admin-${admin.id}`}
-                            >
-                              <Pencil className="h-4 w-4 text-navy-600" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openAdminDialog(admin)}
+                                className="h-8 w-8 p-0 hover:bg-navy-100"
+                                data-testid={`edit-admin-${admin.id}`}
+                              >
+                                <Pencil className="h-4 w-4 text-navy-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setConfirmDeleteAdmin(admin)}
+                                className="h-8 w-8 p-0 hover:bg-red-50"
+                                data-testid={`delete-admin-${admin.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -1493,6 +1524,35 @@ export default function SettingsPage() {
                 </>
               ) : (
                 editingAdmin ? 'Save Changes' : 'Create Admin'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== DELETE ADMIN CONFIRMATION DIALOG ==================== */}
+      <Dialog open={!!confirmDeleteAdmin} onOpenChange={(open) => { if (!open) setConfirmDeleteAdmin(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove Admin User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove <strong>{confirmDeleteAdmin?.full_name}</strong> ({confirmDeleteAdmin?.email})? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmDeleteAdmin(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteAdmin}
+              disabled={deletingAdminId === confirmDeleteAdmin?.id}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="confirm-delete-admin-button"
+            >
+              {deletingAdminId === confirmDeleteAdmin?.id ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Removing...</>
+              ) : (
+                <><Trash2 className="h-4 w-4 mr-2" />Remove</>
               )}
             </Button>
           </DialogFooter>
