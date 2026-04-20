@@ -770,15 +770,16 @@ export default function ClientsPage() {
           </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            {editingClient?.user_id && (
+            {editingClient && (
               <Button
                 variant="outline"
                 onClick={async () => {
-                  if (!editingClient?.user_id) return;
+                  if (!editingClient) return;
                   if (!confirm(`Send password reset email to ${editFormData.email}?`)) return;
                   setResettingPassword(true);
                   try {
-                    const result = await authApi.adminResetPassword(editingClient.user_id);
+                    const resetId = editingClient.user_id || editingClient.id;
+                    const result = await authApi.adminResetPassword(resetId);
                     alert(result.email_sent
                       ? `Reset link sent to ${editFormData.email}`
                       : `Reset link generated. Share this URL with the client:\n${result.reset_url}`);

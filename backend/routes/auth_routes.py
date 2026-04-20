@@ -7,11 +7,20 @@ import qrcode
 from io import BytesIO
 import base64
 
+import os
+import logging
+import resend
+
 from database import db
 from auth import (
     get_password_hash, verify_password, create_access_token,
     get_current_user
 )
+
+logger = logging.getLogger(__name__)
+
+SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 from models import (
     UserCreate, UserLogin, UserResponse, TokenResponse, SetupPasswordRequest
 )
@@ -253,13 +262,22 @@ async def setup_password(data: SetupPasswordRequest):
 
 @router.post("/auth/admin-reset-password/{user_id}")
 async def admin_reset_password(user_id: str, user: dict = Depends(get_current_user)):
-    """Admin initiates a password reset for a user. Generates a setup token and sends email."""
+    """Admin initiates a password reset for a user. Accepts user_id or client_id."""
     if user.get("role") not in ["super_admin", "branch_admin"]:
         raise HTTPException(status_code=403, detail="Admin access required")
 
+    # Try finding by user_id first, then by client_id
     target = await db.users.find_one({"_id": ObjectId(user_id)})
     if not target:
-        raise HTTPException(status_code=404, detail="User not found")
+        # Maybe user_id is actually a client_id — find the user linked to this client
+        target = await db.users.find_one({"client_id": user_id})
+    if not target:
+        # Last resort: find client by id, then find user by email
+        client_doc = await db.clients.find_one({"_id": ObjectId(user_id)})
+        if client_doc:
+            target = await db.users.find_one({"email": client_doc["email"].lower()})
+    if not target:
+        raise HTTPException(status_code=404, detail="No user account found for this client. Please send a welcome email first to create their account.")
 
     setup_token = str(uuid.uuid4())
     await db.users.update_one(
@@ -271,15 +289,10 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
         }}
     )
 
-    import os
-    FRONTEND_URL = os.getenv("FRONTEND_URL", "")
     reset_url = f"{FRONTEND_URL}/setup-password?token={setup_token}" if FRONTEND_URL else ""
 
-    # Try sending email
     email_sent = False
     try:
-        import resend
-        SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
         if resend.api_key and reset_url:
             resend.Emails.send({
                 "from": SENDER_EMAIL,
@@ -297,8 +310,8 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
                 """
             })
             email_sent = True
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"Failed to send reset email: {e}")
 
     return {
         "message": f"Password reset initiated for {target['email']}",
@@ -325,13 +338,9 @@ async def forgot_password(email: str = Body(..., embed=True)):
         }}
     )
 
-    import os
-    FRONTEND_URL = os.getenv("FRONTEND_URL", "")
     reset_url = f"{FRONTEND_URL}/setup-password?token={setup_token}" if FRONTEND_URL else ""
 
     try:
-        import resend
-        SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
         if resend.api_key and reset_url:
             resend.Emails.send({
                 "from": SENDER_EMAIL,
@@ -348,7 +357,8 @@ async def forgot_password(email: str = Body(..., embed=True)):
                 </div>
                 """
             })
-    except Exception:
-        pass
+            logger.info(f"Password reset email sent to {user['email']}")
+    except Exception as e:
+        logger.error(f"Failed to send forgot-password email: {e}")
 
     return {"message": "If an account exists with that email, a reset link has been sent."}
