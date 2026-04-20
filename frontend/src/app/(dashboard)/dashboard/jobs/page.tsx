@@ -391,6 +391,7 @@ export default function JobsPage() {
   const [copiedPaymentLink, setCopiedPaymentLink] = useState(false);
   const [adjustmentMode, setAdjustmentMode] = useState(false);
   const [adjustmentAmount, setAdjustmentAmount] = useState('');
+  const [smsPreview, setSmsPreview] = useState<{ type: string; message: string; phone: string; name: string } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -1148,11 +1149,31 @@ export default function JobsPage() {
     if (!selectedJob) return;
     setSendingSms(notificationType);
     try {
-      const result = await notificationsApi.sendSms(selectedJob.id, notificationType);
+      // Preview first
+      const preview = await notificationsApi.previewSms(selectedJob.id, notificationType);
+      setSmsPreview({
+        type: notificationType,
+        message: preview.message,
+        phone: preview.recipient_phone,
+        name: preview.recipient_name,
+      });
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      alert(err.response?.data?.detail || 'Failed to preview SMS.');
+    } finally {
+      setSendingSms(null);
+    }
+  };
+
+  const handleConfirmSendSms = async () => {
+    if (!selectedJob || !smsPreview) return;
+    setSendingSms(smsPreview.type);
+    try {
+      const result = await notificationsApi.sendSms(selectedJob.id, smsPreview.type);
       alert(`SMS sent to ${result.recipient_phone}`);
       fetchNotificationStatuses(selectedJob.id);
+      setSmsPreview(null);
     } catch (error: unknown) {
-      console.error('Failed to send SMS:', error);
       const err = error as { response?: { data?: { detail?: string } } };
       alert(err.response?.data?.detail || 'Failed to send SMS.');
     } finally {
@@ -2923,6 +2944,49 @@ export default function JobsPage() {
               data-testid="save-and-close-button"
             >
               Save & Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SMS Preview Dialog */}
+      <Dialog open={!!smsPreview} onOpenChange={(open) => { if (!open) setSmsPreview(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              SMS Preview
+            </DialogTitle>
+            <DialogDescription>
+              Review the message before sending
+            </DialogDescription>
+          </DialogHeader>
+          {smsPreview && (
+            <div className="space-y-3">
+              <div className="text-xs text-navy-500">
+                <span className="font-medium">To:</span> {smsPreview.name} ({smsPreview.phone})
+              </div>
+              <div className="bg-navy-50 border border-navy-200 rounded-lg p-3 text-sm text-navy-900 whitespace-pre-wrap">
+                {smsPreview.message}
+              </div>
+              <p className="text-[10px] text-navy-400">{smsPreview.message.length} characters</p>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setSmsPreview(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmSendSms}
+              disabled={sendingSms !== null}
+              className="bg-navy-900 hover:bg-navy-800"
+              data-testid="confirm-send-sms-button"
+            >
+              {sendingSms ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+              ) : (
+                <><MessageSquare className="h-4 w-4 mr-2" />Send SMS</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

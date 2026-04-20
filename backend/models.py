@@ -99,6 +99,7 @@ class ClientResponse(BaseModel):
     address: Optional[str] = None
     branch_id: str
     notes: Optional[str] = None
+    user_id: Optional[str] = None
     created_at: datetime
 
 

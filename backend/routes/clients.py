@@ -118,7 +118,16 @@ async def get_clients(branch_id: Optional[str] = None, user: dict = Depends(get_
         query["branch_id"] = user.get("branch_id")
 
     clients = await db.clients.find(query).to_list(1000)
-    return [ClientResponse(id=str(c["_id"]), **{k: v for k, v in c.items() if k != "_id"}) for c in clients]
+    # Look up associated user accounts for each client
+    client_ids = [str(c["_id"]) for c in clients]
+    users = await db.users.find({"client_id": {"$in": client_ids}}, {"_id": 1, "client_id": 1}).to_list(1000)
+    user_map = {u["client_id"]: str(u["_id"]) for u in users}
+    
+    return [ClientResponse(
+        id=str(c["_id"]),
+        user_id=user_map.get(str(c["_id"])),
+        **{k: v for k, v in c.items() if k not in ("_id",)}
+    ) for c in clients]
 
 
 @router.get("/clients/{client_id}", response_model=ClientResponse)

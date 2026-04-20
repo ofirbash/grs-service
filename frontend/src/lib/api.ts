@@ -53,6 +53,14 @@ export const authApi = {
     const response = await api.post('/auth/setup-password', { token, password });
     return response.data;
   },
+  forgotPassword: async (email: string) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+  adminResetPassword: async (userId: string) => {
+    const response = await api.post(`/auth/admin-reset-password/${userId}`);
+    return response.data;
+  },
 };
 
 // Users API (admin management)

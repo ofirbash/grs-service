@@ -16,6 +16,10 @@ export default function LoginPage() {
   const { setAuth } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -39,6 +43,19 @@ export default function LoginPage() {
       setError(error.response?.data?.detail || 'Invalid email or password');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      await authApi.forgotPassword(forgotEmail);
+      setForgotSent(true);
+    } catch {
+      setForgotSent(true); // Always show success to prevent enumeration
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -104,7 +121,78 @@ export default function LoginPage() {
                 'SIGN IN'
               )}
             </Button>
+
+            <button
+              type="button"
+              onClick={() => setForgotMode(true)}
+              className="w-full text-xs text-navy-400 hover:text-navy-600 transition-colors"
+              data-testid="forgot-password-link"
+            >
+              Forgot your password?
+            </button>
           </form>
+
+          {/* Forgot Password Modal */}
+          {forgotMode && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <Card className="w-full max-w-sm border-0 shadow-2xl">
+                <CardContent className="pt-6 pb-6 px-6 space-y-4">
+                  {forgotSent ? (
+                    <div className="text-center space-y-3">
+                      <div className="h-10 w-10 mx-auto rounded-full bg-emerald-100 flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 text-emerald-600" style={{ animation: 'none' }} />
+                      </div>
+                      <h3 className="font-semibold text-navy-900">Check your email</h3>
+                      <p className="text-sm text-navy-500">
+                        If an account exists with that email, we&apos;ve sent a password reset link.
+                      </p>
+                      <Button
+                        onClick={() => { setForgotMode(false); setForgotSent(false); setForgotEmail(''); }}
+                        className="w-full bg-navy-900 hover:bg-navy-800"
+                        data-testid="forgot-back-to-login"
+                      >
+                        Back to Login
+                      </Button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleForgotPassword} className="space-y-4">
+                      <div className="text-center space-y-1">
+                        <h3 className="font-semibold text-navy-900">Reset Password</h3>
+                        <p className="text-xs text-navy-500">Enter your email and we&apos;ll send a reset link</p>
+                      </div>
+                      <Input
+                        type="email"
+                        placeholder="your@email.com"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        required
+                        className="border-navy-200 h-10"
+                        data-testid="forgot-email-input"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => { setForgotMode(false); setForgotEmail(''); }}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={forgotLoading}
+                          className="flex-1 bg-navy-900 hover:bg-navy-800"
+                          data-testid="forgot-submit-button"
+                        >
+                          {forgotLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Reset Link'}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -249,3 +249,106 @@ async def setup_password(data: SetupPasswordRequest):
             created_at=user["created_at"]
         )
     )
+
+
+@router.post("/auth/admin-reset-password/{user_id}")
+async def admin_reset_password(user_id: str, user: dict = Depends(get_current_user)):
+    """Admin initiates a password reset for a user. Generates a setup token and sends email."""
+    if user.get("role") not in ["super_admin", "branch_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    target = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    setup_token = str(uuid.uuid4())
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {
+            "setup_token": setup_token,
+            "setup_token_created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    import os
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "")
+    reset_url = f"{FRONTEND_URL}/setup-password?token={setup_token}" if FRONTEND_URL else ""
+
+    # Try sending email
+    email_sent = False
+    try:
+        import resend
+        SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
+        if resend.api_key and reset_url:
+            resend.Emails.send({
+                "from": SENDER_EMAIL,
+                "to": [target["email"]],
+                "subject": "Bashari Lab-Direct - Password Reset",
+                "html": f"""
+                <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+                    <h2 style="color:#141417;">Password Reset</h2>
+                    <p>Hello {target.get('full_name', '')},</p>
+                    <p>An administrator has initiated a password reset for your account.</p>
+                    <p>Please click the button below to set a new password:</p>
+                    <a href="{reset_url}" style="display:inline-block;background:#141417;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0;">Reset Password</a>
+                    <p style="color:#666;font-size:12px;">This link expires in 30 days.</p>
+                </div>
+                """
+            })
+            email_sent = True
+    except Exception:
+        pass
+
+    return {
+        "message": f"Password reset initiated for {target['email']}",
+        "reset_url": reset_url,
+        "email_sent": email_sent,
+    }
+
+
+@router.post("/auth/forgot-password")
+async def forgot_password(email: str = Body(..., embed=True)):
+    """Public endpoint - initiates password reset for a user by email."""
+    user = await db.users.find_one({"email": email.lower()})
+    # Always return success to prevent email enumeration
+    if not user:
+        return {"message": "If an account exists with that email, a reset link has been sent."}
+
+    setup_token = str(uuid.uuid4())
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {
+            "setup_token": setup_token,
+            "setup_token_created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    import os
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "")
+    reset_url = f"{FRONTEND_URL}/setup-password?token={setup_token}" if FRONTEND_URL else ""
+
+    try:
+        import resend
+        SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
+        if resend.api_key and reset_url:
+            resend.Emails.send({
+                "from": SENDER_EMAIL,
+                "to": [user["email"]],
+                "subject": "Bashari Lab-Direct - Password Reset",
+                "html": f"""
+                <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
+                    <h2 style="color:#141417;">Password Reset</h2>
+                    <p>Hello {user.get('full_name', '')},</p>
+                    <p>We received a request to reset your password.</p>
+                    <p>Click the button below to set a new password:</p>
+                    <a href="{reset_url}" style="display:inline-block;background:#141417;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0;">Reset Password</a>
+                    <p style="color:#666;font-size:12px;">If you didn't request this, you can safely ignore this email. This link expires in 30 days.</p>
+                </div>
+                """
+            })
+    except Exception:
+        pass
+
+    return {"message": "If an account exists with that email, a reset link has been sent."}

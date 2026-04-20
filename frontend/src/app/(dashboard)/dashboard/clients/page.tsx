@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { clientsApi, branchesApi } from '@/lib/api';
+import { clientsApi, branchesApi, authApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, Plus, Search, Loader2, Mail, Phone, Building, Pencil, FileText } from 'lucide-react';
+import { Users, Plus, Search, Loader2, Mail, Phone, Building, Pencil, FileText, KeyRound } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -45,6 +45,7 @@ interface Client {
   address?: string;
   branch_id: string;
   notes?: string;
+  user_id?: string;
   created_at: string;
 }
 
@@ -102,6 +103,7 @@ export default function ClientsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     email: '',
@@ -468,6 +470,7 @@ export default function ClientsPage() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="phone" className="text-sm">Primary Phone</Label>
+                <p className="text-[10px] text-navy-400 -mt-0.5">Used for SMS notifications</p>
                 <div className="flex gap-1">
                   <Select value={phonePrefix} onValueChange={setPhonePrefix}>
                     <SelectTrigger className="w-[100px] border-navy-200 text-xs flex-shrink-0">
@@ -656,6 +659,7 @@ export default function ClientsPage() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="edit-phone" className="text-sm">Primary Phone</Label>
+                <p className="text-[10px] text-navy-400 -mt-0.5">Used for SMS notifications</p>
                 <div className="flex gap-1">
                   <Select value={editPhonePrefix} onValueChange={setEditPhonePrefix}>
                     <SelectTrigger className="w-[100px] border-navy-200 text-xs flex-shrink-0">
@@ -765,7 +769,37 @@ export default function ClientsPage() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {editingClient?.user_id && (
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!editingClient?.user_id) return;
+                  if (!confirm(`Send password reset email to ${editFormData.email}?`)) return;
+                  setResettingPassword(true);
+                  try {
+                    const result = await authApi.adminResetPassword(editingClient.user_id);
+                    alert(result.email_sent
+                      ? `Reset link sent to ${editFormData.email}`
+                      : `Reset link generated. Share this URL with the client:\n${result.reset_url}`);
+                  } catch (err: unknown) {
+                    const error = err as { response?: { data?: { detail?: string } } };
+                    alert(error.response?.data?.detail || 'Failed to reset password');
+                  } finally {
+                    setResettingPassword(false);
+                  }
+                }}
+                disabled={resettingPassword}
+                className="border-navy-300 sm:mr-auto"
+                data-testid="reset-client-password-button"
+              >
+                {resettingPassword ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+                ) : (
+                  <><KeyRound className="h-4 w-4 mr-2" />Reset Password</>
+                )}
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
