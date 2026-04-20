@@ -545,6 +545,7 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
   - `/app/test_reports/iteration_17.json` - Backend refactoring validation: 24/24 API tests passed, all frontend pages verified (Mar 24, 2026)
   - `/app/test_reports/iteration_18.json` - Tranzila payment gateway: 12/12 payment API tests passed (Mar 24, 2026)
   - `/app/test_reports/iteration_19.json` - Mounted fee feature: 7/7 backend + all frontend flows passed (Apr 14, 2026)
+  - `/app/test_reports/iteration_20.json` - Comprehensive full system test: 39/39 backend + all frontend flows passed (Apr 14, 2026)
 
 ### Session: Apr 14, 2026 - Mounted Fee & Color Stability Fix
 - ✅ Completed "mounted" toggle for stones (marks stone as jewellery-mounted, adds configurable fee)
