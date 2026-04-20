@@ -193,20 +193,77 @@ export default function DashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card
-          className="border-navy-200 cursor-pointer hover:border-navy-300 transition-colors"
+          className={`border-navy-200 cursor-pointer hover:border-navy-300 transition-all ${pipelineOpen ? 'md:col-span-2 lg:col-span-4' : ''}`}
           data-testid="stats-total-jobs"
-          onClick={() => setPipelineOpen(!pipelineOpen)}
+          onClick={(e) => {
+            // Don't toggle if clicking a pipeline row (which navigates)
+            if ((e.target as HTMLElement).closest('[data-testid^="pipeline-"]')) return;
+            setPipelineOpen(!pipelineOpen);
+          }}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-navy-600">Total Jobs</CardTitle>
-            <Briefcase className="h-5 w-5 text-navy-400" />
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold text-navy-900">{stats?.total_jobs || 0}</span>
+              <Briefcase className="h-5 w-5 text-navy-400" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-navy-900">{stats?.total_jobs || 0}</div>
-            <p className="text-xs text-navy-500 mt-1">
-              {pipelineOpen ? 'Click to collapse' : 'Click to view pipeline'}
-            </p>
-          </CardContent>
+          {pipelineOpen && (
+            <CardContent className="pt-2 pb-4">
+              {(() => {
+                const STATUS_PIPELINE = [
+                  { key: 'draft', label: 'Draft', step: 1, circleColor: '#d4dbe4', barColor: '#d4dbe4', textColor: '#486581' },
+                  { key: 'stones_accepted', label: 'Stones Accepted', step: 2, circleColor: '#b8c5d4', barColor: '#b8c5d4', textColor: '#243b53' },
+                  { key: 'sent_to_lab', label: 'Sent to Lab', step: 3, circleColor: '#8da2b8', barColor: '#8da2b8', textColor: '#fff' },
+                  { key: 'verbal_uploaded', label: 'Verbal Uploaded', step: 4, circleColor: '#6b8aaa', barColor: '#6b8aaa', textColor: '#fff' },
+                  { key: 'stones_returned', label: 'Stones Returned', step: 5, circleColor: '#4a7191', barColor: '#4a7191', textColor: '#fff' },
+                  { key: 'cert_uploaded', label: 'Cert. Uploaded', step: 6, circleColor: '#305a78', barColor: '#305a78', textColor: '#fff' },
+                  { key: 'cert_returned', label: 'Cert. Returned', step: 7, circleColor: '#1d3f57', barColor: '#1d3f57', textColor: '#fff' },
+                  { key: 'done', label: 'Done', step: 8, circleColor: '#141417', barColor: '#141417', textColor: '#fff' },
+                ];
+                const counts = stats?.jobs_by_status || {};
+                const totalJobs = stats?.total_jobs || 0;
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1">
+                    {STATUS_PIPELINE.map((stage) => {
+                      const count = (counts as Record<string, number>)[stage.key] || 0;
+                      const pct = totalJobs > 0 ? (count / totalJobs) * 100 : 0;
+                      return (
+                        <div
+                          key={stage.key}
+                          className="flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-lg cursor-pointer hover:bg-navy-50 transition-colors"
+                          onClick={() => router.push(`/dashboard/jobs?status=${stage.key}`)}
+                          data-testid={`pipeline-${stage.key}`}
+                        >
+                          <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                            style={{ backgroundColor: stage.circleColor, color: stage.textColor }}
+                          >
+                            {stage.step}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-navy-800">{stage.label}</span>
+                              <span className="text-sm font-bold tabular-nums text-navy-900">{count}</span>
+                            </div>
+                            <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden mt-0.5">
+                              <div
+                                className="h-full rounded-full transition-all duration-700 ease-out"
+                                style={{
+                                  width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`,
+                                  backgroundColor: stage.barColor,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          )}
         </Card>
 
         <Card className="border-navy-200" data-testid="stats-total-clients">
@@ -349,73 +406,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Jobs Pipeline - expands from Total Jobs card */}
-      {pipelineOpen && (
-      <Card className="border-navy-200 animate-fadeIn" data-testid="jobs-by-status-card">
-        <CardContent className="pt-5 pb-4">
-          {(() => {
-            const STATUS_PIPELINE = [
-              { key: 'draft', label: 'Draft', step: 1, barColor: '#d4dbe4', circleColor: '#d4dbe4', textColor: '#486581' },
-              { key: 'stones_accepted', label: 'Stones Accepted', step: 2, barColor: '#b8c5d4', circleColor: '#b8c5d4', textColor: '#334e68' },
-              { key: 'sent_to_lab', label: 'Sent to Lab', step: 3, barColor: '#8da2b8', circleColor: '#8da2b8', textColor: '#fff' },
-              { key: 'verbal_uploaded', label: 'Verbal Uploaded', step: 4, barColor: '#6b8aaa', circleColor: '#6b8aaa', textColor: '#fff' },
-              { key: 'stones_returned', label: 'Stones Returned', step: 5, barColor: '#4a7191', circleColor: '#4a7191', textColor: '#fff' },
-              { key: 'cert_uploaded', label: 'Cert. Uploaded', step: 6, barColor: '#305a78', circleColor: '#305a78', textColor: '#fff' },
-              { key: 'cert_returned', label: 'Cert. Returned', step: 7, barColor: '#1d3f57', circleColor: '#1d3f57', textColor: '#fff' },
-              { key: 'done', label: 'Done', step: 8, barColor: '#141417', circleColor: '#141417', textColor: '#fff' },
-            ];
-            const counts = stats?.jobs_by_status || {};
-            const totalJobs = stats?.total_jobs || 0;
-            return (
-              <div className="space-y-1">
-                {STATUS_PIPELINE.map((stage) => {
-                  const count = (counts as Record<string, number>)[stage.key] || 0;
-                  const pct = totalJobs > 0 ? (count / totalJobs) * 100 : 0;
-                  return (
-                    <div
-                      key={stage.key}
-                      className="flex items-center gap-3 py-2 px-2 -mx-2 rounded-lg cursor-pointer hover:bg-navy-50 transition-colors"
-                      onClick={() => router.push(`/dashboard/jobs?status=${stage.key}`)}
-                      data-testid={`pipeline-${stage.key}`}
-                    >
-                      <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
-                        style={{
-                          backgroundColor: count > 0 ? stage.circleColor : '#f0f4f8',
-                          color: count > 0 ? stage.textColor : '#bcccdc',
-                        }}
-                      >
-                        {stage.step}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-sm font-medium ${count > 0 ? 'text-navy-900' : 'text-navy-400'}`}>
-                            {stage.label}
-                          </span>
-                          <span className={`text-sm font-bold tabular-nums ${count > 0 ? 'text-navy-900' : 'text-navy-300'}`}>
-                            {count}
-                          </span>
-                        </div>
-                        <div className="h-2 bg-navy-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-700 ease-out"
-                            style={{
-                              width: `${Math.max(pct > 0 ? 3 : 0, pct)}%`,
-                              backgroundColor: stage.barColor,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-        </CardContent>
-      </Card>
-      )}
 
       {/* Job Details Modal */}
       <Dialog open={jobModalOpen} onOpenChange={setJobModalOpen}>
