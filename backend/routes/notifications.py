@@ -11,6 +11,7 @@ from database import db
 from auth import get_current_user, require_admin
 from models import SendEmailRequest
 from email_templates import build_notification_email_html
+from sms import send_sms, check_balance, build_sms_message
 
 logger = logging.getLogger(__name__)
 
@@ -288,3 +289,97 @@ async def get_notification_status(job_id: str, user: dict = Depends(get_current_
         "current_status": current_status,
         "notifications": notification_statuses
     }
+
+
+@router.get("/sms/balance")
+async def get_sms_balance(user: dict = Depends(require_admin)):
+    """Check SMS4Free remaining balance"""
+    result = await check_balance()
+    return result
+
+
+@router.post("/jobs/{job_id}/sms/send/{notification_type}")
+async def send_sms_notification(job_id: str, notification_type: str, user: dict = Depends(require_admin)):
+    """Send SMS notification to client for a job"""
+    if notification_type not in EMAIL_NOTIFICATION_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid notification type. Must be one of: {list(EMAIL_NOTIFICATION_TYPES.keys())}"
+        )
+
+    job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    client = await db.clients.find_one({"_id": ObjectId(job["client_id"])})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    phone = client.get("phone") or client.get("secondary_phone")
+    if not phone:
+        raise HTTPException(status_code=400, detail="Client has no phone number on file")
+
+    message = build_sms_message(notification_type, job, client)
+    result = await send_sms(phone, message)
+
+    # Log the SMS in the job's notification_log
+    sms_log = {
+        "id": str(uuid.uuid4()),
+        "notification_type": f"sms_{notification_type}",
+        "channel": "sms",
+        "sent_at": datetime.utcnow(),
+        "sent_by": user.get("email", "admin"),
+        "recipient_phone": phone,
+        "message": message,
+        "status": "sent" if result["success"] else "failed",
+        "error": result.get("message") if not result["success"] else None,
+    }
+
+    await db.jobs.update_one(
+        {"_id": ObjectId(job_id)},
+        {
+            "$push": {"notification_log": sms_log},
+            "$set": {"updated_at": datetime.utcnow()}
+        }
+    )
+
+    if not result["success"]:
+        raise HTTPException(status_code=502, detail=f"SMS send failed: {result['message']}")
+
+    return {
+        "message": "SMS sent successfully",
+        "recipient_phone": phone,
+        "sms_text": message,
+        "status": "sent",
+    }
+
+
+@router.get("/jobs/{job_id}/sms/preview/{notification_type}")
+async def preview_sms(job_id: str, notification_type: str, user: dict = Depends(require_admin)):
+    """Preview SMS content without sending"""
+    if notification_type not in EMAIL_NOTIFICATION_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid notification type. Must be one of: {list(EMAIL_NOTIFICATION_TYPES.keys())}"
+        )
+
+    job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    client = await db.clients.find_one({"_id": ObjectId(job["client_id"])})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    phone = client.get("phone") or client.get("secondary_phone")
+    message = build_sms_message(notification_type, job, client)
+
+    return {
+        "notification_type": notification_type,
+        "recipient_phone": phone or "No phone on file",
+        "recipient_name": client.get("name"),
+        "message": message,
+        "char_count": len(message),
+        "has_phone": bool(phone),
+    }
+

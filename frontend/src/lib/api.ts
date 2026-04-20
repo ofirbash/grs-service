@@ -373,6 +373,18 @@ export const notificationsApi = {
     });
     return response.data;
   },
+  previewSms: async (jobId: string, notificationType: string) => {
+    const response = await api.get(`/jobs/${jobId}/sms/preview/${notificationType}`);
+    return response.data;
+  },
+  sendSms: async (jobId: string, notificationType: string) => {
+    const response = await api.post(`/jobs/${jobId}/sms/send/${notificationType}`);
+    return response.data;
+  },
+  getSmsBalance: async () => {
+    const response = await api.get('/sms/balance');
+    return response.data;
+  },
 };
 
 // Cloudinary Upload API

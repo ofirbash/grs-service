@@ -57,6 +57,7 @@ import {
   Receipt,
   CreditCard,
   ExternalLink,
+  MessageSquare,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
@@ -378,6 +379,7 @@ export default function JobsPage() {
   const [notificationPreview, setNotificationPreview] = useState<NotificationPreview | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [sendingSms, setSendingSms] = useState<string | null>(null);
   
   // Invoice generation
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
@@ -1143,6 +1145,22 @@ export default function JobsPage() {
       alert(err.response?.data?.detail || 'Failed to send email. Please try again.');
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  const handleSendSms = async (notificationType: string) => {
+    if (!selectedJob) return;
+    setSendingSms(notificationType);
+    try {
+      const result = await notificationsApi.sendSms(selectedJob.id, notificationType);
+      alert(`SMS sent to ${result.recipient_phone}`);
+      fetchNotificationStatuses(selectedJob.id);
+    } catch (error: unknown) {
+      console.error('Failed to send SMS:', error);
+      const err = error as { response?: { data?: { detail?: string } } };
+      alert(err.response?.data?.detail || 'Failed to send SMS.');
+    } finally {
+      setSendingSms(null);
     }
   };
 
@@ -2319,7 +2337,7 @@ export default function JobsPage() {
                     </div>
                   )}
 
-                  {/* Email Notifications */}
+                  {/* Notifications */}
                   {isAdmin && (
                     <div className="rounded-lg border border-navy-200 p-3 space-y-2">
                       <Label className="text-sm font-semibold flex items-center gap-2">
@@ -2341,11 +2359,11 @@ export default function JobsPage() {
                             notificationStatuses.filter(n => n.is_available).map((notification) => (
                               <div
                                 key={notification.type}
-                                className={`flex items-center justify-between p-2 rounded border text-xs ${
+                                className={`p-2 rounded border text-xs ${
                                   notification.is_sent ? 'bg-navy-50 border-navy-200' : 'bg-white border-navy-200'
                                 }`}
                               >
-                                <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="flex items-center gap-1.5 mb-1.5">
                                   {notification.is_sent ? (
                                     <CheckCircle2 className="h-3 w-3 text-navy-600 shrink-0" />
                                   ) : (
@@ -2355,15 +2373,32 @@ export default function JobsPage() {
                                     {NOTIFICATION_LABELS[notification.type] || notification.type}
                                   </span>
                                 </div>
-                                <Button
-                                  size="sm"
-                                  variant={notification.is_sent ? "outline" : "default"}
-                                  onClick={() => handlePreviewNotification(notification.type)}
-                                  className={`h-6 px-2 text-[10px] shrink-0 ml-1 ${notification.is_sent ? 'border-navy-300' : 'bg-brand-red hover:bg-brand-red-dark'}`}
-                                  data-testid={`preview-notification-${notification.type}`}
-                                >
-                                  {notification.is_sent ? 'Resend' : 'Review'}
-                                </Button>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant={notification.is_sent ? "outline" : "default"}
+                                    onClick={() => handlePreviewNotification(notification.type)}
+                                    className={`h-6 px-2 text-[10px] flex-1 ${notification.is_sent ? 'border-navy-300' : 'bg-brand-red hover:bg-brand-red-dark'}`}
+                                    data-testid={`preview-notification-${notification.type}`}
+                                  >
+                                    <Mail className="h-2.5 w-2.5 mr-0.5" />
+                                    {notification.is_sent ? 'Resend' : 'Email'}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleSendSms(notification.type)}
+                                    disabled={sendingSms === notification.type}
+                                    className="h-6 px-2 text-[10px] flex-1 border-navy-300"
+                                    data-testid={`send-sms-${notification.type}`}
+                                  >
+                                    {sendingSms === notification.type ? (
+                                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                    ) : (
+                                      <><MessageSquare className="h-2.5 w-2.5 mr-0.5" />SMS</>
+                                    )}
+                                  </Button>
+                                </div>
                               </div>
                             ))
                           )}

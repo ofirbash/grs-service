@@ -591,6 +591,16 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ Discount NOT applied to adjustment payments (manual amount only)
 - ✅ Payment page shows discount info when applicable
 
+### Session: Apr 20, 2026 - SMS Notifications (SMS4Free Integration)
+- ✅ SMS4Free API integrated (`/app/backend/sms.py`) with send and balance check
+- ✅ SMS notification endpoints: preview (`GET /jobs/{id}/sms/preview/{type}`), send (`POST /jobs/{id}/sms/send/{type}`), balance (`GET /sms/balance`)
+- ✅ 5 SMS message templates (per status): stones_accepted, verbal_uploaded, stones_returned, cert_uploaded, cert_returned
+- ✅ Messages include job details, fee summary, and login link for customer portal
+- ✅ SMS send logged in job's `notification_log` with channel=sms
+- ✅ Frontend: Email + SMS buttons side by side in notification section
+- ✅ SMS balance: 9 messages available (free tier — sender must be phone number; after purchasing package, sender can be changed to BASHARI-LAB)
+- ✅ Successfully sent test SMS to client phone number
+
 ---
 
 ## Test Credentials
