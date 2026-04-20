@@ -112,6 +112,8 @@ export default function StonesPage() {
   const [actualFee, setActualFee] = useState<string>('');
   const [colorStabilityTest, setColorStabilityTest] = useState<boolean>(false);
   const [stoneMounted, setStoneMounted] = useState<boolean>(false);
+  const [csFeeCost, setCsFeeCost] = useState(50);
+  const [mountedFeeCost, setMountedFeeCost] = useState(50);
   
   // Structured verbal findings
   const [dropdownSettings, setDropdownSettings] = useState<DropdownSettings>({
@@ -140,12 +142,15 @@ export default function StonesPage() {
   const fetchStones = async () => {
     try {
       const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
-      const [stonesData, dropdownData] = await Promise.all([
+      const [stonesData, dropdownData, pricingData] = await Promise.all([
         stonesApi.getAll(branchParam),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
+        settingsApi.getPricing().catch(() => ({})),
       ]);
       setStones(stonesData);
       setDropdownSettings(dropdownData);
+      if (pricingData.color_stability_fee != null) setCsFeeCost(pricingData.color_stability_fee);
+      if (pricingData.mounted_jewellery_fee != null) setMountedFeeCost(pricingData.mounted_jewellery_fee);
       
       // Initialize dropdowns if empty
       if (!dropdownData.identification?.length) {
@@ -508,12 +513,12 @@ export default function StonesPage() {
                         data-testid="color-stability-switch"
                       />
                       <span className="text-xs text-navy-600">
-                        {colorStabilityTest ? '+$50' : 'No'}
+                        {colorStabilityTest ? `+$${csFeeCost}` : 'No'}
                       </span>
                     </div>
                   ) : (
                     <p className="font-medium text-navy-900">
-                      {selectedStone.color_stability_test ? 'Yes (+$50)' : 'No'}
+                      {selectedStone.color_stability_test ? `Yes (+$${csFeeCost})` : 'No'}
                     </p>
                   )}
                 </div>
@@ -528,12 +533,12 @@ export default function StonesPage() {
                         data-testid="stone-mounted-switch"
                       />
                       <span className="text-xs text-navy-600">
-                        {stoneMounted ? 'Yes' : 'No'}
+                        {stoneMounted ? `+$${mountedFeeCost}` : 'No'}
                       </span>
                     </div>
                   ) : (
                     <p className="font-medium text-navy-900">
-                      {selectedStone.mounted ? 'Yes' : 'No'}
+                      {selectedStone.mounted ? `Yes (+$${mountedFeeCost})` : 'No'}
                     </p>
                   )}
                 </div>

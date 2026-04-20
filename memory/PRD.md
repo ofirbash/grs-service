@@ -601,6 +601,15 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 - ✅ SMS balance: 9 messages available (free tier — sender must be phone number; after purchasing package, sender can be changed to BASHARI-LAB)
 - ✅ Successfully sent test SMS to client phone number
 
+### Session: Apr 20, 2026 - Fee Display Fixes
+- ✅ Fixed: Color stability fee shows actual amount from DB (e.g., "+$30") instead of hardcoded "+$50"
+- ✅ Fixed: Mounted fee shows "Yes (+$50)" format (same as color stability)
+- ✅ Fixed: Stone `fee` field now includes mounted fee (was only in job total before)
+- ✅ Fixed: Job `total_fee` recalculated from stone fees (grouped mounted counted once per group)
+- ✅ Fixed: Backend recalculates total from stone fees instead of incremental `$inc`
+- ✅ Migrated existing data: all mounted stones' fees updated to include mounted fee
+- ✅ Dynamic fee amounts fetched from pricing config on both Jobs and Stones pages
+
 ---
 
 ## Test Credentials

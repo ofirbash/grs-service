@@ -252,6 +252,8 @@ export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [serviceTypes, setServiceTypes] = useState<string[]>(['Express', 'Normal', 'Recheck']);
+  const [csFeeCost, setCsFeeCost] = useState(50);
+  const [mountedFeeCost, setMountedFeeCost] = useState(50);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const labInvoiceInputRef = useRef<HTMLInputElement>(null);
 
@@ -435,6 +437,8 @@ export default function JobsPage() {
       if (pricingData.service_types?.length) {
         setServiceTypes(pricingData.service_types);
       }
+      if (pricingData.color_stability_fee != null) setCsFeeCost(pricingData.color_stability_fee);
+      if (pricingData.mounted_jewellery_fee != null) setMountedFeeCost(pricingData.mounted_jewellery_fee);
       
       // Initialize dropdowns if empty
       if (!dropdownData.identification?.length) {
@@ -2642,12 +2646,12 @@ export default function JobsPage() {
                         data-testid="stone-color-stability-switch"
                       />
                       <span className="text-xs text-navy-600">
-                        {stoneColorStability ? '+$50' : 'No'}
+                        {stoneColorStability ? `+$${csFeeCost}` : 'No'}
                       </span>
                     </div>
                   ) : (
                     <p className="font-medium text-navy-900">
-                      {viewingStone.color_stability_test ? 'Yes (+$50)' : 'No'}
+                      {viewingStone.color_stability_test ? `Yes (+$${csFeeCost})` : 'No'}
                     </p>
                   )}
                 </div>
@@ -2662,12 +2666,12 @@ export default function JobsPage() {
                         data-testid="stone-mounted-switch"
                       />
                       <span className="text-xs text-navy-600">
-                        {stoneMounted ? 'Yes' : 'No'}
+                        {stoneMounted ? `+$${mountedFeeCost}` : 'No'}
                       </span>
                     </div>
                   ) : (
                     <p className="font-medium text-navy-900">
-                      {viewingStone.mounted ? 'Yes' : 'No'}
+                      {viewingStone.mounted ? `Yes (+$${mountedFeeCost})` : 'No'}
                     </p>
                   )}
                 </div>
