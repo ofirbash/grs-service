@@ -2097,8 +2097,9 @@ export default function JobsPage() {
               </div>
 
                 {/* RIGHT SIDEBAR: Actions */}
-                <div className="space-y-3 order-2">
-                  {/* Signed Memo */}
+                <div className="space-y-3 order-2 lg:border-l lg:pl-4 lg:border-navy-200">
+                  {/* Signed Memo - hide for clients when no memo uploaded */}
+                  {(isAdmin || selectedJob.signed_memo_url) && (
                   <div className="rounded-lg border border-navy-200 p-3 space-y-2">
                     <Label className="text-sm font-semibold flex items-center gap-2">
                       <Upload className="h-3.5 w-3.5" />
@@ -2137,6 +2138,7 @@ export default function JobsPage() {
                       )}
                     </div>
                   </div>
+                  )}
 
                   {/* Client Invoice */}
                   {isAdmin && (
