@@ -346,7 +346,6 @@ export default function JobsPage() {
   const certScanInputRef = useRef<HTMLInputElement>(null);
   
   // Stone fee editing
-  const [stoneActualFee, setStoneActualFee] = useState<string>('');
   const [stoneColorStability, setStoneColorStability] = useState<boolean>(false);
   const [stoneMounted, setStoneMounted] = useState<boolean>(false);
   
@@ -525,7 +524,6 @@ export default function JobsPage() {
     });
     
     // Initialize fee fields
-    setStoneActualFee(stone.actual_fee != null ? String(stone.actual_fee) : String(stone.fee));
     setStoneColorStability(stone.color_stability_test || false);
     setStoneMounted(stone.mounted || false);
     
@@ -537,8 +535,6 @@ export default function JobsPage() {
 
   const hasUnsavedStoneChanges = (): boolean => {
     if (!verbalEditMode || !viewingStone) return false;
-    const newActualFee = stoneActualFee !== '' ? parseFloat(stoneActualFee) : undefined;
-    const hasActualFeeChange = newActualFee !== viewingStone.fee;
     const hasColorStabilityChange = stoneColorStability !== viewingStone.color_stability_test;
     const hasMountedChange = stoneMounted !== (viewingStone.mounted || false);
     const hasVerbalData = structuredFindings.certificate_id || structuredFindings.identification || structuredFindings.color || structuredFindings.origin || structuredFindings.comment;
@@ -551,7 +547,7 @@ export default function JobsPage() {
       structuredFindings.origin !== (existingFindings?.origin || '') ||
       structuredFindings.comment !== (existingFindings?.comment || '')
     );
-    return hasActualFeeChange || hasColorStabilityChange || hasMountedChange || !!hasVerbalChange;
+    return hasColorStabilityChange || hasMountedChange || !!hasVerbalChange;
   };
 
   const handleStoneDialogClose = (open: boolean) => {
@@ -570,13 +566,10 @@ export default function JobsPage() {
       if (hasVerbalData) {
         await stonesApi.updateStructuredVerbal(viewingStone.id, structuredFindings);
       }
-      const newActualFee = stoneActualFee !== '' ? parseFloat(stoneActualFee) : undefined;
-      const hasActualFeeChange = newActualFee !== viewingStone.fee;
       const hasColorStabilityChange = stoneColorStability !== viewingStone.color_stability_test;
       const hasMountedChange = stoneMounted !== (viewingStone.mounted || false);
-      if (hasActualFeeChange || hasColorStabilityChange || hasMountedChange) {
-        const feeUpdateData: { actual_fee?: number; color_stability_test?: boolean; mounted?: boolean } = {};
-        if (hasActualFeeChange && newActualFee !== undefined) feeUpdateData.actual_fee = newActualFee;
+      if (hasColorStabilityChange || hasMountedChange) {
+        const feeUpdateData: { color_stability_test?: boolean; mounted?: boolean } = {};
         if (hasColorStabilityChange) feeUpdateData.color_stability_test = stoneColorStability;
         if (hasMountedChange) feeUpdateData.mounted = stoneMounted;
         await stonesApi.updateFees(viewingStone.id, feeUpdateData);
@@ -587,7 +580,6 @@ export default function JobsPage() {
         const refreshedStone = refreshedJob.stones?.find((s: Stone) => s.id === viewingStone.id);
         if (refreshedStone) {
           setViewingStone(refreshedStone);
-          setStoneActualFee(refreshedStone.actual_fee != null ? String(refreshedStone.actual_fee) : String(refreshedStone.fee));
           setStoneColorStability(refreshedStone.color_stability_test || false);
           setStoneMounted(refreshedStone.mounted || false);
         }
@@ -1448,19 +1440,8 @@ export default function JobsPage() {
                       <TableCell className="text-navy-600 font-medium" onClick={() => openJobDetails(job)}>
                         ${job.total_value.toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
-                        {(() => {
-                          const totalActual = job.stones.reduce((sum, s) => sum + (s.actual_fee ?? s.fee), 0);
-                          const hasDifferentActual = job.stones.some(s => s.actual_fee != null && s.actual_fee !== s.fee);
-                          return (
-                            <div className="space-y-0.5">
-                              <p className="font-medium">${job.total_fee.toLocaleString()}</p>
-                              {hasDifferentActual && (
-                                <p className="text-xs text-navy-600">Actual: ${totalActual.toLocaleString()}</p>
-                              )}
-                            </div>
-                          );
-                        })()}
+                      <TableCell className="text-navy-600 font-medium" onClick={() => openJobDetails(job)}>
+                        ${job.total_fee.toLocaleString()}
                       </TableCell>
                       <TableCell onClick={() => openJobDetails(job)}>
                         {getStatusBadge(job.status)}
@@ -1788,16 +1769,6 @@ export default function JobsPage() {
                   <Label className="text-navy-500">Total Est. Fees</Label>
                   <p className="font-medium text-navy-900">${selectedJob.total_fee.toLocaleString()}</p>
                 </div>
-                {(() => {
-                  const totalActual = selectedJob.stones.reduce((sum, s) => sum + (s.actual_fee ?? s.fee), 0);
-                  const hasDifferentActual = selectedJob.stones.some(s => s.actual_fee != null && s.actual_fee !== s.fee);
-                  return hasDifferentActual ? (
-                    <div>
-                      <Label className="text-navy-500">Total Actual Fees</Label>
-                      <p className="font-medium text-navy-900">${totalActual.toLocaleString()}</p>
-                    </div>
-                  ) : null;
-                })()}
                 <div>
                   <Label className="text-navy-500">Discount</Label>
                   {editMode ? (
@@ -1824,7 +1795,7 @@ export default function JobsPage() {
                   <div>
                     <Label className="text-navy-500 font-semibold">Net Total</Label>
                     <p className="font-bold text-navy-900">
-                      ${Math.max(0, (selectedJob.stones.reduce((sum, s) => sum + (s.actual_fee ?? s.fee), 0)) - (selectedJob.discount || 0)).toLocaleString()}
+                      ${Math.max(0, selectedJob.total_fee - (selectedJob.discount || 0)).toLocaleString()}
                     </p>
                   </div>
                 ) : null}
@@ -1991,12 +1962,7 @@ export default function JobsPage() {
                             <TableCell>{stone.shape}</TableCell>
                             <TableCell>${stone.value.toLocaleString()}</TableCell>
                             <TableCell>
-                              <div>
-                                <span>${stone.fee.toLocaleString()}</span>
-                                {stone.actual_fee != null && stone.actual_fee !== stone.fee && (
-                                  <p className="text-xs text-navy-600">Actual: ${stone.actual_fee.toLocaleString()}</p>
-                                )}
-                              </div>
+                              <span>${stone.fee.toLocaleString()}</span>
                             </TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               {stone.certificate_scan_url ? (
@@ -2068,12 +2034,7 @@ export default function JobsPage() {
                                   <TableCell>{stone.shape}</TableCell>
                                   <TableCell>${stone.value.toLocaleString()}</TableCell>
                                   <TableCell>
-                                    <div>
-                                      <span>${stone.fee.toLocaleString()}</span>
-                                      {stone.actual_fee != null && stone.actual_fee !== stone.fee && (
-                                        <p className="text-xs text-navy-600">Actual: ${stone.actual_fee.toLocaleString()}</p>
-                                      )}
-                                    </div>
+                                    <span>${stone.fee.toLocaleString()}</span>
                                   </TableCell>
                                   <TableCell onClick={(e) => e.stopPropagation()}>
                                     <div className="flex items-center gap-1">
@@ -2612,28 +2573,17 @@ export default function JobsPage() {
                   <p className="font-medium text-navy-900">${viewingStone.value.toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-navy-500 text-xs">Est. Fee</Label>
-                  <p className="font-medium text-navy-900">${viewingStone.fee.toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-navy-500 text-xs">Actual Fee</Label>
-                  {verbalEditMode ? (
-                    <div className="flex items-center gap-1">
-                      <span className="text-navy-600 text-sm">$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={stoneActualFee}
-                        onChange={(e) => setStoneActualFee(e.target.value)}
-                        className="h-7 w-24 border-navy-200 text-sm font-medium"
-                        data-testid="stone-actual-fee-input"
-                      />
-                    </div>
-                  ) : (
-                    <p className={`font-medium ${viewingStone.actual_fee != null && viewingStone.actual_fee !== viewingStone.fee ? 'text-navy-900' : 'text-navy-800'}`}>
-                      ${(viewingStone.actual_fee ?? viewingStone.fee).toLocaleString()}
-                    </p>
-                  )}
+                  <Label className="text-navy-500 text-xs">Fee</Label>
+                  <p className="font-medium text-navy-900">
+                    ${(verbalEditMode
+                      ? viewingStone.fee
+                        + (stoneColorStability && !viewingStone.color_stability_test ? csFeeCost : 0)
+                        - (!stoneColorStability && viewingStone.color_stability_test ? csFeeCost : 0)
+                        + (stoneMounted && !viewingStone.mounted ? mountedFeeCost : 0)
+                        - (!stoneMounted && viewingStone.mounted ? mountedFeeCost : 0)
+                      : viewingStone.fee
+                    ).toLocaleString()}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Color Stability</Label>

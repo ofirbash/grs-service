@@ -109,7 +109,6 @@ export default function StonesPage() {
   const certInputRef = useRef<HTMLInputElement>(null);
   
   // Fees management
-  const [actualFee, setActualFee] = useState<string>('');
   const [colorStabilityTest, setColorStabilityTest] = useState<boolean>(false);
   const [stoneMounted, setStoneMounted] = useState<boolean>(false);
   const [csFeeCost, setCsFeeCost] = useState(50);
@@ -181,7 +180,6 @@ export default function StonesPage() {
     });
     
     // Initialize fee fields
-    setActualFee(stone.actual_fee != null ? String(stone.actual_fee) : '');
     setColorStabilityTest(stone.color_stability_test || false);
     setStoneMounted(stone.mounted || false);
     
@@ -479,28 +477,17 @@ export default function StonesPage() {
                   <p className="font-medium text-navy-900">${selectedStone.value.toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-navy-500 text-xs">Est. Fee</Label>
-                  <p className="font-medium text-navy-900">${selectedStone.fee.toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-navy-500 text-xs">Actual Fee</Label>
-                  {verbalEditMode ? (
-                    <div className="flex items-center gap-1">
-                      <span className="text-navy-600 text-sm">$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={actualFee}
-                        onChange={(e) => setActualFee(e.target.value)}
-                        className="h-7 w-24 border-navy-200 text-sm font-medium"
-                        data-testid="actual-fee-input"
-                      />
-                    </div>
-                  ) : (
-                    <p className={`font-medium ${selectedStone.actual_fee != null && selectedStone.actual_fee !== selectedStone.fee ? 'text-navy-900' : 'text-navy-800'}`}>
-                      ${(selectedStone.actual_fee ?? selectedStone.fee).toLocaleString()}
-                    </p>
-                  )}
+                  <Label className="text-navy-500 text-xs">Fee</Label>
+                  <p className="font-medium text-navy-900">
+                    ${(verbalEditMode
+                      ? selectedStone.fee
+                        + (colorStabilityTest && !selectedStone.color_stability_test ? csFeeCost : 0)
+                        - (!colorStabilityTest && selectedStone.color_stability_test ? csFeeCost : 0)
+                        + (stoneMounted && !selectedStone.mounted ? mountedFeeCost : 0)
+                        - (!stoneMounted && selectedStone.mounted ? mountedFeeCost : 0)
+                      : selectedStone.fee
+                    ).toLocaleString()}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-navy-500 text-xs">Color Stability</Label>
@@ -675,16 +662,11 @@ export default function StonesPage() {
                       }
                       
                       // Save fee changes if any
-                      const newActualFee = actualFee !== '' ? parseFloat(actualFee) : undefined;
-                      const hasActualFeeChange = newActualFee !== selectedStone.actual_fee;
                       const hasColorStabilityChange = colorStabilityTest !== selectedStone.color_stability_test;
                       const hasMountedChange = stoneMounted !== (selectedStone.mounted || false);
                       
-                      if (hasActualFeeChange || hasColorStabilityChange || hasMountedChange) {
-                        const feeUpdateData: { actual_fee?: number; color_stability_test?: boolean; mounted?: boolean } = {};
-                        if (hasActualFeeChange && newActualFee !== undefined) {
-                          feeUpdateData.actual_fee = newActualFee;
-                        }
+                      if (hasColorStabilityChange || hasMountedChange) {
+                        const feeUpdateData: { color_stability_test?: boolean; mounted?: boolean } = {};
                         if (hasColorStabilityChange) {
                           feeUpdateData.color_stability_test = colorStabilityTest;
                         }
@@ -701,7 +683,6 @@ export default function StonesPage() {
                       const refreshedStone = refreshedStones.find((s: Stone) => s.id === selectedStone.id);
                       if (refreshedStone) {
                         setSelectedStone(refreshedStone);
-                        setActualFee(refreshedStone.actual_fee != null ? String(refreshedStone.actual_fee) : '');
                         setColorStabilityTest(refreshedStone.color_stability_test || false);
                         setStoneMounted(refreshedStone.mounted || false);
                       }
