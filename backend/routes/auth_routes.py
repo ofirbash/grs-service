@@ -262,26 +262,48 @@ async def setup_password(data: SetupPasswordRequest):
 
 @router.post("/auth/admin-reset-password/{user_id}")
 async def admin_reset_password(user_id: str, user: dict = Depends(get_current_user)):
-    """Admin initiates a password reset for a user. Accepts user_id or client_id."""
+    """Admin initiates a password reset. Auto-creates user account if client has none."""
     if user.get("role") not in ["super_admin", "branch_admin"]:
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    # Try finding by user_id first, then by client_id
+    # Try finding user by user_id, then by client_id link, then by client email
     target = await db.users.find_one({"_id": ObjectId(user_id)})
     if not target:
-        # Maybe user_id is actually a client_id — find the user linked to this client
         target = await db.users.find_one({"client_id": user_id})
+    
+    client_doc = None
     if not target:
-        # Last resort: find client by id, then find user by email
         client_doc = await db.clients.find_one({"_id": ObjectId(user_id)})
         if client_doc:
             target = await db.users.find_one({"email": client_doc["email"].lower()})
+
+    # If still no user, auto-create one from the client record
+    if not target and client_doc:
+        setup_token = str(uuid.uuid4())
+        user_doc = {
+            "email": client_doc["email"].lower(),
+            "password_hash": "",
+            "full_name": client_doc.get("name", ""),
+            "role": "customer",
+            "branch_id": client_doc.get("branch_id"),
+            "client_id": str(client_doc["_id"]),
+            "phone": client_doc.get("phone"),
+            "email_verified": False,
+            "two_factor_enabled": False,
+            "setup_token": setup_token,
+            "setup_token_created_at": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        result = await db.users.insert_one(user_doc)
+        target = await db.users.find_one({"_id": result.inserted_id})
+
     if not target:
-        raise HTTPException(status_code=404, detail="No user account found for this client. Please send a welcome email first to create their account.")
+        raise HTTPException(status_code=404, detail="Client not found")
 
     setup_token = str(uuid.uuid4())
     await db.users.update_one(
-        {"_id": ObjectId(user_id)},
+        {"_id": target["_id"]},
         {"$set": {
             "setup_token": setup_token,
             "setup_token_created_at": datetime.utcnow(),
@@ -322,8 +344,34 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
 
 @router.post("/auth/forgot-password")
 async def forgot_password(email: str = Body(..., embed=True)):
-    """Public endpoint - initiates password reset for a user by email."""
-    user = await db.users.find_one({"email": email.lower()})
+    """Public endpoint - initiates password reset. Auto-creates user if client exists."""
+    email_lower = email.lower()
+    user = await db.users.find_one({"email": email_lower})
+    
+    # If no user but a client exists, auto-create the user account
+    if not user:
+        client_doc = await db.clients.find_one({"email": {"$regex": f"^{email_lower}$", "$options": "i"}})
+        if client_doc:
+            setup_token = str(uuid.uuid4())
+            user_doc = {
+                "email": email_lower,
+                "password_hash": "",
+                "full_name": client_doc.get("name", ""),
+                "role": "customer",
+                "branch_id": client_doc.get("branch_id"),
+                "client_id": str(client_doc["_id"]),
+                "phone": client_doc.get("phone"),
+                "email_verified": False,
+                "two_factor_enabled": False,
+                "setup_token": setup_token,
+                "setup_token_created_at": datetime.utcnow(),
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+            result = await db.users.insert_one(user_doc)
+            user = await db.users.find_one({"_id": result.inserted_id})
+            logger.info(f"Auto-created user account for client {email_lower}")
+
     # Always return success to prevent email enumeration
     if not user:
         return {"message": "If an account exists with that email, a reset link has been sent."}
