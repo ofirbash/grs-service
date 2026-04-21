@@ -365,6 +365,10 @@ export const dashboardApi = {
     const response = await api.get('/dashboard/stats', { params });
     return response.data;
   },
+  getClientsWithActiveJobs: async (params?: { branch_id?: string }) => {
+    const response = await api.get('/dashboard/clients-with-active-jobs', { params });
+    return response.data;
+  },
 };
 
 // Notifications API

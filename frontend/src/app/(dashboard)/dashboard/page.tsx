@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { dashboardApi, shipmentsApi, jobsApi } from '@/lib/api';
-import { useBranchFilterStore } from '@/lib/store';
+import { useAuthStore, useBranchFilterStore } from '@/lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -95,6 +95,8 @@ export default function DashboardPage() {
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'branch_admin';
 
   // Job modal state
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -102,6 +104,11 @@ export default function DashboardPage() {
   const [viewCertScanOpen, setViewCertScanOpen] = useState(false);
   const [viewingStone, setViewingStone] = useState<Stone | null>(null);
   const [pipelineOpen, setPipelineOpen] = useState(false);
+  const [clientsPanelOpen, setClientsPanelOpen] = useState(false);
+  const [activeClients, setActiveClients] = useState<Array<{
+    id: string; name: string; email: string; company: string;
+    active_jobs: number; total_stones: number; total_fee: number; statuses: string[];
+  }>>([]);
   const router = useRouter();
 
   // Shipment modal state
@@ -196,7 +203,6 @@ export default function DashboardPage() {
           className={`border-navy-200 cursor-pointer hover:border-navy-300 transition-all ${pipelineOpen ? 'md:col-span-2 lg:col-span-4' : ''}`}
           data-testid="stats-total-jobs"
           onClick={(e) => {
-            // Don't toggle if clicking a pipeline row (which navigates)
             if ((e.target as HTMLElement).closest('[data-testid^="pipeline-"]')) return;
             setPipelineOpen(!pipelineOpen);
           }}
@@ -209,53 +215,46 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           {pipelineOpen && (
-            <CardContent className="pt-2 pb-4">
+            <CardContent className="pt-2 pb-3">
               {(() => {
                 const STATUS_PIPELINE = [
-                  { key: 'draft', label: 'Draft', step: 1, circleColor: '#d4dbe4', barColor: '#d4dbe4', textColor: '#486581' },
-                  { key: 'stones_accepted', label: 'Stones Accepted', step: 2, circleColor: '#b8c5d4', barColor: '#b8c5d4', textColor: '#243b53' },
-                  { key: 'sent_to_lab', label: 'Sent to Lab', step: 3, circleColor: '#8da2b8', barColor: '#8da2b8', textColor: '#fff' },
-                  { key: 'verbal_uploaded', label: 'Verbal Uploaded', step: 4, circleColor: '#6b8aaa', barColor: '#6b8aaa', textColor: '#fff' },
-                  { key: 'stones_returned', label: 'Stones Returned', step: 5, circleColor: '#4a7191', barColor: '#4a7191', textColor: '#fff' },
-                  { key: 'cert_uploaded', label: 'Cert. Uploaded', step: 6, circleColor: '#305a78', barColor: '#305a78', textColor: '#fff' },
-                  { key: 'cert_returned', label: 'Cert. Returned', step: 7, circleColor: '#1d3f57', barColor: '#1d3f57', textColor: '#fff' },
-                  { key: 'done', label: 'Done', step: 8, circleColor: '#141417', barColor: '#141417', textColor: '#fff' },
+                  { key: 'draft', label: 'Draft', step: 1, color: '#d4dbe4', text: '#486581' },
+                  { key: 'stones_accepted', label: 'Stones Accepted', step: 2, color: '#b8c5d4', text: '#243b53' },
+                  { key: 'sent_to_lab', label: 'Sent to Lab', step: 3, color: '#8da2b8', text: '#fff' },
+                  { key: 'verbal_uploaded', label: 'Verbal Uploaded', step: 4, color: '#6b8aaa', text: '#fff' },
+                  { key: 'stones_returned', label: 'Stones Returned', step: 5, color: '#4a7191', text: '#fff' },
+                  { key: 'cert_uploaded', label: 'Cert. Uploaded', step: 6, color: '#305a78', text: '#fff' },
+                  { key: 'cert_returned', label: 'Cert. Returned', step: 7, color: '#1d3f57', text: '#fff' },
+                  { key: 'done', label: 'Done', step: 8, color: '#141417', text: '#fff' },
                 ];
                 const counts = stats?.jobs_by_status || {};
                 const totalJobs = stats?.total_jobs || 0;
                 return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
                     {STATUS_PIPELINE.map((stage) => {
                       const count = (counts as Record<string, number>)[stage.key] || 0;
                       const pct = totalJobs > 0 ? (count / totalJobs) * 100 : 0;
                       return (
                         <div
                           key={stage.key}
-                          className="flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-lg cursor-pointer hover:bg-navy-50 transition-colors"
+                          className="flex items-center gap-2.5 py-1.5 px-2 -mx-2 rounded cursor-pointer hover:bg-navy-50 transition-colors"
                           onClick={() => router.push(`/dashboard/jobs?status=${stage.key}`)}
                           data-testid={`pipeline-${stage.key}`}
                         >
                           <div
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                            style={{ backgroundColor: stage.circleColor, color: stage.textColor }}
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
+                            style={{ backgroundColor: stage.color, color: stage.text }}
                           >
                             {stage.step}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-navy-800">{stage.label}</span>
-                              <span className="text-sm font-bold tabular-nums text-navy-900">{count}</span>
-                            </div>
-                            <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden mt-0.5">
-                              <div
-                                className="h-full rounded-full transition-all duration-700 ease-out"
-                                style={{
-                                  width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`,
-                                  backgroundColor: stage.barColor,
-                                }}
-                              />
-                            </div>
+                          <span className="text-sm text-navy-800 w-32 shrink-0">{stage.label}</span>
+                          <div className="flex-1 h-1.5 bg-navy-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`, backgroundColor: stage.color }}
+                            />
                           </div>
+                          <span className="text-sm font-bold tabular-nums text-navy-900 w-6 text-right">{count}</span>
                         </div>
                       );
                     })}
@@ -266,16 +265,74 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card className="border-navy-200" data-testid="stats-total-clients">
+        {isAdmin && (
+        <Card
+          className={`border-navy-200 cursor-pointer hover:border-navy-300 transition-all ${clientsPanelOpen ? 'md:col-span-2 lg:col-span-3' : ''}`}
+          data-testid="stats-total-clients"
+          onClick={async (e) => {
+            if ((e.target as HTMLElement).closest('[data-testid^="active-client-"]')) return;
+            if (!clientsPanelOpen) {
+              try {
+                const data = await dashboardApi.getClientsWithActiveJobs(
+                  selectedBranchId ? { branch_id: selectedBranchId } : undefined
+                );
+                setActiveClients(data);
+              } catch { /* ignore */ }
+            }
+            setClientsPanelOpen(!clientsPanelOpen);
+          }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-navy-600">Total Clients</CardTitle>
-            <Users className="h-5 w-5 text-navy-400" />
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold text-navy-900">{stats?.total_clients || 0}</span>
+              <Users className="h-5 w-5 text-navy-400" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-navy-900">{stats?.total_clients || 0}</div>
-            <p className="text-xs text-navy-500 mt-1">Registered clients</p>
-          </CardContent>
+          {clientsPanelOpen && (
+            <CardContent className="pt-2 pb-3">
+              <p className="text-xs text-navy-500 mb-2 font-medium">Clients with active jobs</p>
+              {activeClients.length === 0 ? (
+                <p className="text-sm text-navy-400 italic py-2">No clients with active jobs</p>
+              ) : (
+                <div className="space-y-0.5 max-h-[280px] overflow-y-auto">
+                  {activeClients.map((client) => (
+                    <div
+                      key={client.id}
+                      className="flex items-center gap-3 py-2 px-2 -mx-2 rounded cursor-pointer hover:bg-navy-50 transition-colors"
+                      onClick={() => router.push(`/dashboard/clients`)}
+                      data-testid={`active-client-${client.id}`}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-navy-200 flex items-center justify-center text-[10px] font-bold text-navy-700 shrink-0">
+                        {client.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-navy-900 truncate">{client.name}</span>
+                          <span className="text-xs text-navy-500 shrink-0 ml-2">{client.active_jobs} job{client.active_jobs !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="flex gap-1 mt-0.5">
+                          {(() => {
+                            const statusColors: Record<string, string> = {
+                              draft: '#d4dbe4', stones_accepted: '#b8c5d4', sent_to_lab: '#8da2b8',
+                              verbal_uploaded: '#6b8aaa', stones_returned: '#4a7191', cert_uploaded: '#305a78',
+                              cert_returned: '#1d3f57',
+                            };
+                            const uniqueStatuses = Array.from(new Set(client.statuses));
+                            return uniqueStatuses.map((s) => (
+                              <div key={s} className="h-1.5 flex-1 rounded-full" style={{ backgroundColor: statusColors[s] || '#d4dbe4' }} />
+                            ));
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          )}
         </Card>
+        )}
 
         <Card className="border-navy-200" data-testid="stats-total-value">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

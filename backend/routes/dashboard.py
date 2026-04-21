@@ -66,3 +66,60 @@ async def get_dashboard_stats(branch_id: Optional[str] = None, user: dict = Depe
         "total_clients": total_clients,
         "jobs_by_status": status_breakdown
     }
+
+
+@router.get("/dashboard/clients-with-active-jobs")
+async def get_clients_with_active_jobs(branch_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    """Get clients that have at least one job not in 'done' status"""
+    if user["role"] not in ["super_admin", "branch_admin"]:
+        return []
+
+    match_query: dict = {"status": {"$ne": "done"}}
+    if user["role"] == "branch_admin":
+        match_query["branch_id"] = user.get("branch_id")
+    elif branch_id:
+        match_query["branch_id"] = branch_id
+
+    pipeline = [
+        {"$match": match_query},
+        {"$group": {
+            "_id": "$client_id",
+            "active_jobs": {"$sum": 1},
+            "total_stones": {"$sum": "$total_stones"},
+            "total_fee": {"$sum": "$total_fee"},
+            "statuses": {"$push": "$status"},
+        }},
+        {"$sort": {"active_jobs": -1}},
+    ]
+
+    results = await db.jobs.aggregate(pipeline).to_list(200)
+
+    client_ids_str = [r["_id"] for r in results if r["_id"]]
+    from bson import ObjectId as ObjId
+    client_ids_obj = []
+    for cid in client_ids_str:
+        try:
+            client_ids_obj.append(ObjId(cid))
+        except Exception:
+            pass
+
+    clients = await db.clients.find({"_id": {"$in": client_ids_obj}}).to_list(200)
+    client_map = {str(c["_id"]): c for c in clients}
+
+    output = []
+    for r in results:
+        c = client_map.get(r["_id"])
+        if not c:
+            continue
+        output.append({
+            "id": str(c["_id"]),
+            "name": c.get("name", ""),
+            "email": c.get("email", ""),
+            "company": c.get("company", ""),
+            "active_jobs": r["active_jobs"],
+            "total_stones": r["total_stones"],
+            "total_fee": r["total_fee"],
+            "statuses": r["statuses"],
+        })
+
+    return output
