@@ -1732,7 +1732,7 @@ export default function JobsPage() {
           setSelectedStones([]);
         }
       }}>
-        <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] p-0">
           <DialogHeader className="sticky top-0 z-10 bg-white border-b px-6 py-4 shrink-0">
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Job #{selectedJob?.job_number}</span>
@@ -1763,7 +1763,7 @@ export default function JobsPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <div className="px-6 pb-6">
           {selectedJob && (
             <div className="space-y-4 py-4">
               {/* Job Summary */}
@@ -1864,10 +1864,9 @@ export default function JobsPage() {
               ) : null}
 
               {/* Two-column layout: Stones (left) + Actions sidebar (right) */}
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-4 border-t pt-4">
-                {/* LEFT: Stones Table */}
-                <div className="space-y-4 order-1">
-                  <div className="flex items-center justify-between">
+              <div className="space-y-4 border-t pt-4">
+                {/* Stones Table */}
+                <div className="flex items-center justify-between">
                     <Label className="text-base font-semibold flex items-center gap-2">
                       <Gem className="h-4 w-4" />
                       Stones ({selectedJob.stones.length} total)
@@ -2093,10 +2092,11 @@ export default function JobsPage() {
                     </TableBody>
                   </Table>
                 </div>
-              </div>
 
-                {/* RIGHT SIDEBAR: Actions */}
-                <div className="space-y-3 order-2 lg:border-l lg:pl-4 lg:border-navy-200">
+                {/* Actions */}
+                <div className="border-t border-navy-200 pt-4 mt-4">
+                  <Label className="text-sm font-semibold text-navy-700 mb-3 block">Actions</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   {/* Signed Memo - hide for clients when no memo uploaded */}
                   {(isAdmin || selectedJob.signed_memo_url) && (
                   <div className="rounded-lg border border-navy-200 p-3 space-y-2">
@@ -2406,6 +2406,7 @@ export default function JobsPage() {
                   )}
                 </div>
               </div>
+            </div>
             </div>
           )}
           </div>
