@@ -149,7 +149,7 @@ export default function DashboardPage() {
       stones_returned: 'bg-[#4a7191] text-white',
       cert_uploaded: 'bg-[#305a78] text-white',
       cert_returned: 'bg-[#1d3f57] text-white',
-      done: 'bg-[#141417] text-white',
+      done: 'bg-[#c53030] text-white',
       pending: 'bg-brand-red text-white',
       in_transit: 'bg-navy-700 text-white',
       delivered: 'bg-navy-900 text-white',
@@ -225,7 +225,7 @@ export default function DashboardPage() {
                   { key: 'stones_returned', label: 'Stones Returned', step: 5, color: '#4a7191', text: '#fff' },
                   { key: 'cert_uploaded', label: 'Cert. Uploaded', step: 6, color: '#305a78', text: '#fff' },
                   { key: 'cert_returned', label: 'Cert. Returned', step: 7, color: '#1d3f57', text: '#fff' },
-                  { key: 'done', label: 'Done', step: 8, color: '#141417', text: '#fff' },
+                  { key: 'done', label: 'Done', step: 8, color: '#c53030', text: '#fff' },
                 ];
                 const counts = stats?.jobs_by_status || {};
                 const totalJobs = stats?.total_jobs || 0;

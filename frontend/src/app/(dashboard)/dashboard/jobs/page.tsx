@@ -1264,7 +1264,7 @@ export default function JobsPage() {
       stones_returned: 'bg-[#4a7191] text-white',
       cert_uploaded: 'bg-[#305a78] text-white',
       cert_returned: 'bg-[#1d3f57] text-white',
-      done: 'bg-[#141417] text-white',
+      done: 'bg-[#c53030] text-white',
       received: 'bg-[#d4dbe4] text-[#486581]',
       certificates_scanned: 'bg-[#305a78] text-white',
       certificates_sent: 'bg-[#1d3f57] text-white',
