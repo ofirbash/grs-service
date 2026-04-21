@@ -1412,8 +1412,8 @@ export default function JobsPage() {
             </div>
 
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
+            <div className="hidden md:block">
+              <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow className="bg-navy-50">
                     {isAdmin && (
@@ -1620,8 +1620,8 @@ export default function JobsPage() {
                 </Button>
               </div>
 
-              <div className="border border-navy-200 rounded-lg overflow-x-auto">
-                <div className="grid grid-cols-[1fr,100px,120px,120px,auto] gap-2 p-3 bg-navy-50 min-w-[540px] text-sm font-medium text-navy-700">
+              <div className="border border-navy-200 rounded-lg overflow-hidden">
+                <div className="grid grid-cols-[1fr,80px,100px,100px,auto] gap-2 p-3 bg-navy-50 text-sm font-medium text-navy-700">
                   <div>Type <span className="text-red-500">*</span></div>
                   <div>Weight <span className="text-red-500">*</span></div>
                   <div>Shape</div>
@@ -1631,7 +1631,7 @@ export default function JobsPage() {
                 {stones.map((stone, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-[1fr,100px,120px,120px,auto] gap-2 p-3 border-t min-w-[540px] border-navy-200"
+                    className="grid grid-cols-[1fr,80px,100px,100px,auto] gap-2 p-3 border-t border-navy-200"
                   >
                     <Select
                       value={stone.stone_type}
@@ -1863,19 +1863,6 @@ export default function JobsPage() {
                 </div>
               ) : null}
 
-              {/* Save Edit Button */}
-              {editMode && (
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleUpdateJob}
-                    className="bg-navy-900 hover:bg-navy-800"
-                    data-testid="save-job-button"
-                  >
-                    Save Changes
-                  </Button>
-                </div>
-              )}
-
               {/* Two-column layout: Stones (left) + Actions sidebar (right) */}
               <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-4 border-t pt-4">
                 {/* LEFT: Stones Table */}
@@ -1966,7 +1953,7 @@ export default function JobsPage() {
 
                 {/* Stones Table - Desktop */}
                 <div className="hidden md:block border rounded-lg overflow-hidden">
-                  <Table>
+                  <Table className="table-fixed w-full">
                     <TableHeader>
                       <TableRow className="bg-navy-50">
                         <TableHead className="w-10">
@@ -2423,7 +2410,16 @@ export default function JobsPage() {
           )}
           </div>
 
-          <DialogFooter className="sticky bottom-0 bg-white border-t px-6 py-3 shrink-0">
+          <DialogFooter className="sticky bottom-0 bg-white border-t px-6 py-3 shrink-0 gap-2">
+            {editMode && (
+              <Button
+                onClick={handleUpdateJob}
+                className="bg-navy-900 hover:bg-navy-800"
+                data-testid="save-job-button"
+              >
+                Save Changes
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
               Close
             </Button>
@@ -2433,9 +2429,9 @@ export default function JobsPage() {
 
       {/* Group Stones for Certificate Dialog */}
       <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl text-navy-900">Group Stones for Certificate</DialogTitle>
+            <DialogTitle className="text-lg text-navy-900">Group Stones for Certificate</DialogTitle>
             <DialogDescription>
               Create a certificate group for {selectedStones.length} selected stone(s).
               Maximum 30 stones per certificate.
