@@ -775,21 +775,24 @@ export default function JobsPage() {
         groupedStonesMap.get(group)!.push(s);
       });
 
-    const certSummaryItems = Array.from(groupedStonesMap.entries())
-      .sort(([a], [b]) => a - b)
-      .map(
-        ([groupNum, stones]) =>
-          `Certificate ${groupNum}: ${stones.length} stone${
-            stones.length > 1 ? 's' : ''
-          } (${getCertificateLabel(stones.length)})`
-      )
-      .join(', ');
+    // Build human-friendly labels per group: pair-1, pair-2, layout-1, single-1, multi-stone-1
+    const labelKey = (count: number): string => {
+      if (count === 1) return 'single';
+      if (count === 2) return 'pair';
+      if (count >= 3 && count <= 6) return 'layout';
+      return 'multi-stone';
+    };
+    const sortedGroups = Array.from(groupedStonesMap.entries()).sort(([a], [b]) => a - b);
+    const groupLabels = new Map<number, string>();
+    const typeCounters: Record<string, number> = {};
+    sortedGroups.forEach(([groupNum, stones]) => {
+      const key = labelKey(stones.length);
+      typeCounters[key] = (typeCounters[key] || 0) + 1;
+      groupLabels.set(groupNum, `${key}-${typeCounters[key]}`);
+    });
 
-    const certSummary =
-      certSummaryItems +
-      (ungroupedStones.length > 0
-        ? (certSummaryItems ? ', ' : '') + `${ungroupedStones.length} ungrouped`
-        : '');
+    // Total Certificates = number of groups + each ungrouped stone (one cert each)
+    const totalCertificates = groupedStonesMap.size + ungroupedStones.length;
 
     // Build stone rows with CS + Mounted flags
     const stoneRow = (index: number, stone: Stone, isGrouped: boolean) => {
@@ -816,15 +819,13 @@ export default function JobsPage() {
       .map((stone) => stoneRow(rowIndex++, stone, false))
       .join('');
 
-    const groupedRows = Array.from(groupedStonesMap.entries())
-      .sort(([a], [b]) => a - b)
+    const groupedRows = sortedGroups
       .map(([groupNum, stones]) => {
+        const label = groupLabels.get(groupNum) || 'group';
         const groupHeader = `
           <tr class="group-separator">
             <td colspan="8">
-              <strong>Certificate ${groupNum}</strong> — ${getCertificateLabel(
-          stones.length
-        )} (${stones.length} stone${stones.length > 1 ? 's' : ''})
+              <strong>${label}</strong> (${stones.length} stone${stones.length > 1 ? 's' : ''})
             </td>
           </tr>
         `;
@@ -862,54 +863,52 @@ export default function JobsPage() {
         <title>Job #${job.job_number} — ${COMPANY_INFO.displayName}</title>
         <style>
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 32px 40px; max-width: 900px; margin: 0 auto; color: #102a43; line-height: 1.45; }
-          .company-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 2px solid #102a43; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 32px 40px; max-width: 900px; margin: 0 auto; color: #141417; line-height: 1.45; }
+          .company-header { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 2px solid #141417; }
           .company-brand { display: flex; gap: 14px; align-items: center; }
           .company-brand img { max-height: 58px; max-width: 180px; object-fit: contain; }
           .company-brand .name-block { display: flex; flex-direction: column; }
-          .company-brand .display-name { font-size: 20px; font-weight: 700; color: #102a43; }
-          .company-brand .legal-name { font-size: 11px; color: #627d98; }
-          .company-contact { text-align: right; font-size: 11px; color: #334e68; line-height: 1.55; }
-          .company-contact .muted { color: #829ab1; }
+          .company-brand .display-name { font-size: 20px; font-weight: 700; color: #141417; }
+          .company-brand .legal-name { font-size: 11px; color: #71717a; }
           .doc-title-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 24px; }
-          .doc-title-bar h1 { margin: 0; font-size: 22px; color: #102a43; letter-spacing: 0.5px; }
-          .doc-title-bar .job-number { font-size: 16px; font-weight: 600; color: #334e68; }
+          .doc-title-bar h1 { margin: 0; font-size: 22px; color: #141417; letter-spacing: 0.5px; }
+          .doc-title-bar .job-number { font-size: 16px; font-weight: 600; color: #3f3f46; }
           .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px; }
-          .party-card { padding: 14px 16px; background: #f0f4f8; border-radius: 8px; }
-          .party-card h3 { margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #486581; }
-          .party-card .name { font-size: 14px; font-weight: 700; color: #102a43; margin-bottom: 4px; }
-          .party-card .line { font-size: 11px; color: #334e68; line-height: 1.55; }
+          .party-card { padding: 14px 16px; background: #f5f5f5; border-radius: 8px; border: 1px solid #e5e5e5; }
+          .party-card h3 { margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #71717a; }
+          .party-card .name { font-size: 14px; font-weight: 700; color: #141417; margin-bottom: 4px; }
+          .party-card .line { font-size: 11px; color: #3f3f46; line-height: 1.55; }
           .section { margin: 20px 0; }
-          .section h3 { margin: 0 0 10px 0; color: #334e68; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #d9e2ec; padding-bottom: 6px; }
-          .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f0f4f8; padding: 14px 16px; border-radius: 8px; }
-          .field .label { font-weight: 600; color: #486581; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-          .field .value { color: #102a43; font-size: 13px; font-weight: 500; }
-          .cert-summary { background: #fffbeb; padding: 10px 12px; border-left: 3px solid #d97706; border-radius: 4px; margin: 10px 0; font-size: 11px; color: #78350f; }
-          .cert-summary strong { color: #78350f; }
+          .section h3 { margin: 0 0 10px 0; color: #141417; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #e5e5e5; padding-bottom: 6px; }
+          .meta-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; background: #f5f5f5; border: 1px solid #e5e5e5; padding: 14px 16px; border-radius: 8px; }
+          .field .label { font-weight: 600; color: #71717a; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+          .field .value { color: #141417; font-size: 13px; font-weight: 600; }
+          .field .value.accent { color: #E30613; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th, td { border: 1px solid #d9e2ec; padding: 7px 8px; text-align: left; font-size: 11px; }
-          th { background: #102a43; color: white; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; }
-          tr:nth-child(even):not(.group-separator):not(.grouped-row) { background: #f7fafc; }
-          .group-separator { background: #334e68 !important; color: white; }
-          .group-separator td { padding: 5px 8px; border-color: #334e68; font-size: 11px; }
-          .grouped-row { background: #f8fafc; }
-          .flags { font-weight: 600; color: #065f46; font-size: 10px; text-align: center; }
-          .fee-summary { margin-top: 18px; width: 320px; margin-left: auto; border: 1px solid #d9e2ec; border-radius: 8px; overflow: hidden; }
-          .fee-summary .row { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 12px; color: #334e68; border-bottom: 1px solid #e2e8f0; }
+          th, td { border: 1px solid #e5e5e5; padding: 7px 8px; text-align: left; font-size: 11px; }
+          th { background: #141417; color: #ffffff; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; }
+          tr:nth-child(even):not(.group-separator):not(.grouped-row) { background: #fafafa; }
+          .group-separator { background: #1e1e22 !important; color: #ffffff; }
+          .group-separator td { padding: 5px 8px; border-color: #1e1e22; font-size: 11px; text-transform: lowercase; letter-spacing: 0.3px; }
+          .group-separator strong { color: #ffffff; font-weight: 700; text-transform: lowercase; }
+          .grouped-row { background: #fafafa; }
+          .flags { font-weight: 600; color: #141417; font-size: 10px; text-align: center; }
+          .fee-summary { margin-top: 18px; width: 320px; margin-left: auto; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; }
+          .fee-summary .row { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 12px; color: #3f3f46; border-bottom: 1px solid #e5e5e5; }
           .fee-summary .row:last-child { border-bottom: 0; }
           .fee-summary .row.discount { color: #c2410c; }
-          .fee-summary .row.total { background: #102a43; color: white; font-weight: 700; font-size: 14px; border-bottom: 0; }
-          .terms { margin: 28px 0 16px; padding: 14px 16px; border: 1px solid #d9e2ec; border-radius: 8px; background: #fafbfd; }
-          .terms h3 { margin: 0 0 8px 0; color: #334e68; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-          .terms p { color: #486581; font-size: 10.5px; line-height: 1.65; margin: 3px 0; }
-          .terms-hebrew { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #bcccdc; direction: rtl; text-align: right; }
+          .fee-summary .row.total { background: #141417; color: #ffffff; font-weight: 700; font-size: 14px; border-bottom: 0; }
+          .terms { margin: 28px 0 16px; padding: 14px 16px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafafa; }
+          .terms h3 { margin: 0 0 8px 0; color: #141417; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+          .terms p { color: #3f3f46; font-size: 10.5px; line-height: 1.65; margin: 3px 0; }
+          .terms-hebrew { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #d4d4d8; direction: rtl; text-align: right; }
           .terms-hebrew p { font-size: 10.5px; }
           .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin: 30px 0 12px; }
-          .sig-block p { margin: 0 0 22px 0; color: #334e68; font-size: 12px; font-weight: 600; }
-          .sig-line { border-bottom: 1px solid #334e68; height: 40px; }
-          .sig-caption { margin-top: 4px; font-size: 10px; color: #829ab1; }
-          .footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid #d9e2ec; text-align: center; color: #829ab1; font-size: 10px; line-height: 1.6; }
-          .footer strong { color: #627d98; }
+          .sig-block p { margin: 0 0 22px 0; color: #141417; font-size: 12px; font-weight: 600; }
+          .sig-line { border-bottom: 1px solid #141417; height: 40px; }
+          .sig-caption { margin-top: 4px; font-size: 10px; color: #a1a1aa; }
+          .footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid #e5e5e5; text-align: center; color: #71717a; font-size: 10px; line-height: 1.6; }
+          .footer strong { color: #3f3f46; }
           @media print {
             body { padding: 18px 22px; }
             .page-break { page-break-before: always; }
@@ -925,12 +924,6 @@ export default function JobsPage() {
               <span class="display-name">${COMPANY_INFO.displayName}</span>
               <span class="legal-name">${COMPANY_INFO.legalName}</span>
             </div>
-          </div>
-          <div class="company-contact">
-            <div>${COMPANY_INFO.address}</div>
-            <div>${COMPANY_INFO.phones.join(' · ')}</div>
-            <div>${COMPANY_INFO.email}</div>
-            <div class="muted">VAT ${COMPANY_INFO.vat}</div>
           </div>
         </div>
 
@@ -973,17 +966,15 @@ export default function JobsPage() {
               <div class="value">${job.total_stones}</div>
             </div>
             <div class="field">
+              <div class="label">Total Certificates</div>
+              <div class="value">${totalCertificates}</div>
+            </div>
+            <div class="field">
               <div class="label">Declared Value</div>
               <div class="value">$${(job.total_value || 0).toLocaleString()}</div>
             </div>
           </div>
         </div>
-
-        ${
-          groupedStonesMap.size > 0
-            ? `<div class="cert-summary"><strong>Certificates:</strong> ${certSummary}</div>`
-            : ''
-        }
 
         <div class="section">
           <h3>Stones</h3>
@@ -1005,7 +996,7 @@ export default function JobsPage() {
               ${groupedRows}
             </tbody>
           </table>
-          <div style="font-size: 10px; color: #829ab1; margin-top: 6px;">Flags: CS = Color Stability Test · Mtd = Mounted in jewellery</div>
+          <div style="font-size: 10px; color: #a1a1aa; margin-top: 6px;">Flags: CS = Color Stability Test · Mtd = Mounted in jewellery</div>
 
           <div class="fee-summary">
             ${
@@ -1020,7 +1011,7 @@ export default function JobsPage() {
 
         ${
           job.notes
-            ? `<div class="section"><h3>Notes</h3><p style="font-size:11px;color:#334e68;margin:0;">${job.notes}</p></div>`
+            ? `<div class="section"><h3>Notes</h3><p style="font-size:11px;color:#3f3f46;margin:0;">${job.notes}</p></div>`
             : ''
         }
 

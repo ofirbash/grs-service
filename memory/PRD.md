@@ -680,6 +680,22 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+## Session: Apr 21, 2026 (later) — Palette Alignment + Print Doc Refinements
+
+User feedback on iteration 21 output led to a follow-up pass:
+
+1. ✅ **Palette aligned to app identity** (charcoal-black `#141417` + red `#E30613`, neutral grays `#3f3f46`/`#71717a`/`#a1a1aa`), replacing the blue-navy `#102a43` palette across:
+   - `/app/frontend/src/app/(dashboard)/dashboard/jobs/page.tsx` (`handlePrintJob`)
+   - `/app/backend/email_templates.py` (`BRAND_NAVY`, `TEXT_BODY`, `TEXT_MUTED`, `BG_SOFT`, `BORDER_SOFT`, body wrapper)
+2. ✅ **Removed redundant top-right company-address block** from the print header (contact info already appears in the footer).
+3. ✅ **Renamed group labels** in the stones table: instead of `Certificate 1 — Pair (2 stones)` the print now shows `pair-1 (2 stones)`, `pair-2 (2 stones)`, `layout-1 (5 stones)`, `single-1`, `multi-stone-1`. Numbering is per-type.
+4. ✅ **Removed the amber "Certificates:" summary banner** from the header area.
+5. ✅ **Added `Total Certificates` field** to the Job Summary grid (value = `groups + ungrouped_stones`). Grid widened to 5 columns.
+
+All five items verified visually by rendering the print HTML and both `stones_accepted` + `stones_returned` email previews against the preview URL.
+
+---
+
 ## Upcoming Tasks (P1)
 - Refine dashboard for clients and for admin (further polish)
 - SMS and/or WhatsApp notifications integration (WhatsApp via Pulseem — pending user request)

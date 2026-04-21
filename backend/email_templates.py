@@ -11,12 +11,14 @@ import os
 # consistent across Print, Email and SMS templates).
 # ---------------------------------------------------------------------------
 
-BRAND_NAVY = "#102a43"
-BRAND_NAVY_DARK = "#0b1f3b"
+BRAND_NAVY = "#141417"
+BRAND_NAVY_DARK = "#09090b"
+BRAND_RED = "#E30613"
 BRAND_ACCENT = "#c2410c"  # warm accent used for "due" highlights
-TEXT_BODY = "#334e68"
-TEXT_MUTED = "#627d98"
-BG_SOFT = "#f0f4f8"
+TEXT_BODY = "#3f3f46"
+TEXT_MUTED = "#71717a"
+BG_SOFT = "#f5f5f5"
+BORDER_SOFT = "#e5e5e5"
 
 COMPANY_DISPLAY_NAME = "Bashari Lab-Direct"
 COMPANY_LEGAL_NAME = "Eliyahu Bashari Diamonds LTD"
@@ -46,9 +48,9 @@ def _header_html() -> str:
               <td valign="middle" style="text-align: left;">
                 <img src="{LOGO_URL}" alt="{COMPANY_DISPLAY_NAME}" height="36" style="display: block; height: 36px; width: auto;" />
               </td>
-              <td valign="middle" style="text-align: right; color: #cbd5e1; font-family: Arial, sans-serif; font-size: 12px;">
+              <td valign="middle" style="text-align: right; color: #d4d4d8; font-family: Arial, sans-serif; font-size: 12px;">
                 <div style="color: #ffffff; font-weight: 700; font-size: 14px;">{COMPANY_DISPLAY_NAME}</div>
-                <div style="color: #94a3b8; font-size: 11px; margin-top: 2px;">Gemstone Lab &amp; Certification</div>
+                <div style="color: #a1a1aa; font-size: 11px; margin-top: 2px;">Gemstone Lab &amp; Certification</div>
               </td>
             </tr>
           </table>
@@ -68,7 +70,7 @@ def _footer_html() -> str:
           <div>{COMPANY_ADDRESS}</div>
           <div>{phones}</div>
           <div><a href="mailto:{COMPANY_EMAIL}" style="color: {BRAND_NAVY}; text-decoration: none;">{COMPANY_EMAIL}</a> &nbsp;·&nbsp; VAT {COMPANY_VAT}</div>
-          <div style="margin-top: 10px; color: #94a3b8; font-size: 10px;">This is an automated message from {COMPANY_DISPLAY_NAME}. Please do not reply to this email — use the contact details above.</div>
+          <div style="margin-top: 10px; color: #a1a1aa; font-size: 10px;">This is an automated message from {COMPANY_DISPLAY_NAME}. Please do not reply to this email — use the contact details above.</div>
         </td>
       </tr>
     </table>
@@ -480,11 +482,11 @@ def build_notification_email_html(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{subject}</title>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.55; margin: 0; padding: 0; background-color: #f3f4f6;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 24px 0;">
+<body style="font-family: Arial, sans-serif; line-height: 1.55; margin: 0; padding: 0; background-color: #f5f5f5;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 24px 0;">
       <tr>
         <td align="center">
-          <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width: 620px; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(16, 42, 67, 0.08);">
+          <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="max-width: 620px; background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(20, 20, 23, 0.08);">
             <tr><td>{_header_html()}</td></tr>
             <tr><td>{body}</td></tr>
             <tr><td>{_footer_html()}</td></tr>
