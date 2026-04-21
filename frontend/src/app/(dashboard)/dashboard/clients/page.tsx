@@ -340,22 +340,24 @@ export default function ClientsPage() {
               )}
             </Button>
           )}
-          <Button
-            onClick={() => {
-              // Auto-set branch and phone prefix based on user
-              const defaultBranch = user?.branch_id || selectedBranchId || '';
-              const dp = defaultBranch ? getDefaultPrefix(defaultBranch, branches) : '+972';
-              setFormData(prev => ({ ...prev, branch_id: defaultBranch }));
-              setPhonePrefix(dp);
-              setSecondaryPhonePrefix(dp);
-              setCreateDialogOpen(true);
-            }}
-            className="bg-navy-900 hover:bg-navy-800"
-            data-testid="create-client-button"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Client
-          </Button>
+          {isSuperAdmin && (
+            <Button
+              onClick={() => {
+                // Auto-set branch and phone prefix based on user
+                const defaultBranch = user?.branch_id || selectedBranchId || '';
+                const dp = defaultBranch ? getDefaultPrefix(defaultBranch, branches) : '+972';
+                setFormData(prev => ({ ...prev, branch_id: defaultBranch }));
+                setPhonePrefix(dp);
+                setSecondaryPhonePrefix(dp);
+                setCreateDialogOpen(true);
+              }}
+              className="bg-navy-900 hover:bg-navy-800"
+              data-testid="create-client-button"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Client
+            </Button>
+          )}
         </div>
       </div>
 

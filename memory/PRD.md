@@ -622,13 +622,71 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+## Session: Apr 21, 2026 — Mobile Fix · Documents & Email Refinement · Welcome Bulk
+
+### Mobile Job Modal Overflow (P0 fix)
+- ✅ Removed `-mx-4 px-4` negative margins from `DialogFooter` in `/app/frontend/src/components/ui/dialog.tsx` that caused the footer to be 32px wider than its container on mobile, producing the horizontal scroll / zoom-in effect.
+- ✅ Verified: on 388×800 mobile viewport, both view mode AND edit mode have `document.documentElement.scrollWidth === window.innerWidth` with no wide offenders.
+
+### Branded Print Document Refinement (P1)
+- ✅ Rewrote `handlePrintJob` in jobs/page.tsx to produce a polished, print-color-safe HTML document.
+- ✅ Added `COMPANY_INFO` constant (display name, legal name, address, phones, email, VAT, logo URL).
+- ✅ Header now has real logo image + display name + legal subline + full contact panel on the right.
+- ✅ Document title reflects job status (Intake Receipt / Job Memo / Completion Memo).
+- ✅ Two party cards (Client / Lab Branch) showing name, address, phone, email — sourced from newly-extended Client & Branch interfaces that include address/phone/email.
+- ✅ Stones table now includes a Flags column (CS = Color Stability Test, Mtd = Mounted) plus certificate group separators.
+- ✅ Fee summary box shows subtotal + discount when applicable, then Total Fee (USD).
+- ✅ Dual signature blocks (Client + Lab Representative) with date fields.
+- ✅ Footer with legal name · address · phones · email · VAT · printed timestamp.
+- ✅ Fixed print color rendering (`-webkit-print-color-adjust: exact`).
+- ✅ UTF-8 charset meta tag to preserve em-dashes and Hebrew legal text.
+
+### Email Template Refinement (P1)
+- ✅ Full rewrite of `/app/backend/email_templates.py` with a consistent branded wrapper (navy header with logo, soft-navy body, legal-name footer with contact + VAT).
+- ✅ Shared building blocks: `_header_html`, `_footer_html`, `_cta_button`, `_job_meta_pill` — used across every notification type.
+- ✅ Re-styled tables to match navy palette; SKU rendered in monospace.
+- ✅ Removed stale `actual_fee` references; introduced `_fees_breakdown_table` with optional Subtotal+Discount+Total.
+- ✅ Each notification now includes a contextual CTA button linking back to the client portal.
+- ✅ Verbal-results table reduced to 6 core columns so it renders well in narrow email clients.
+- ✅ Added new `welcome` notification type.
+
+### Bulk Welcome Email with Admin Selection (P1)
+- ✅ Backend: `GET /api/notifications/welcome/preview?client_id=` returns subject + rendered html_body (optionally personalised).
+- ✅ Backend: `POST /api/notifications/welcome/bulk` accepts `{client_ids: []}`, sends to each, handles:
+  - Invalid ObjectId → status `failed`
+  - Client missing → status `failed`
+  - Client without email → status `skipped`
+  - Resend configured → status `sent` (with resend_id logged)
+  - Resend not configured → status `mocked`
+  - Returns per-client results + summary `{sent, mocked, failed, skipped}`
+  - Writes audit entry to `clients.notification_log` + `last_welcome_sent_at`
+- ✅ Frontend: Clients page super-admin UI
+  - Row checkboxes (desktop + mobile) behind `isSuperAdmin` guard
+  - Header select-all checkbox (`data-testid=client-select-all`)
+  - "Send Welcome Email" button with selection count badge (disabled when none selected)
+  - Preview dialog uses an iframe rendering the actual email (personalised to first selected client) + recipients list
+  - Confirm sends bulk and replaces preview with a results dashboard: counters (Sent/Mocked/Skipped/Failed) + per-client status table with icons
+
+### Code Cleanup
+- ✅ Hid "Add Client" button from customer role on /dashboard/clients for role consistency.
+
+### Testing (iteration_21.json)
+- ✅ 18 new backend tests (welcome preview + bulk + regression of 5 notification types + auth/clients/jobs)
+- ✅ Frontend mobile overflow verified (scrollWidth == innerWidth, view + edit)
+- ✅ Print HTML captured and all 10 content assertions pass
+- ✅ Super-admin welcome dialog flow verified end-to-end
+- ✅ Customer role guard verified (checkboxes + welcome button hidden)
+- ✅ Success rate: **100% (backend + frontend)**
+
+---
+
 ## Upcoming Tasks (P1)
-- Documents refinement (printed docs)
-- Email refinement
-- SMS and/or WhatsApp notifications integration
-- Send welcome emails to all existing customers
-- Refine dashboard for clients and for admin
+- Refine dashboard for clients and for admin (further polish)
+- SMS and/or WhatsApp notifications integration (WhatsApp via Pulseem — pending user request)
 
 ## Future Tasks (P2)
-- Test mobile visibility
-- Prices - finalize (books, layouts etc)
+- Mobile visibility full audit across all pages
+- Prices — finalise (books, layouts etc)
+
+## Blocked
+- Tranzila BIT payments — awaiting App Key & Secret from user
