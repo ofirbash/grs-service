@@ -28,7 +28,7 @@ COMPANY_ADDRESS = (
 COMPANY_PHONES = ["+972-3-7521295", "+972-54-2989805"]
 COMPANY_EMAIL = "grs-il@bashds.com"
 COMPANY_VAT = "513180083"
-LOGO_URL = "https://customer-assets.emergentagent.com/job_stone-erp-mobile/artifacts/38z41zb2_bashari%20logo.png"
+LOGO_URL = "https://customer-assets.emergentagent.com/job_777624e9-9d3b-43c3-b65b-05602d9f9f7d/artifacts/cpw6x0ub_bashari%20logo-square%20copy.jpg"
 
 # Portal URL resolved from env when available so CTA links point to the live app
 PORTAL_URL = os.getenv("PORTAL_URL", "https://bashari-lab-direct.preview.emergentagent.com")
@@ -45,8 +45,12 @@ def _header_html() -> str:
         <td style="padding: 22px 28px;" valign="middle">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              <td valign="middle" style="text-align: left;">
-                <img src="{LOGO_URL}" alt="{COMPANY_DISPLAY_NAME}" height="36" style="display: block; height: 36px; width: auto;" />
+              <td valign="middle" style="text-align: left; width: 60px;">
+                <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+                  <td style="background: #ffffff; border-radius: 8px; padding: 4px; line-height: 0;">
+                    <img src="{LOGO_URL}" alt="{COMPANY_DISPLAY_NAME}" width="40" height="40" style="display: block; width: 40px; height: 40px; object-fit: contain;" />
+                  </td>
+                </tr></table>
               </td>
               <td valign="middle" style="text-align: right; color: #d4d4d8; font-family: Arial, sans-serif; font-size: 12px;">
                 <div style="color: #ffffff; font-weight: 700; font-size: 14px;">{COMPANY_DISPLAY_NAME}</div>

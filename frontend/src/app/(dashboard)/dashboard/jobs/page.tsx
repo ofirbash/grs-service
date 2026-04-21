@@ -253,7 +253,7 @@ const COMPANY_INFO = {
   phones: ['+972-3-7521295', '+972-54-2989805'],
   email: 'grs-il@bashds.com',
   vat: '513180083',
-  logoUrl: '/logos/bashari-full.png',
+  logoUrl: 'https://customer-assets.emergentagent.com/job_777624e9-9d3b-43c3-b65b-05602d9f9f7d/artifacts/cpw6x0ub_bashari%20logo-square%20copy.jpg',
 };
 
 export default function JobsPage() {
@@ -840,7 +840,9 @@ export default function JobsPage() {
     const hasDiscount = (job.discount || 0) > 0;
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const absoluteLogo = origin + COMPANY_INFO.logoUrl;
+    const absoluteLogo = COMPANY_INFO.logoUrl.startsWith('http')
+      ? COMPANY_INFO.logoUrl
+      : origin + COMPANY_INFO.logoUrl;
 
     const formattedDate = new Date(job.created_at).toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -866,7 +868,7 @@ export default function JobsPage() {
           body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 32px 40px; max-width: 900px; margin: 0 auto; color: #141417; line-height: 1.45; }
           .company-header { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 2px solid #141417; }
           .company-brand { display: flex; gap: 14px; align-items: center; }
-          .company-brand img { max-height: 58px; max-width: 180px; object-fit: contain; }
+          .company-brand img { width: 54px; height: 54px; object-fit: contain; border: 1px solid #e5e5e5; border-radius: 6px; padding: 2px; background: #ffffff; }
           .company-brand .name-block { display: flex; flex-direction: column; }
           .company-brand .display-name { font-size: 20px; font-weight: 700; color: #141417; }
           .company-brand .legal-name { font-size: 11px; color: #71717a; }
