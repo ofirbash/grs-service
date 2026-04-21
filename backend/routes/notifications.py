@@ -383,3 +383,149 @@ async def preview_sms(job_id: str, notification_type: str, user: dict = Depends(
         "has_phone": bool(phone),
     }
 
+
+# ---------------------------------------------------------------------------
+# Welcome email (bulk-able) — separate from job-scoped notifications
+# ---------------------------------------------------------------------------
+
+from pydantic import BaseModel
+from typing import List
+
+
+class WelcomeBulkRequest(BaseModel):
+    client_ids: List[str]
+
+
+@router.get("/notifications/welcome/preview")
+async def preview_welcome_email(client_id: str = "", user: dict = Depends(require_admin)):
+    """Return a rendered preview of the welcome email. If client_id is supplied, personalises it."""
+    client = {"name": "Valued Customer", "email": "customer@example.com"}
+    if client_id:
+        found = await db.clients.find_one({"_id": ObjectId(client_id)})
+        if found:
+            client = {
+                "name": found.get("name") or "Valued Customer",
+                "email": found.get("email") or "",
+            }
+
+    subject, html_body = build_notification_email_html(
+        "welcome", job={"job_number": "—", "stones": []}, client=client
+    )
+    return {
+        "subject": subject,
+        "html_body": html_body,
+        "recipient_email": client.get("email", ""),
+        "recipient_name": client.get("name", ""),
+    }
+
+
+@router.post("/notifications/welcome/bulk")
+async def send_welcome_emails_bulk(payload: WelcomeBulkRequest, user: dict = Depends(require_admin)):
+    """Send the welcome email to a list of clients (admin-selected).
+
+    Returns a per-client summary so the admin UI can show which ones sent
+    successfully and which failed (missing email, Resend error, etc.).
+    """
+    if not payload.client_ids:
+        raise HTTPException(status_code=400, detail="client_ids is required")
+
+    results = []
+    for raw_id in payload.client_ids:
+        try:
+            client = await db.clients.find_one({"_id": ObjectId(raw_id)})
+        except Exception:
+            results.append({"client_id": raw_id, "status": "failed", "error": "Invalid client id"})
+            continue
+
+        if not client:
+            results.append({"client_id": raw_id, "status": "failed", "error": "Client not found"})
+            continue
+
+        recipient = client.get("email")
+        if not recipient:
+            results.append({
+                "client_id": raw_id,
+                "name": client.get("name"),
+                "status": "skipped",
+                "error": "No email on file",
+            })
+            continue
+
+        subject, html_body = build_notification_email_html(
+            "welcome",
+            job={"job_number": "—", "stones": []},
+            client={"name": client.get("name"), "email": recipient},
+        )
+
+        log_entry = {
+            "id": str(uuid.uuid4()),
+            "notification_type": "welcome",
+            "sent_at": datetime.utcnow(),
+            "sent_by": user.get("full_name") or user.get("email"),
+            "recipient_email": recipient,
+            "subject": subject,
+            "status": "pending",
+        }
+
+        if resend.api_key:
+            try:
+                branch_sender = SENDER_EMAIL
+                if client.get("branch_id"):
+                    branch = await db.branches.find_one({"_id": ObjectId(client["branch_id"])})
+                    if branch and branch.get("email"):
+                        branch_sender = f"{branch.get('sender_name', branch.get('name', 'GRS'))} <{branch['email']}>"
+
+                response = resend.Emails.send({
+                    "from": branch_sender,
+                    "reply_to": branch_sender,
+                    "to": [recipient],
+                    "subject": subject,
+                    "html": html_body,
+                })
+                log_entry["status"] = "sent"
+                log_entry["resend_id"] = response.get("id") if isinstance(response, dict) else str(response)
+                results.append({
+                    "client_id": raw_id,
+                    "name": client.get("name"),
+                    "email": recipient,
+                    "status": "sent",
+                })
+            except Exception as e:
+                log_entry["status"] = "failed"
+                log_entry["error"] = str(e)
+                logger.error(f"Welcome email to {recipient} failed: {e}")
+                results.append({
+                    "client_id": raw_id,
+                    "name": client.get("name"),
+                    "email": recipient,
+                    "status": "failed",
+                    "error": str(e),
+                })
+        else:
+            log_entry["status"] = "mocked"
+            logger.info(f"[MOCK WELCOME EMAIL] To: {recipient}")
+            results.append({
+                "client_id": raw_id,
+                "name": client.get("name"),
+                "email": recipient,
+                "status": "mocked",
+            })
+
+        # Record on the client document so admin has an audit trail
+        await db.clients.update_one(
+            {"_id": ObjectId(raw_id)},
+            {
+                "$push": {"notification_log": log_entry},
+                "$set": {"last_welcome_sent_at": datetime.utcnow()},
+            },
+        )
+
+    summary = {
+        "sent": sum(1 for r in results if r["status"] == "sent"),
+        "mocked": sum(1 for r in results if r["status"] == "mocked"),
+        "failed": sum(1 for r in results if r["status"] == "failed"),
+        "skipped": sum(1 for r in results if r["status"] == "skipped"),
+    }
+
+    return {"results": results, "summary": summary}
+

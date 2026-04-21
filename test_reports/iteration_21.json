@@ -1,0 +1,93 @@
+{
+  "summary": "Iteration 21 regression + new feature testing: welcome email (preview + bulk send), branded job print document, and mobile job modal overflow fix. Backend: 18/18 new pytest tests pass (preview personalised, bulk validation on empty list, invalid ObjectId, mixed valid/invalid with skipped no-email entries, all 5 job notification types, auth+clients+jobs regression). Frontend: mobile job modal (388x800) scrollWidth==innerWidth in both view and edit modes (overflow=0, no wide offenders). Desktop Print button captured HTML passes ALL 10 required checks (charset, legal name, Israel Diamond Exchange, VAT 513180083, /logos/bashari-full.png, doc title, Flags col, Total Fee (USD), dual signatures). Super-admin Clients page: Send Welcome Email button initially disabled, data-testid=client-select-all present, after selecting 1 row button enables and shows count badge '1', dialog opens with welcome-email-dialog + welcome-email-preview iframe. Customer role cannot see the button, header select-all, or per-row checkboxes (isSuperAdmin guard verified).",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/dashboard/clients (customer role)", "issues": ["'Add Client' button is still visible to a customer user even though they have no clients. Minor/pre-existing — not in scope of this iteration, but worth hiding via isSuperAdmin guard for consistency with the new welcome-email guard."]}
+    ]
+  },
+
+  "passed_tests": [
+    "BE: POST /api/auth/login admin 200 + access_token",
+    "BE: POST /api/auth/login customer 200",
+    "BE: POST /api/auth/login invalid creds 401",
+    "BE: GET /api/clients lists 94 clients",
+    "BE: GET /api/jobs lists jobs",
+    "BE: GET /api/jobs/{id} returns stones+job_number",
+    "BE: GET /api/notifications/welcome/preview returns {subject, html_body, recipient_name, recipient_email}",
+    "BE: GET /api/notifications/welcome/preview?client_id=<valid> html_body contains client name",
+    "BE: GET /api/notifications/welcome/preview requires admin (401/403 unauth)",
+    "BE: POST /api/notifications/welcome/bulk empty list -> 400",
+    "BE: POST /api/notifications/welcome/bulk invalid ObjectId -> per-client status='failed' with 'Invalid client id'",
+    "BE: POST /api/notifications/welcome/bulk mixed ids returns per-client results + summary {sent,mocked,failed,skipped}",
+    "BE: Bulk — client with no email -> status 'skipped'",
+    "BE: Bulk — valid client with email -> status 'sent' (RESEND_API_KEY is configured)",
+    "BE: POST /api/notifications/welcome/bulk requires admin",
+    "BE: GET /api/jobs/{id}/notifications/preview/stones_accepted OK, html_body non-empty, subject contains 'Job #'",
+    "BE: GET /api/jobs/{id}/notifications/preview/verbal_uploaded OK",
+    "BE: GET /api/jobs/{id}/notifications/preview/stones_returned OK",
+    "BE: GET /api/jobs/{id}/notifications/preview/cert_uploaded OK",
+    "BE: GET /api/jobs/{id}/notifications/preview/cert_returned OK",
+    "FE: /dashboard/jobs mobile 388x800 — opened Job #24 dialog, scrollWidth=388 == innerWidth=388, overflow=0, wide-element offenders=[]",
+    "FE: /dashboard/jobs mobile 388x800 — Edit mode: scrollWidth=388 == innerWidth=388, overflow=0, wide-element offenders=[]",
+    "FE: Desktop Print captured HTML contains <meta charset=\"utf-8\">",
+    "FE: Print HTML contains 'Eliyahu Bashari Diamonds LTD'",
+    "FE: Print HTML contains 'Israel Diamond Exchange'",
+    "FE: Print HTML contains VAT '513180083'",
+    "FE: Print HTML contains logo src '/logos/bashari-full.png'",
+    "FE: Print HTML contains 'Intake Receipt / Memo' or 'Job Memo' title",
+    "FE: Print HTML contains Flags column (CS / Mtd)",
+    "FE: Print HTML contains 'Total Fee (USD)' in fee summary",
+    "FE: Print HTML contains 'Client Signature' and 'Lab Representative' dual signature blocks",
+    "FE: Super-admin Clients page — 'Send Welcome Email' button visible and initially disabled",
+    "FE: data-testid=client-select-all checkbox present",
+    "FE: 94 per-row checkboxes rendered",
+    "FE: Selecting 1 row enables button; button label becomes 'Send Welcome Email 1' (count badge)",
+    "FE: Clicking opens data-testid=welcome-email-dialog with recipient list and data-testid=welcome-email-preview iframe",
+    "FE: Customer role on /dashboard/clients — Send Welcome Email button NOT visible, client-select-all NOT present, row checkboxes count=0"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_welcome_email.py",
+    "/app/test_reports/pytest/welcome_email_results.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [
+    "Welcome-email preview + bulk endpoints are cleanly admin-gated, validate empty list, handle invalid ObjectId, and differentiate skipped/sent/mocked properly. No 500s observed.",
+    "Bulk endpoint branches on resend.api_key to choose 'sent' vs 'mocked' — correct behavior. Audit trail written to clients.notification_log with last_welcome_sent_at.",
+    "Print job HTML correctly interpolates COMPANY_INFO (legal name, exchange address, VAT, logo) and shows dual signatures — matches spec.",
+    "Dialog mobile overflow fix is effective (removed -mx-4 px-4 on DialogFooter). scrollWidth==innerWidth verified in view AND edit modes.",
+    "isSuperAdmin guard on Clients page correctly hides welcome-email UI and per-row/header checkboxes for customer role.",
+    "Pre-existing minor: 'Add Client' button still shown to customers on /dashboard/clients — recommend guarding behind isSuperAdmin for consistency (out of scope for this iteration)."
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_welcome_email.py (new)"
+  ],
+
+  "success_rate": {
+    "backend": "100% (18/18 new tests passed; previous 39 regression endpoints covered)",
+    "frontend": "100% (all mobile-overflow, print, welcome-email-dialog, customer-guard checks passed)"
+  },
+
+  "test_credentials": {
+    "admin": "admin@bashari.com / admin123",
+    "customer": "customer@test.com / customer123"
+  },
+
+  "seed_data_creation": "No seeded data added. One welcome email was actually sent by Resend during test_mixed_valid_and_invalid to a test-looking client (email containing 'ofir1'/'ofir3'/'test'/'updated'); this is intentional and matches agent-to-agent context guidance.",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "All iteration 21 features verified. Backend regression suite: /app/backend/tests/test_welcome_email.py (18 tests). Live send: RESEND_API_KEY is configured so bulk returns status='sent' for valid-email clients; when running repeatedly, target only clients whose email contains 'ofir1'/'ofir2'/'ofir3'/'test'/'updated'/'example.com' to avoid emailing real customers. Safe client (iter 20 note): ofir1@bashds.com (client_id 699d74286ed929c698bfe682). Frontend data-testids confirmed: client-select-all, welcome-email-dialog, welcome-email-preview. Print HTML capture technique: override window.open before clicking Print to collect document.write payload."
+}

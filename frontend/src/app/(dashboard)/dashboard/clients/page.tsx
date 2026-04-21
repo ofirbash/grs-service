@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { clientsApi, branchesApi, authApi } from '@/lib/api';
+import { clientsApi, branchesApi, authApi, notificationsApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, Plus, Search, Loader2, Pencil, FileText, KeyRound } from 'lucide-react';
+import { Users, Plus, Search, Loader2, Pencil, FileText, KeyRound, Mail, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -117,6 +117,70 @@ export default function ClientsPage() {
   });
   const [editPhonePrefix, setEditPhonePrefix] = useState('+972');
   const [editSecondaryPhonePrefix, setEditSecondaryPhonePrefix] = useState('+972');
+
+  // Welcome email selection state
+  const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
+  const [welcomeDialogOpen, setWelcomeDialogOpen] = useState(false);
+  const [welcomePreviewHtml, setWelcomePreviewHtml] = useState('');
+  const [welcomeSending, setWelcomeSending] = useState(false);
+  const [welcomeResults, setWelcomeResults] = useState<Array<{ client_id: string; name?: string; email?: string; status: string; error?: string }> | null>(null);
+  const [welcomeSummary, setWelcomeSummary] = useState<{ sent: number; mocked: number; failed: number; skipped: number } | null>(null);
+
+  const toggleClientSelected = (clientId: string) => {
+    setSelectedClientIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(clientId)) next.delete(clientId);
+      else next.add(clientId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (clientIds: string[]) => {
+    setSelectedClientIds((prev) => {
+      const allSelected = clientIds.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        clientIds.forEach((id) => next.delete(id));
+      } else {
+        clientIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const openWelcomeDialog = async () => {
+    if (selectedClientIds.size === 0) return;
+    setWelcomeResults(null);
+    setWelcomeSummary(null);
+    try {
+      // Preview using the first selected client (so preview reflects real personalisation)
+      const firstId = Array.from(selectedClientIds)[0];
+      const preview = await notificationsApi.previewWelcome(firstId);
+      setWelcomePreviewHtml(preview.html_body || '');
+    } catch (e) {
+      console.error('Welcome preview failed:', e);
+      setWelcomePreviewHtml('<p style="color:#c2410c;padding:20px;">Preview unavailable</p>');
+    }
+    setWelcomeDialogOpen(true);
+  };
+
+  const handleSendWelcome = async () => {
+    setWelcomeSending(true);
+    try {
+      const ids = Array.from(selectedClientIds);
+      const res = await notificationsApi.sendWelcomeBulk(ids);
+      setWelcomeResults(res.results || []);
+      setWelcomeSummary(res.summary || null);
+      // Clear selections on success (keep dialog open to show results)
+      setSelectedClientIds(new Set());
+    } catch (e) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      console.error('Send welcome failed:', e);
+      alert(err?.response?.data?.detail || 'Failed to send welcome emails');
+    } finally {
+      setWelcomeSending(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -258,22 +322,41 @@ export default function ClientsPage() {
           <h2 className="text-2xl font-bold text-navy-900">Clients</h2>
           <p className="text-navy-600">Manage your client database</p>
         </div>
-        <Button
-          onClick={() => {
-            // Auto-set branch and phone prefix based on user
-            const defaultBranch = user?.branch_id || selectedBranchId || '';
-            const dp = defaultBranch ? getDefaultPrefix(defaultBranch, branches) : '+972';
-            setFormData(prev => ({ ...prev, branch_id: defaultBranch }));
-            setPhonePrefix(dp);
-            setSecondaryPhonePrefix(dp);
-            setCreateDialogOpen(true);
-          }}
-          className="bg-navy-900 hover:bg-navy-800"
-          data-testid="create-client-button"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Client
-        </Button>
+        <div className="flex items-center gap-2">
+          {isSuperAdmin && (
+            <Button
+              variant="outline"
+              onClick={openWelcomeDialog}
+              disabled={selectedClientIds.size === 0}
+              className="border-navy-300 text-navy-900 hover:bg-navy-50 disabled:opacity-50"
+              data-testid="send-welcome-email-button"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Send Welcome Email
+              {selectedClientIds.size > 0 && (
+                <Badge variant="secondary" className="ml-2 bg-navy-900 text-white text-[10px] px-1.5 py-0">
+                  {selectedClientIds.size}
+                </Badge>
+              )}
+            </Button>
+          )}
+          <Button
+            onClick={() => {
+              // Auto-set branch and phone prefix based on user
+              const defaultBranch = user?.branch_id || selectedBranchId || '';
+              const dp = defaultBranch ? getDefaultPrefix(defaultBranch, branches) : '+972';
+              setFormData(prev => ({ ...prev, branch_id: defaultBranch }));
+              setPhonePrefix(dp);
+              setSecondaryPhonePrefix(dp);
+              setCreateDialogOpen(true);
+            }}
+            className="bg-navy-900 hover:bg-navy-800"
+            data-testid="create-client-button"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Client
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -335,7 +418,19 @@ export default function ClientsPage() {
                   className="border border-navy-200 rounded-lg p-3"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="font-semibold text-navy-900 text-sm">{client.name}</div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {isSuperAdmin && (
+                        <input
+                          type="checkbox"
+                          checked={selectedClientIds.has(client.id)}
+                          onChange={() => toggleClientSelected(client.id)}
+                          className="h-4 w-4 rounded border-navy-300 accent-navy-900 flex-shrink-0"
+                          data-testid={`client-select-mobile-${client.id}`}
+                          aria-label={`Select ${client.name}`}
+                        />
+                      )}
+                      <div className="font-semibold text-navy-900 text-sm truncate">{client.name}</div>
+                    </div>
                     <Button variant="ghost" size="sm" onClick={() => openEditDialog(client)} className="h-7 w-7 p-0">
                       <Pencil className="h-3 w-3 text-navy-600" />
                     </Button>
@@ -355,6 +450,21 @@ export default function ClientsPage() {
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow className="bg-navy-50">
+                    {isSuperAdmin && (
+                      <TableHead className="w-[40px]">
+                        <input
+                          type="checkbox"
+                          checked={
+                            filteredClients.length > 0 &&
+                            filteredClients.every((c) => selectedClientIds.has(c.id))
+                          }
+                          onChange={() => toggleSelectAll(filteredClients.map((c) => c.id))}
+                          className="h-4 w-4 rounded border-navy-300 accent-navy-900"
+                          data-testid="client-select-all"
+                          aria-label="Select all clients"
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="font-semibold text-navy-700 w-[15%]">Name</TableHead>
                     <TableHead className="font-semibold text-navy-700 w-[20%]">Email</TableHead>
                     <TableHead className="font-semibold text-navy-700 w-[15%]">Phone</TableHead>
@@ -371,6 +481,18 @@ export default function ClientsPage() {
                       className="hover:bg-navy-50"
                       data-testid={`client-row-${client.id}`}
                     >
+                      {isSuperAdmin && (
+                        <TableCell className="w-[40px]">
+                          <input
+                            type="checkbox"
+                            checked={selectedClientIds.has(client.id)}
+                            onChange={() => toggleClientSelected(client.id)}
+                            className="h-4 w-4 rounded border-navy-300 accent-navy-900"
+                            data-testid={`client-select-${client.id}`}
+                            aria-label={`Select ${client.name}`}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium text-navy-900 truncate">{client.name}</TableCell>
                       <TableCell className="text-navy-600 truncate">
                         <span className="truncate block">{client.email}</span>
@@ -813,6 +935,135 @@ export default function ClientsPage() {
                 'Save Changes'
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Welcome Email Dialog */}
+      <Dialog
+        open={welcomeDialogOpen}
+        onOpenChange={(open) => {
+          setWelcomeDialogOpen(open);
+          if (!open) {
+            setWelcomeResults(null);
+            setWelcomeSummary(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col" data-testid="welcome-email-dialog">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-navy-900 flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              {welcomeResults ? 'Welcome Emails Sent' : 'Send Welcome Email'}
+            </DialogTitle>
+            <DialogDescription>
+              {welcomeResults
+                ? 'Review the delivery status below. Clients without an email on file were skipped.'
+                : `This will send a branded welcome message to ${selectedClientIds.size} selected client${selectedClientIds.size === 1 ? '' : 's'}. Preview below before confirming.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-4 py-2">
+            {welcomeResults ? (
+              <div className="space-y-3">
+                {welcomeSummary && (
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div className="rounded-md bg-emerald-50 border border-emerald-200 p-3">
+                      <div className="text-2xl font-bold text-emerald-700">{welcomeSummary.sent}</div>
+                      <div className="text-[11px] uppercase tracking-wide text-emerald-800">Sent</div>
+                    </div>
+                    <div className="rounded-md bg-sky-50 border border-sky-200 p-3">
+                      <div className="text-2xl font-bold text-sky-700">{welcomeSummary.mocked}</div>
+                      <div className="text-[11px] uppercase tracking-wide text-sky-800">Mocked</div>
+                    </div>
+                    <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+                      <div className="text-2xl font-bold text-amber-700">{welcomeSummary.skipped}</div>
+                      <div className="text-[11px] uppercase tracking-wide text-amber-800">Skipped</div>
+                    </div>
+                    <div className="rounded-md bg-red-50 border border-red-200 p-3">
+                      <div className="text-2xl font-bold text-red-700">{welcomeSummary.failed}</div>
+                      <div className="text-[11px] uppercase tracking-wide text-red-800">Failed</div>
+                    </div>
+                  </div>
+                )}
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-navy-50">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-navy-700 font-semibold">Client</th>
+                        <th className="text-left px-3 py-2 text-navy-700 font-semibold">Email</th>
+                        <th className="text-left px-3 py-2 text-navy-700 font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {welcomeResults.map((r) => (
+                        <tr key={r.client_id} className="border-t border-navy-100" data-testid={`welcome-result-${r.client_id}`}>
+                          <td className="px-3 py-2 text-navy-900">{r.name || r.client_id}</td>
+                          <td className="px-3 py-2 text-navy-600">{r.email || '—'}</td>
+                          <td className="px-3 py-2">
+                            {r.status === 'sent' && (
+                              <span className="inline-flex items-center gap-1 text-emerald-700 text-xs">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Sent
+                              </span>
+                            )}
+                            {r.status === 'mocked' && (
+                              <span className="inline-flex items-center gap-1 text-sky-700 text-xs">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Mocked
+                              </span>
+                            )}
+                            {r.status === 'skipped' && (
+                              <span className="inline-flex items-center gap-1 text-amber-700 text-xs" title={r.error || ''}>
+                                <AlertCircle className="h-3.5 w-3.5" /> Skipped{r.error ? ` — ${r.error}` : ''}
+                              </span>
+                            )}
+                            {r.status === 'failed' && (
+                              <span className="inline-flex items-center gap-1 text-red-700 text-xs" title={r.error || ''}>
+                                <XCircle className="h-3.5 w-3.5" /> Failed{r.error ? ` — ${r.error}` : ''}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-md border border-navy-200 bg-navy-50 p-3 text-sm text-navy-700">
+                  Recipients ({selectedClientIds.size}): {clients.filter(c => selectedClientIds.has(c.id)).map(c => c.name).join(', ')}
+                </div>
+                <div className="border border-navy-200 rounded-md overflow-hidden bg-white" style={{ height: 420 }}>
+                  <iframe
+                    srcDoc={welcomePreviewHtml}
+                    title="Welcome email preview"
+                    className="w-full h-full border-0"
+                    sandbox=""
+                    data-testid="welcome-email-preview"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="flex-shrink-0 border-t pt-3 gap-2">
+            <Button variant="outline" onClick={() => setWelcomeDialogOpen(false)} data-testid="welcome-dialog-close">
+              {welcomeResults ? 'Close' : 'Cancel'}
+            </Button>
+            {!welcomeResults && (
+              <Button
+                onClick={handleSendWelcome}
+                disabled={welcomeSending || selectedClientIds.size === 0}
+                className="bg-navy-900 hover:bg-navy-800"
+                data-testid="welcome-dialog-confirm"
+              >
+                {welcomeSending ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+                ) : (
+                  <><Mail className="h-4 w-4 mr-2" />Send to {selectedClientIds.size} client{selectedClientIds.size === 1 ? '' : 's'}</>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

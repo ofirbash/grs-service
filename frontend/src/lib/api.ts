@@ -405,6 +405,18 @@ export const notificationsApi = {
     const response = await api.get('/sms/balance');
     return response.data;
   },
+  previewWelcome: async (clientId?: string) => {
+    const response = await api.get('/notifications/welcome/preview', {
+      params: clientId ? { client_id: clientId } : undefined,
+    });
+    return response.data;
+  },
+  sendWelcomeBulk: async (clientIds: string[]) => {
+    const response = await api.post('/notifications/welcome/bulk', {
+      client_ids: clientIds,
+    });
+    return response.data;
+  },
 };
 
 // Cloudinary Upload API

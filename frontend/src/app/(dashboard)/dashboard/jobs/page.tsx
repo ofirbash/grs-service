@@ -229,16 +229,32 @@ interface Client {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  company?: string;
+  address?: string;
 }
 
 interface Branch {
   id: string;
   name: string;
   code: string;
+  address?: string;
+  phone?: string;
+  email?: string;
 }
 
 const DEFAULT_STONE_TYPES = ['Ruby', 'Sapphire', 'Emerald', 'Diamond', 'Alexandrite', 'Spinel', 'Padparadscha', 'Paraiba', 'Tanzanite', 'Other'];
 const DEFAULT_SHAPES = ['Round', 'Oval', 'Cushion', 'Pear', 'Heart', 'Marquise', 'Princess', 'Emerald Cut', 'Cabochon', 'Other'];
+
+const COMPANY_INFO = {
+  displayName: 'Bashari Lab-Direct',
+  legalName: 'Eliyahu Bashari Diamonds LTD',
+  address: 'Israel Diamond Exchange, Macabbi bld. 23-42, 1 Jabotinsky st. 5252001, Ramat-Gan',
+  phones: ['+972-3-7521295', '+972-54-2989805'],
+  email: 'grs-il@bashds.com',
+  vat: '513180083',
+  logoUrl: '/logos/bashari-full.png',
+};
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
@@ -736,120 +752,214 @@ export default function JobsPage() {
       return;
     }
 
+    // Lookup full client & branch details from loaded state
+    const clientFull = clients.find((c) => c.id === job.client_id);
+    const branchFull = branches.find((b) => b.id === job.branch_id);
+
+    // Determine doc title based on status
+    const docTitle =
+      job.status === 'draft' || job.status === 'pending_stones'
+        ? 'Intake Receipt / Memo'
+        : job.status === 'cert_issued' || job.status === 'done'
+        ? 'Completion Memo'
+        : 'Job Memo';
+
     // Separate ungrouped and grouped stones
-    const ungroupedStones = job.stones.filter(s => !s.certificate_group);
+    const ungroupedStones = job.stones.filter((s) => !s.certificate_group);
     const groupedStonesMap = new Map<number, Stone[]>();
-    job.stones.filter(s => s.certificate_group).forEach(s => {
-      const group = s.certificate_group!;
-      if (!groupedStonesMap.has(group)) groupedStonesMap.set(group, []);
-      groupedStonesMap.get(group)!.push(s);
-    });
-    
-    // Generate certificate summary
+    job.stones
+      .filter((s) => s.certificate_group)
+      .forEach((s) => {
+        const group = s.certificate_group!;
+        if (!groupedStonesMap.has(group)) groupedStonesMap.set(group, []);
+        groupedStonesMap.get(group)!.push(s);
+      });
+
     const certSummaryItems = Array.from(groupedStonesMap.entries())
       .sort(([a], [b]) => a - b)
-      .map(([groupNum, stones]) => `Certificate ${groupNum}: ${stones.length} stone${stones.length > 1 ? 's' : ''} (${getCertificateLabel(stones.length)})`)
+      .map(
+        ([groupNum, stones]) =>
+          `Certificate ${groupNum}: ${stones.length} stone${
+            stones.length > 1 ? 's' : ''
+          } (${getCertificateLabel(stones.length)})`
+      )
       .join(', ');
-    
-    const certSummary = certSummaryItems + (ungroupedStones.length > 0 ? `, ${ungroupedStones.length} ungrouped` : '');
 
-    // Generate ungrouped stones rows
+    const certSummary =
+      certSummaryItems +
+      (ungroupedStones.length > 0
+        ? (certSummaryItems ? ', ' : '') + `${ungroupedStones.length} ungrouped`
+        : '');
+
+    // Build stone rows with CS + Mounted flags
+    const stoneRow = (index: number, stone: Stone, isGrouped: boolean) => {
+      const flags: string[] = [];
+      if (stone.color_stability_test) flags.push('CS');
+      if (stone.mounted) flags.push('Mtd');
+      const flagsStr = flags.length > 0 ? flags.join(', ') : '—';
+      return `
+        <tr class="${isGrouped ? 'grouped-row' : ''}">
+          <td>${index}</td>
+          <td>${stone.sku}</td>
+          <td>${stone.stone_type}</td>
+          <td>${stone.weight} ct</td>
+          <td>${stone.shape}</td>
+          <td class="flags">${flagsStr}</td>
+          <td>$${stone.value.toLocaleString()}</td>
+          <td>$${stone.fee.toLocaleString()}</td>
+        </tr>
+      `;
+    };
+
     let rowIndex = 1;
-    const ungroupedRows = ungroupedStones.map((stone) => `
-      <tr>
-        <td>${rowIndex++}</td>
-        <td>${stone.sku}</td>
-        <td>${stone.stone_type}</td>
-        <td>${stone.weight} ct</td>
-        <td>${stone.shape}</td>
-        <td>$${stone.value.toLocaleString()}</td>
-        <td>$${stone.fee.toLocaleString()}</td>
-      </tr>
-    `).join('');
+    const ungroupedRows = ungroupedStones
+      .map((stone) => stoneRow(rowIndex++, stone, false))
+      .join('');
 
-    // Generate grouped stones rows with separator headers
     const groupedRows = Array.from(groupedStonesMap.entries())
       .sort(([a], [b]) => a - b)
       .map(([groupNum, stones]) => {
         const groupHeader = `
           <tr class="group-separator">
-            <td colspan="7">
-              <strong>Certificate ${groupNum}</strong> - ${getCertificateLabel(stones.length)} (${stones.length} stone${stones.length > 1 ? 's' : ''})
+            <td colspan="8">
+              <strong>Certificate ${groupNum}</strong> — ${getCertificateLabel(
+          stones.length
+        )} (${stones.length} stone${stones.length > 1 ? 's' : ''})
             </td>
           </tr>
         `;
-        const stoneRows = stones.map((stone) => `
-          <tr class="grouped-row">
-            <td>${rowIndex++}</td>
-            <td>${stone.sku}</td>
-            <td>${stone.stone_type}</td>
-            <td>${stone.weight} ct</td>
-            <td>${stone.shape}</td>
-            <td>$${stone.value.toLocaleString()}</td>
-            <td>$${stone.fee.toLocaleString()}</td>
-          </tr>
-        `).join('');
+        const stoneRows = stones
+          .map((stone) => stoneRow(rowIndex++, stone, true))
+          .join('');
         return groupHeader + stoneRows;
-      }).join('');
+      })
+      .join('');
+
+    const subtotal = (job.total_fee || 0) + (job.discount || 0);
+    const hasDiscount = (job.discount || 0) > 0;
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const absoluteLogo = origin + COMPANY_INFO.logoUrl;
+
+    const formattedDate = new Date(job.created_at).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const formattedPrintedAt = new Date().toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Job #${job.job_number} - Bashari Lab-Direct</title>
+        <meta charset="utf-8" />
+        <title>Job #${job.job_number} — ${COMPANY_INFO.displayName}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 40px; max-width: 900px; margin: 0 auto; }
-          h1 { color: #102a43; border-bottom: 2px solid #102a43; padding-bottom: 10px; }
-          .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-          .logo { font-size: 24px; font-weight: bold; color: #102a43; }
-          .section { margin: 20px 0; padding: 15px; background: #f0f4f8; border-radius: 8px; }
-          .section h3 { margin: 0 0 10px 0; color: #334e68; }
-          .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
-          .field { margin: 5px 0; }
-          .label { font-weight: bold; color: #486581; font-size: 12px; }
-          .value { color: #102a43; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 32px 40px; max-width: 900px; margin: 0 auto; color: #102a43; line-height: 1.45; }
+          .company-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 2px solid #102a43; }
+          .company-brand { display: flex; gap: 14px; align-items: center; }
+          .company-brand img { max-height: 58px; max-width: 180px; object-fit: contain; }
+          .company-brand .name-block { display: flex; flex-direction: column; }
+          .company-brand .display-name { font-size: 20px; font-weight: 700; color: #102a43; }
+          .company-brand .legal-name { font-size: 11px; color: #627d98; }
+          .company-contact { text-align: right; font-size: 11px; color: #334e68; line-height: 1.55; }
+          .company-contact .muted { color: #829ab1; }
+          .doc-title-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 24px; }
+          .doc-title-bar h1 { margin: 0; font-size: 22px; color: #102a43; letter-spacing: 0.5px; }
+          .doc-title-bar .job-number { font-size: 16px; font-weight: 600; color: #334e68; }
+          .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px; }
+          .party-card { padding: 14px 16px; background: #f0f4f8; border-radius: 8px; }
+          .party-card h3 { margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #486581; }
+          .party-card .name { font-size: 14px; font-weight: 700; color: #102a43; margin-bottom: 4px; }
+          .party-card .line { font-size: 11px; color: #334e68; line-height: 1.55; }
+          .section { margin: 20px 0; }
+          .section h3 { margin: 0 0 10px 0; color: #334e68; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #d9e2ec; padding-bottom: 6px; }
+          .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #f0f4f8; padding: 14px 16px; border-radius: 8px; }
+          .field .label { font-weight: 600; color: #486581; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+          .field .value { color: #102a43; font-size: 13px; font-weight: 500; }
+          .cert-summary { background: #fffbeb; padding: 10px 12px; border-left: 3px solid #d97706; border-radius: 4px; margin: 10px 0; font-size: 11px; color: #78350f; }
+          .cert-summary strong { color: #78350f; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
-          th { background: #102a43; color: white; }
-          tr:nth-child(even):not(.group-separator) { background: #f9f9f9; }
+          th, td { border: 1px solid #d9e2ec; padding: 7px 8px; text-align: left; font-size: 11px; }
+          th { background: #102a43; color: white; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; }
+          tr:nth-child(even):not(.group-separator):not(.grouped-row) { background: #f7fafc; }
           .group-separator { background: #334e68 !important; color: white; }
-          .group-separator td { padding: 6px 8px; border-color: #334e68; }
+          .group-separator td { padding: 5px 8px; border-color: #334e68; font-size: 11px; }
           .grouped-row { background: #f8fafc; }
-          .cert-summary { background: #fef3c7; padding: 12px; border-radius: 6px; margin: 10px 0; }
-          .cert-summary strong { color: #92400e; }
-          .totals { margin-top: 20px; text-align: right; padding: 15px; background: #102a43; color: white; border-radius: 6px; }
-          .totals .item { display: inline-block; margin-left: 30px; }
-          .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ccc; text-align: center; color: #627d98; font-size: 12px; }
-          .terms { margin: 25px 0; padding: 15px; border: 1px solid #d9e2ec; border-radius: 6px; }
-          .terms h3 { margin: 0 0 10px 0; color: #334e68; font-size: 13px; }
-          .terms p { color: #486581; font-size: 11px; line-height: 1.6; margin: 4px 0; }
-          .terms-hebrew { margin-top: 12px; padding-top: 12px; border-top: 1px solid #d9e2ec; direction: rtl; text-align: right; }
-          .terms-hebrew p { font-size: 11px; }
-          .signature { margin: 30px 0; }
-          .signature p { color: #334e68; font-size: 13px; margin-bottom: 8px; }
-          .signature-line { border-bottom: 1px solid #334e68; width: 250px; height: 40px; }
-          @media print { 
-            body { padding: 20px; }
+          .flags { font-weight: 600; color: #065f46; font-size: 10px; text-align: center; }
+          .fee-summary { margin-top: 18px; width: 320px; margin-left: auto; border: 1px solid #d9e2ec; border-radius: 8px; overflow: hidden; }
+          .fee-summary .row { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 12px; color: #334e68; border-bottom: 1px solid #e2e8f0; }
+          .fee-summary .row:last-child { border-bottom: 0; }
+          .fee-summary .row.discount { color: #c2410c; }
+          .fee-summary .row.total { background: #102a43; color: white; font-weight: 700; font-size: 14px; border-bottom: 0; }
+          .terms { margin: 28px 0 16px; padding: 14px 16px; border: 1px solid #d9e2ec; border-radius: 8px; background: #fafbfd; }
+          .terms h3 { margin: 0 0 8px 0; color: #334e68; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+          .terms p { color: #486581; font-size: 10.5px; line-height: 1.65; margin: 3px 0; }
+          .terms-hebrew { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #bcccdc; direction: rtl; text-align: right; }
+          .terms-hebrew p { font-size: 10.5px; }
+          .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin: 30px 0 12px; }
+          .sig-block p { margin: 0 0 22px 0; color: #334e68; font-size: 12px; font-weight: 600; }
+          .sig-line { border-bottom: 1px solid #334e68; height: 40px; }
+          .sig-caption { margin-top: 4px; font-size: 10px; color: #829ab1; }
+          .footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid #d9e2ec; text-align: center; color: #829ab1; font-size: 10px; line-height: 1.6; }
+          .footer strong { color: #627d98; }
+          @media print {
+            body { padding: 18px 22px; }
+            .page-break { page-break-before: always; }
+            .no-print { display: none; }
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="logo">Bashari Lab-Direct</div>
-          <div>Job #${job.job_number}</div>
+        <div class="company-header">
+          <div class="company-brand">
+            <img src="${absoluteLogo}" alt="${COMPANY_INFO.displayName}" onerror="this.style.display='none'" />
+            <div class="name-block">
+              <span class="display-name">${COMPANY_INFO.displayName}</span>
+              <span class="legal-name">${COMPANY_INFO.legalName}</span>
+            </div>
+          </div>
+          <div class="company-contact">
+            <div>${COMPANY_INFO.address}</div>
+            <div>${COMPANY_INFO.phones.join(' · ')}</div>
+            <div>${COMPANY_INFO.email}</div>
+            <div class="muted">VAT ${COMPANY_INFO.vat}</div>
+          </div>
         </div>
-        
+
+        <div class="doc-title-bar">
+          <h1>${docTitle}</h1>
+          <div class="job-number">Job #${job.job_number} · ${formattedDate}</div>
+        </div>
+
+        <div class="parties">
+          <div class="party-card">
+            <h3>Client</h3>
+            <div class="name">${clientFull?.name || job.client_name || 'N/A'}</div>
+            ${clientFull?.company ? `<div class="line">${clientFull.company}</div>` : ''}
+            ${clientFull?.address ? `<div class="line">${clientFull.address}</div>` : ''}
+            ${clientFull?.phone ? `<div class="line">Tel: ${clientFull.phone}</div>` : ''}
+            ${clientFull?.email ? `<div class="line">${clientFull.email}</div>` : ''}
+          </div>
+          <div class="party-card">
+            <h3>Lab Branch</h3>
+            <div class="name">${branchFull?.name || job.branch_name || 'N/A'}</div>
+            ${branchFull?.address ? `<div class="line">${branchFull.address}</div>` : ''}
+            ${branchFull?.phone ? `<div class="line">Tel: ${branchFull.phone}</div>` : ''}
+            ${branchFull?.email ? `<div class="line">${branchFull.email}</div>` : ''}
+          </div>
+        </div>
+
         <div class="section">
-          <h3>Job Details</h3>
-          <div class="grid">
-            <div class="field">
-              <div class="label">Client</div>
-              <div class="value">${job.client_name || 'N/A'}</div>
-            </div>
-            <div class="field">
-              <div class="label">Branch</div>
-              <div class="value">${job.branch_name || 'N/A'}</div>
-            </div>
+          <h3>Job Summary</h3>
+          <div class="meta-grid">
             <div class="field">
               <div class="label">Service Type</div>
               <div class="value">${job.service_type}</div>
@@ -863,31 +973,29 @@ export default function JobsPage() {
               <div class="value">${job.total_stones}</div>
             </div>
             <div class="field">
-              <div class="label">Created</div>
-              <div class="value">${new Date(job.created_at).toLocaleDateString()}</div>
+              <div class="label">Declared Value</div>
+              <div class="value">$${(job.total_value || 0).toLocaleString()}</div>
             </div>
           </div>
         </div>
-        
-        ${groupedStonesMap.size > 0 ? `
-        <div class="section">
-          <h3>Certificate Summary</h3>
-          <div class="cert-summary">
-            <strong>Certificates:</strong> ${certSummary}
-          </div>
-        </div>
-        ` : ''}
-        
+
+        ${
+          groupedStonesMap.size > 0
+            ? `<div class="cert-summary"><strong>Certificates:</strong> ${certSummary}</div>`
+            : ''
+        }
+
         <div class="section">
           <h3>Stones</h3>
           <table>
             <thead>
               <tr>
-                <th>#</th>
+                <th style="width: 28px;">#</th>
                 <th>SKU</th>
                 <th>Type</th>
                 <th>Weight</th>
                 <th>Shape</th>
+                <th style="width: 70px; text-align: center;">Flags</th>
                 <th>Value</th>
                 <th>Fee</th>
               </tr>
@@ -897,50 +1005,71 @@ export default function JobsPage() {
               ${groupedRows}
             </tbody>
           </table>
-          
-          <div class="totals">
-            <div class="item"><strong>Total Stones:</strong> ${job.total_stones}</div>
-            <div class="item"><strong>Total Value:</strong> $${job.total_value.toLocaleString()}</div>
-            <div class="item"><strong>Total Fee:</strong> $${job.total_fee.toLocaleString()}</div>
+          <div style="font-size: 10px; color: #829ab1; margin-top: 6px;">Flags: CS = Color Stability Test · Mtd = Mounted in jewellery</div>
+
+          <div class="fee-summary">
+            ${
+              hasDiscount
+                ? `<div class="row"><span>Subtotal</span><span>$${subtotal.toLocaleString()}</span></div>
+                   <div class="row discount"><span>Discount</span><span>-$${(job.discount || 0).toLocaleString()}</span></div>`
+                : ''
+            }
+            <div class="row total"><span>Total Fee (USD)</span><span>$${(job.total_fee || 0).toLocaleString()}</span></div>
           </div>
         </div>
-        
-        ${job.notes ? `
-        <div class="section">
-          <h3>Notes</h3>
-          <p>${job.notes}</p>
-        </div>
-        ` : ''}
-        
+
+        ${
+          job.notes
+            ? `<div class="section"><h3>Notes</h3><p style="font-size:11px;color:#334e68;margin:0;">${job.notes}</p></div>`
+            : ''
+        }
+
         <div class="terms">
           <h3>Terms & Conditions</h3>
           <p>The customer agrees to pay the above fees immediately upon delivery of the goods, unconditional of results.</p>
           <p>Refusal of payment will justify the non-return of goods to the customer.</p>
           <p>The fees above are an estimated cost of certificates based on details supplied by the customer. The lab will determine the final fees after the inspection of the goods.</p>
-          ${(job.branch_name || '').toLowerCase().includes('israel') ? `
-          <div class="terms-hebrew">
-            <p>הלקוח מתחייב לשלם את העלויות הנקובות לעיל מיד עם מסירת הטובין ללא תלות בתוצאות המעבדה</p>
-            <p>סירוב לשלם את העלויות הנ"ל תהיה עילה מוצדקת לאי החזרת הטובין ללקוח</p>
-            <p>העלויות לעיל הינן הערכה של עלויות התעודות בהתבסס על הנתונים שנמסרו ע"י הלקוח.</p>
-            <p>המחיר הסופי ייקבע ע"י המעבדה לאחר בחינה של הטובין והערכת שוויים</p>
+          ${
+            (branchFull?.name || job.branch_name || '').toLowerCase().includes('israel')
+              ? `<div class="terms-hebrew">
+                  <p>הלקוח מתחייב לשלם את העלויות הנקובות לעיל מיד עם מסירת הטובין ללא תלות בתוצאות המעבדה</p>
+                  <p>סירוב לשלם את העלויות הנ"ל תהיה עילה מוצדקת לאי החזרת הטובין ללקוח</p>
+                  <p>העלויות לעיל הינן הערכה של עלויות התעודות בהתבסס על הנתונים שנמסרו ע"י הלקוח.</p>
+                  <p>המחיר הסופי ייקבע ע"י המעבדה לאחר בחינה של הטובין והערכת שוויים</p>
+                </div>`
+              : ''
+          }
+        </div>
+
+        <div class="signatures">
+          <div class="sig-block">
+            <p>Client Signature</p>
+            <div class="sig-line"></div>
+            <div class="sig-caption">Date: ____________________</div>
           </div>
-          ` : ''}
+          <div class="sig-block">
+            <p>Lab Representative</p>
+            <div class="sig-line"></div>
+            <div class="sig-caption">Date: ____________________</div>
+          </div>
         </div>
-        
-        <div class="signature">
-          <p><strong>Client Signature:</strong></p>
-          <div class="signature-line"></div>
-        </div>
-        
+
         <div class="footer">
-          <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
-          <p>Bashari Lab-Direct</p>
+          <div><strong>${COMPANY_INFO.legalName}</strong> · ${COMPANY_INFO.address}</div>
+          <div>${COMPANY_INFO.phones.join(' · ')} · ${COMPANY_INFO.email} · VAT ${COMPANY_INFO.vat}</div>
+          <div style="margin-top:4px;">Printed ${formattedPrintedAt}</div>
         </div>
+
+        <script>
+          // Wait for logo to load, then print
+          window.addEventListener('load', function() {
+            setTimeout(function() { window.print(); }, 200);
+          });
+        </script>
       </body>
       </html>
     `);
     printWindow.document.close();
-    printWindow.print();
   };
 
   const handleGroupStones = async () => {
