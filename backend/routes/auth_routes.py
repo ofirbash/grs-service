@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends, Body, Request
 from datetime import datetime, timedelta
 from bson import ObjectId
 import uuid
@@ -139,6 +139,59 @@ async def get_current_user_info(user: dict = Depends(get_current_user)):
         two_factor_enabled=user.get("two_factor_enabled", False),
         created_at=user["created_at"]
     )
+
+
+@router.put("/auth/me")
+async def update_my_profile(request: Request, current_user: dict = Depends(get_current_user)):
+    """Update current user's profile. Customers cannot change email."""
+    body = await request.json()
+    update_data: dict = {"updated_at": datetime.utcnow()}
+
+    if "full_name" in body and body["full_name"]:
+        update_data["full_name"] = body["full_name"]
+    if "phone" in body:
+        update_data["phone"] = body["phone"]
+
+    # Only admins can change their own email
+    if "email" in body and body["email"] and current_user["role"] in ["super_admin", "branch_admin"]:
+        update_data["email"] = body["email"].lower()
+
+    if "password" in body and body["password"]:
+        update_data["password_hash"] = get_password_hash(body["password"])
+
+    await db.users.update_one({"_id": current_user["_id"]}, {"$set": update_data})
+
+    # Also update the linked client record if exists
+    if current_user.get("client_id"):
+        client_update: dict = {}
+        if "full_name" in update_data:
+            client_update["name"] = update_data["full_name"]
+        if "phone" in update_data:
+            client_update["phone"] = update_data["phone"]
+        if client_update:
+            try:
+                await db.clients.update_one(
+                    {"_id": ObjectId(current_user["client_id"])},
+                    {"$set": client_update}
+                )
+            except Exception:
+                pass
+
+    updated = await db.users.find_one({"_id": current_user["_id"]})
+    return UserResponse(
+        id=str(updated["_id"]),
+        email=updated["email"],
+        full_name=updated["full_name"],
+        role=updated["role"],
+        branch_id=updated.get("branch_id"),
+        client_id=updated.get("client_id"),
+        phone=updated.get("phone"),
+        email_verified=updated.get("email_verified", False),
+        two_factor_enabled=updated.get("two_factor_enabled", False),
+        created_at=updated["created_at"]
+    )
+
+
 
 
 @router.post("/auth/verify-email/{token}")

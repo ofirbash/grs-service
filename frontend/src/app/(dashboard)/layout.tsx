@@ -28,6 +28,7 @@ import {
   Building,
   MoreHorizontal,
   X,
+  User,
 } from 'lucide-react';
 
 const allNavigation = [
@@ -52,6 +53,7 @@ export default function DashboardLayout({
   const [mounted, setMounted] = useState(false);
   const [branches, setBranches] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const isSuperAdmin = user?.role === 'super_admin';
 
@@ -247,11 +249,43 @@ export default function DashboardLayout({
                 </Select>
               </div>
             )}
-            <span className="text-xs text-navy-500 hidden sm:block">
-              {user?.full_name}
-            </span>
-            <div className="w-7 h-7 bg-navy-900 rounded-full flex items-center justify-center text-white text-xs font-medium">
-              {user?.full_name?.charAt(0) || 'U'}
+            <div className="relative">
+              <button
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+                data-testid="profile-menu-button"
+              >
+                <span className="text-xs text-navy-500 hidden sm:block">
+                  {user?.full_name}
+                </span>
+                <div className="w-7 h-7 bg-navy-900 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                  {user?.full_name?.charAt(0) || 'U'}
+                </div>
+              </button>
+              {profileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-48 bg-white border border-navy-200 rounded-lg shadow-lg py-1">
+                    <button
+                      onClick={() => { setProfileMenuOpen(false); router.push('/dashboard/profile'); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-navy-700 hover:bg-navy-50 transition-colors"
+                      data-testid="profile-link"
+                    >
+                      <User className="h-4 w-4" />
+                      My Profile
+                    </button>
+                    <div className="border-t border-navy-100 my-1" />
+                    <button
+                      onClick={() => { setProfileMenuOpen(false); logout(); router.push('/login'); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      data-testid="header-logout-button"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>

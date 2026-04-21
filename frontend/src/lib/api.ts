@@ -53,6 +53,10 @@ export const authApi = {
     const response = await api.post('/auth/setup-password', { token, password });
     return response.data;
   },
+  updateProfile: async (data: { full_name?: string; phone?: string; email?: string; password?: string }) => {
+    const response = await api.put('/auth/me', data);
+    return response.data;
+  },
   forgotPassword: async (email: string) => {
     const response = await api.post('/auth/forgot-password', { email });
     return response.data;

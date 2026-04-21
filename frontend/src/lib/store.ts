@@ -7,6 +7,7 @@ interface User {
   full_name: string;
   role: string;
   branch_id?: string;
+  phone?: string;
 }
 
 interface AuthState {

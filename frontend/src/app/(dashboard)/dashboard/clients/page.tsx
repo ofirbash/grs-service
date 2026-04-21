@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, Plus, Search, Loader2, Mail, Phone, Building, Pencil, FileText, KeyRound } from 'lucide-react';
+import { Users, Plus, Search, Loader2, Pencil, FileText, KeyRound } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -169,21 +169,32 @@ export default function ClientsPage() {
 
   const openEditDialog = (client: Client) => {
     setEditingClient(client);
+    // Set phone prefixes based on client's branch
+    const dp = getDefaultPrefix(client.branch_id, branches);
+    setEditPhonePrefix(dp);
+    setEditSecondaryPhonePrefix(dp);
+
+    // Strip country code prefix from phone numbers for the input field
+    const stripPrefix = (phone: string) => {
+      for (const c of COUNTRY_PREFIXES) {
+        if (phone.startsWith(c.prefix)) {
+          return phone.slice(c.prefix.length);
+        }
+      }
+      return phone;
+    };
+
     setEditFormData({
       name: client.name,
       email: client.email,
-      phone: client.phone || '',
+      phone: client.phone ? stripPrefix(client.phone) : '',
       secondary_email: client.secondary_email || '',
-      secondary_phone: client.secondary_phone || '',
+      secondary_phone: client.secondary_phone ? stripPrefix(client.secondary_phone) : '',
       company: client.company || '',
       address: client.address || '',
       branch_id: client.branch_id,
       notes: client.notes || '',
     });
-    // Set phone prefixes based on client's branch
-    const dp = getDefaultPrefix(client.branch_id, branches);
-    setEditPhonePrefix(dp);
-    setEditSecondaryPhonePrefix(dp);
     setEditDialogOpen(true);
   };
 
@@ -340,17 +351,17 @@ export default function ClientsPage() {
             </div>
 
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
+            <div className="hidden md:block">
+              <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow className="bg-navy-50">
-                    <TableHead className="font-semibold text-navy-700">Name</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Email</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Phone</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Company</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Branch</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Notes</TableHead>
-                    <TableHead className="font-semibold text-navy-700 w-16">Actions</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-[15%]">Name</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-[20%]">Email</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-[15%]">Phone</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-[15%]">Company</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-[10%]">Branch</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-[18%]">Notes</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-[7%]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -360,32 +371,15 @@ export default function ClientsPage() {
                       className="hover:bg-navy-50"
                       data-testid={`client-row-${client.id}`}
                     >
-                      <TableCell className="font-medium text-navy-900">{client.name}</TableCell>
-                      <TableCell className="text-navy-600">
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-navy-400" />
-                          {client.email}
-                        </div>
+                      <TableCell className="font-medium text-navy-900 truncate">{client.name}</TableCell>
+                      <TableCell className="text-navy-600 truncate">
+                        <span className="truncate block">{client.email}</span>
                       </TableCell>
-                      <TableCell className="text-navy-600">
-                        {client.phone ? (
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-navy-400" />
-                            {client.phone}
-                          </div>
-                        ) : (
-                          '-'
-                        )}
+                      <TableCell className="text-navy-600 truncate">
+                        {client.phone ? client.phone : '-'}
                       </TableCell>
-                      <TableCell className="text-navy-600">
-                        {client.company ? (
-                          <div className="flex items-center gap-2">
-                            <Building className="h-4 w-4 text-navy-400" />
-                            {client.company}
-                          </div>
-                        ) : (
-                          '-'
-                        )}
+                      <TableCell className="text-navy-600 truncate">
+                        {client.company || '-'}
                       </TableCell>
                       <TableCell className="text-navy-600">{getBranchName(client.branch_id)}</TableCell>
                       <TableCell className="text-navy-600 max-w-[200px]">
