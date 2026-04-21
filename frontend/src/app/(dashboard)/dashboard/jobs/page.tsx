@@ -1732,7 +1732,7 @@ export default function JobsPage() {
           setSelectedStones([]);
         }
       }}>
-        <DialogContent className="sm:max-w-5xl max-h-[90vh] p-0">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] p-0 !overflow-x-hidden">
           <DialogHeader className="sticky top-0 z-10 bg-white border-b px-6 py-4 shrink-0">
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Job #{selectedJob?.job_number}</span>
