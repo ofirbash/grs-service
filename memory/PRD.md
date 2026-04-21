@@ -698,6 +698,9 @@ All five items verified visually by rendering the print HTML and both `stones_ac
 
 ## Upcoming Tasks (P1)
 - Refine dashboard for clients and for admin (further polish)
+- **Shipments doc** — printable shipment document (similar to the job memo we just polished)
+- **Shipments statuses view** — colour-coded progress pipeline for shipments (analogous to the job status pipeline)
+- **Bulk client notifications per shipment** — allow admin to notify every client whose jobs are part of a given shipment (intake / dispatched / delivered)
 - SMS and/or WhatsApp notifications integration (WhatsApp via Pulseem — pending user request)
 
 ## Future Tasks (P2)
