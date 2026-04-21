@@ -237,8 +237,8 @@ interface Branch {
   code: string;
 }
 
-const STONE_TYPES = ['Ruby', 'Sapphire', 'Emerald', 'Diamond', 'Alexandrite', 'Spinel', 'Padparadscha', 'Paraiba', 'Tanzanite', 'Other'];
-const SHAPES = ['Round', 'Oval', 'Cushion', 'Pear', 'Heart', 'Marquise', 'Princess', 'Emerald Cut', 'Cabochon', 'Other'];
+const DEFAULT_STONE_TYPES = ['Ruby', 'Sapphire', 'Emerald', 'Diamond', 'Alexandrite', 'Spinel', 'Padparadscha', 'Paraiba', 'Tanzanite', 'Other'];
+const DEFAULT_SHAPES = ['Round', 'Oval', 'Cushion', 'Pear', 'Heart', 'Marquise', 'Princess', 'Emerald Cut', 'Cabochon', 'Other'];
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
@@ -260,6 +260,8 @@ export default function JobsPage() {
     }
   }, [searchParams]);
   const [serviceTypes, setServiceTypes] = useState<string[]>(['Express', 'Normal', 'Recheck']);
+  const [stoneTypes, setStoneTypes] = useState<string[]>(DEFAULT_STONE_TYPES);
+  const [shapes, setShapes] = useState<string[]>(DEFAULT_SHAPES);
   const [csFeeCost, setCsFeeCost] = useState(50);
   const [mountedFeeCost, setMountedFeeCost] = useState(50);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -447,6 +449,8 @@ export default function JobsPage() {
       }
       if (pricingData.color_stability_fee != null) setCsFeeCost(pricingData.color_stability_fee);
       if (pricingData.mounted_jewellery_fee != null) setMountedFeeCost(pricingData.mounted_jewellery_fee);
+      if (pricingData.stone_types?.length) setStoneTypes(pricingData.stone_types);
+      if (pricingData.shapes?.length) setShapes(pricingData.shapes);
       
       // Initialize dropdowns if empty
       if (!dropdownData.identification?.length) {
@@ -1637,7 +1641,7 @@ export default function JobsPage() {
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {STONE_TYPES.map((type) => (
+                        {stoneTypes.map((type) => (
                           <SelectItem key={type} value={type}>
                             {type}
                           </SelectItem>
@@ -1663,7 +1667,7 @@ export default function JobsPage() {
                         <SelectValue placeholder="Shape" />
                       </SelectTrigger>
                       <SelectContent>
-                        {SHAPES.map((shape) => (
+                        {shapes.map((shape) => (
                           <SelectItem key={shape} value={shape}>
                             {shape}
                           </SelectItem>
@@ -2493,7 +2497,7 @@ export default function JobsPage() {
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {STONE_TYPES.map((type) => (
+                  {stoneTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -2537,7 +2541,7 @@ export default function JobsPage() {
                   <SelectValue placeholder="Select shape (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {SHAPES.map((shape) => (
+                  {shapes.map((shape) => (
                     <SelectItem key={shape} value={shape}>
                       {shape}
                     </SelectItem>

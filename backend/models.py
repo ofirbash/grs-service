@@ -332,6 +332,8 @@ class PricingUpdateRequest(BaseModel):
     color_stability_fee: float
     mounted_jewellery_fee: float = 50
     service_types: List[str] = ["Express", "Normal", "Recheck"]
+    stone_types: Optional[List[str]] = None
+    shapes: Optional[List[str]] = None
 
 
 # Dropdown Settings
