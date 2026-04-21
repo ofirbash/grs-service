@@ -267,7 +267,7 @@ export default function DashboardPage() {
 
         {isAdmin && (
         <Card
-          className={`border-navy-200 cursor-pointer hover:border-navy-300 transition-all ${clientsPanelOpen ? 'md:col-span-2 lg:col-span-3' : ''}`}
+          className={`border-navy-200 cursor-pointer hover:border-navy-300 transition-all ${clientsPanelOpen ? 'md:col-span-2 lg:col-span-4' : ''}`}
           data-testid="stats-total-clients"
           onClick={async (e) => {
             if ((e.target as HTMLElement).closest('[data-testid^="active-client-"]')) return;
@@ -290,28 +290,28 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           {clientsPanelOpen && (
-            <CardContent className="pt-2 pb-3">
+            <CardContent className="pt-2 pb-3 overflow-hidden">
               <p className="text-xs text-navy-500 mb-2 font-medium">Clients with active jobs</p>
               {activeClients.length === 0 ? (
                 <p className="text-sm text-navy-400 italic py-2">No clients with active jobs</p>
               ) : (
-                <div className="space-y-0.5 max-h-[280px] overflow-y-auto">
+                <div className="space-y-0.5 max-h-[280px] overflow-y-auto overflow-x-hidden">
                   {activeClients.map((client) => (
                     <div
                       key={client.id}
-                      className="flex items-center gap-3 py-2 px-2 -mx-2 rounded cursor-pointer hover:bg-navy-50 transition-colors"
+                      className="flex items-center gap-3 py-2 px-2 -mx-2 rounded cursor-pointer hover:bg-navy-50 transition-colors min-w-0"
                       onClick={() => router.push(`/dashboard/clients`)}
                       data-testid={`active-client-${client.id}`}
                     >
                       <div className="w-7 h-7 rounded-full bg-navy-200 flex items-center justify-center text-[10px] font-bold text-navy-700 shrink-0">
                         {client.name.charAt(0).toUpperCase()}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-navy-900 truncate">{client.name}</span>
                           <span className="text-xs text-navy-500 shrink-0 ml-2">{client.active_jobs} job{client.active_jobs !== 1 ? 's' : ''}</span>
                         </div>
-                        <div className="flex gap-1 mt-0.5">
+                        <div className="flex gap-0.5 mt-0.5 overflow-hidden">
                           {(() => {
                             const statusColors: Record<string, string> = {
                               draft: '#d4dbe4', stones_accepted: '#b8c5d4', sent_to_lab: '#8da2b8',
@@ -320,7 +320,7 @@ export default function DashboardPage() {
                             };
                             const uniqueStatuses = Array.from(new Set(client.statuses));
                             return uniqueStatuses.map((s) => (
-                              <div key={s} className="h-1.5 flex-1 rounded-full" style={{ backgroundColor: statusColors[s] || '#d4dbe4' }} />
+                              <div key={s} className="h-1.5 flex-1 rounded-full min-w-0" style={{ backgroundColor: statusColors[s] || '#d4dbe4' }} />
                             ));
                           })()}
                         </div>
