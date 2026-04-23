@@ -394,10 +394,67 @@ def _render_verbal_uploaded(ctx: dict) -> tuple:
     return subject, body
 
 
+def _build_stones_table(stones: list, title: str) -> str:
+    """Compact Type / Weight / SKU table used for partial-return enumeration."""
+    if not stones:
+        return ""
+    rows = "".join(
+        f'<tr>'
+        f'<td style="padding: 6px 10px; border: 1px solid #e5e7eb; font-size: 12px; color: {BRAND_NAVY};">{s.get("stone_type", "")}</td>'
+        f'<td style="padding: 6px 10px; border: 1px solid #e5e7eb; font-size: 12px; color: {TEXT_BODY};">{s.get("weight", "")} ct</td>'
+        f'<td style="padding: 6px 10px; border: 1px solid #e5e7eb; font-size: 12px; font-family: monospace; color: {TEXT_BODY};">{s.get("sku", "")}</td>'
+        f'</tr>'
+        for s in stones
+    )
+    return (
+        f'<p style="color: {BRAND_NAVY}; font-weight: 600; font-size: 13px; margin: 14px 0 6px;">{title} ({len(stones)})</p>'
+        f'<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse: collapse; width: 100%; margin-bottom: 8px;">'
+        f'<thead><tr>'
+        f'<th style="padding: 6px 10px; border: 1px solid #e5e7eb; background: {BRAND_NAVY}; color: #fff; font-size: 11px; text-align: left;">Type</th>'
+        f'<th style="padding: 6px 10px; border: 1px solid #e5e7eb; background: {BRAND_NAVY}; color: #fff; font-size: 11px; text-align: left;">Weight</th>'
+        f'<th style="padding: 6px 10px; border: 1px solid #e5e7eb; background: {BRAND_NAVY}; color: #fff; font-size: 11px; text-align: left;">SKU</th>'
+        f'</tr></thead>'
+        f'<tbody>{rows}</tbody>'
+        f'</table>'
+    )
+
+
+def _partition_stones_for_return(stones: list) -> tuple:
+    """Split stones into (returned, pending) based on stone_status.
+
+    Legacy stones (without stone_status) are treated as returned — preserves
+    the pre-partial-return behaviour for existing jobs.
+    """
+    tracked = [s for s in stones if "stone_status" in s]
+    if not tracked:
+        return list(stones), []
+    returned = [s for s in stones if s.get("stone_status") == "returned"]
+    pending = [s for s in stones if s.get("stone_status") == "at_lab"]
+    return returned, pending
+
+
+def _partition_stones_for_cert(stones: list) -> tuple:
+    """Split stones into (delivered certs, pending certs) based on cert_status."""
+    tracked = [s for s in stones if "cert_status" in s]
+    if not tracked:
+        return list(stones), []
+    delivered = [s for s in stones if s.get("cert_status") == "delivered"]
+    pending = [s for s in stones if s.get("cert_status") != "delivered"]
+    return delivered, pending
+
+
 def _render_stones_returned(ctx: dict) -> tuple:
     job = ctx["job"]
-    subject = f"Job #{ctx['job_number']} · Stones ready for collection · Payment due"
-    fees_table, amount_due = _fees_breakdown_table(ctx["stones"], job.get("discount", 0))
+    returned, pending = _partition_stones_for_return(ctx["stones"])
+    is_partial = bool(pending)
+    subject = (
+        f"Job #{ctx['job_number']} · Partial return — {len(returned)} of "
+        f"{len(returned) + len(pending)} stones ready"
+        if is_partial
+        else f"Job #{ctx['job_number']} · Stones ready for collection · Payment due"
+    )
+    # Fees table only covers the stones that actually came back in this shipment
+    fees_table, amount_due = _fees_breakdown_table(returned, job.get("discount", 0))
 
     due_banner = f"""
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 18px 0;">
@@ -412,16 +469,29 @@ def _render_stones_returned(ctx: dict) -> tuple:
 
     pay_cta = _cta_button("Pay Now Online", ctx["payment_url"]) if ctx["payment_url"] else ""
 
+    returned_table = _build_stones_table(returned, "Returned in this shipment")
+    pending_table = _build_stones_table(pending, "Still at the lab")
+    pending_note = (
+        '<p style="color: #78350f; font-size: 12px; margin: 4px 0 0;">'
+        'These stones are still undergoing analysis and will be shipped in a follow-up delivery.'
+        '</p>'
+        if is_partial else ""
+    )
+
     body = (
-        _heading("Stones ready for collection")
+        _heading("Partial return — stones ready for collection" if is_partial else "Stones ready for collection")
         + ctx["greeting"]
         + f'<p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">'
-          f'<strong style="color: {BRAND_NAVY};">Your stones have returned to our Israel '
-          f'office and are ready for collection.</strong></p>'
+          f'<strong style="color: {BRAND_NAVY};">'
+          f'{"A portion of your stones have" if is_partial else "Your stones have"} returned '
+          f'to our Israel office and are ready for collection.</strong></p>'
         + _job_meta_pill(job)
+        + returned_table
+        + pending_table
+        + pending_note
         + due_banner
         + pay_cta
-        + _section_h3("Fee breakdown")
+        + _section_h3("Fee breakdown" + (" (for returned stones)" if is_partial else ""))
         + fees_table
         + _muted_note("The detailed invoice is attached to this email.")
     )
@@ -446,8 +516,15 @@ def _render_cert_uploaded(ctx: dict) -> tuple:
 
 def _render_cert_returned(ctx: dict) -> tuple:
     job = ctx["job"]
-    subject = f"Job #{ctx['job_number']} · Physical certificates ready"
-    cert_count = len([s for s in ctx["stones"] if s.get("certificate_scan_url")])
+    delivered, cert_pending = _partition_stones_for_cert(ctx["stones"])
+    is_partial = bool(cert_pending) and bool(delivered)
+    subject = (
+        f"Job #{ctx['job_number']} · Partial certificates ready "
+        f"({len(delivered)} of {len(delivered) + len(cert_pending)})"
+        if is_partial
+        else f"Job #{ctx['job_number']} · Physical certificates ready"
+    )
+    cert_count = len([s for s in delivered if s.get("certificate_scan_url")]) or len(delivered)
 
     green_banner = """
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 18px 0;">
@@ -458,15 +535,29 @@ def _render_cert_returned(ctx: dict) -> tuple:
           </tr>
         </table>
     """
+
+    delivered_table = _build_stones_table(delivered, "Certificates ready") if is_partial else ""
+    pending_table = _build_stones_table(cert_pending, "Certificates still pending") if is_partial else ""
+    pending_note = (
+        '<p style="color: #78350f; font-size: 12px; margin: 4px 0 0;">'
+        'These certificates are still being prepared and will be delivered in a follow-up shipment.'
+        '</p>'
+        if is_partial else ""
+    )
+
     body = (
-        _heading("Physical certificates ready")
+        _heading("Partial certificates ready" if is_partial else "Physical certificates ready")
         + ctx["greeting"]
         + f'<p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">'
-          f'<strong style="color: {BRAND_NAVY};">Your physical certificates have arrived '
-          f'at our office and are ready for final collection.</strong></p>'
+          f'<strong style="color: {BRAND_NAVY};">'
+          f'{"Some of your physical certificates have" if is_partial else "Your physical certificates have"} '
+          f'arrived at our office and are ready for final collection.</strong></p>'
         + green_banner
         + _job_meta_pill(job)
-        + f'<p style="color: {TEXT_BODY}; font-size: 13px; margin: 16px 0 4px;"><strong>Total certificates:</strong> {cert_count}</p>'
+        + delivered_table
+        + pending_table
+        + pending_note
+        + f'<p style="color: {TEXT_BODY}; font-size: 13px; margin: 16px 0 4px;"><strong>Total certificates ready:</strong> {cert_count}</p>'
         + f'<p style="color: {TEXT_BODY}; font-size: 13px;">Thank you for choosing {COMPANY_DISPLAY_NAME} for your gemstone certification.</p>'
         + _cta_button("View Job in Portal", ctx["portal_link"])
     )

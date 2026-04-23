@@ -102,6 +102,7 @@ export const shipmentsApi = {
     destination_address: string;
     tracking_number?: string;
     job_ids?: string[];
+    stone_ids?: string[];
     notes?: string;
   }) => {
     const response = await api.post('/shipments', data);

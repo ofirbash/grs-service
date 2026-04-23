@@ -1,0 +1,59 @@
+{
+  "summary": "Iter 26 partial-return shipments feature tested end-to-end. Backend: 15/15 targeted tests pass (10 pre-existing unit + 5 new live e2e). New-stone status defaults (at_office/pending), send_stones_to_lab delivery flips all to at_lab, PARTIAL stones_from_lab delivery flips only the 2 selected stones to 'returned' while the 3rd stays 'at_lab' and job.status remains unchanged (no cascade), certificates_from_lab partial flips only selected cert_status=delivered, notification preview subject = 'Partial return — 2 of 3 stones ready' with both 'Returned in this shipment' and 'Still at the lab' Type/Weight/SKU tables containing all three SKUs. Legacy job (#1) preview shows old wording (no 'Partial' in subject). Frontend: StoneStatusBadges verified on Job #40 dialog — 4 badges render ('At lab / Cert delivered', 'At lab / Cert pending'). PartialStonesPicker dialog opens and data-testid scaffolding is present; could not fully validate per-group checkbox flow through browser automation (picker renders per-job-after-selection which needs deeper DOM navigation). ONE BACKEND BUG FOUND: POST /api/shipments response omits stone_ids field even though it is persisted correctly (GET returns it). Non-blocking for backend logic but affects frontend immediate-response consumers.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/shipments", "issue": "Response body omits stone_ids field on creation. Server persists stone_ids correctly (verified via GET /api/shipments/{id}) but the inline ShipmentResponse(...) returned at routes/shipments.py:194-212 does not pass stone_ids=list(stone_id_set). Frontend code that reads stone_ids straight off the create response will see []."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dialog accessibility (carryover from iter 23-25)", "issues": ["Radix 'Missing Description or aria-describedby={undefined}' warning still fires on DialogContent."]}
+    ]
+  },
+  "passed_tests": [
+    "10/10 unit tests in tests/test_partial_shipments.py (helpers + lifecycle + email partitioning + legacy backward-compat)",
+    "Live e2e POST /api/jobs with 3 stones → each stone returns stone_status='at_office' and cert_status='pending'",
+    "Live e2e send_stones_to_lab shipment → after status=delivered all 3 stones flip to stone_status='at_lab'",
+    "Live e2e partial stones_from_lab shipment with stone_ids=[s1,s2] → total_stones=2 (stone_ids persisted, verified via GET), after delivery s1+s2='returned', s3='at_lab', job.status unchanged (no cascade)",
+    "Live e2e GET /api/jobs/{id}/notifications/preview/stones_returned → subject 'Job #33 · Partial return — 2 of 3 stones ready'; body contains 'Returned in this shipment (2)' + 'Still at the lab (1)' tables with Type/Weight/SKU; all 3 auto-generated SKUs appear in the correct partition",
+    "Live e2e certificates_from_lab partial → only selected stone cert_status='delivered', others stay 'pending'",
+    "Legacy job #1 (stones without stone_status) → notification preview subject = 'Job #1 · Stones ready for collection · Payment due' (no 'Partial', no 'Still at the lab' section) — backward compat confirmed",
+    "Frontend: Login → /dashboard/jobs → open Job #40 dialog → 4 stone-status badges render (2 stones × per-stone+per-cert badges): 'At lab', 'Cert delivered', 'Cert pending'",
+    "Frontend: /dashboard/shipments → create-shipment-button opens Create New Shipment dialog; shipment-type-select present and functional",
+    "Regression: 49/50 on core pytest set (test_jobs_api + test_notifications_api + test_iter22_refactors + test_partial_shipments* ). The one failure (test_jobs_api::test_valid_statuses) is pre-existing, unrelated to iter 26 (uses retired 'received' status)."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_partial_shipments.py",
+    "/app/backend/tests/test_partial_shipments_e2e.py",
+    "/app/test_reports/pytest/pytest_partial_iter26.xml",
+    "/app/test_reports/pytest/pytest_core_iter26.xml"
+  ],
+  "action_items": [
+    "FIX (minor): In /app/backend/routes/shipments.py create_shipment (lines 194-212), add stone_ids=list(stone_id_set) to the ShipmentResponse(...) constructor so the create response includes the field (currently persisted to DB but absent from POST response body). Simpler alternative: replace the manual constructor with `return await build_shipment_response(shipment_doc)` which already passes stone_ids.",
+    "No other action items. Feature works end-to-end. test_comprehensive_api.py shows pre-existing fixture-login failures (KeyError: 'access_token') unrelated to iter 26; main agent can leave as-is.",
+    "Optional (carryover iter 23-25): add <DialogDescription> to silence Radix aria-describedby warning."
+  ],
+  "critical_code_review_comments": [
+    "routes/shipments.py create_shipment returns ShipmentResponse manually (15 fields) instead of delegating to existing build_shipment_response helper — this duplicates shape and already caused the stone_ids omission bug flagged above. Recommend refactor to `return await build_shipment_response({**shipment_doc, '_id': result.inserted_id})`.",
+    "_apply_stone_lifecycle correctly handles partial vs full vs legacy cases and is well-unit-tested. Good separation via _is_partial_shipment helper.",
+    "email_templates partitioning logic (_partition_stones_for_return / _partition_stones_for_cert) correctly falls back to legacy 'full return' copy when no stone carries the new status field — backward compatibility intact.",
+    "PartialStonesPicker has correct data-testid coverage (partial-stones-picker, select-all-stones, clear-all-stones, picker-job-<n>, picker-group-<n>-<key>, picker-selection-count). Good testability.",
+    "StoneStatusBadges renders two chips per stone (stone_status + cert_status) — verified visually on Job #40."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_partial_shipments_e2e.py (new — 5 live-API e2e tests against public URL)"
+  ],
+  "success_rate": {
+    "backend": "100% on targeted partial-shipment tests (15/15); 98% on core regression set (49/50 — 1 pre-existing unrelated)",
+    "frontend": "Partial — StoneStatusBadges verified; PartialStonesPicker dialog opens and testids exist, full per-group checkbox flow not exhaustively traversed via automation (design requires job-pick first)"
+  },
+  "test_credentials": {"admin": "admin@bashari.com / admin123", "customer": "customer@test.com / customer123"},
+  "seed_data_creation": "Created 3 test jobs (Jobs #33, #34/#40 area) with 'iter26 e2e test' notes and TEST_SKU_* inputs (server regenerated SKUs to SA###J{job_num}## pattern). All jobs linked to 'Updated Test Client'. These remain in the DB — consider cleanup.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iter 26 adds stone_status + cert_status on Stone and stone_ids on Shipment. Key testids: partial-stones-picker, picker-group-<jobNum>-<certKey>, picker-selection-count, stone-status-<stoneId>, create-shipment-button, shipment-type-select. Job #40 is a good test job for badge verification (2 stones, one cert_status=delivered one pending). Backend bug to verify after fix: POST /api/shipments with stone_ids=[...] should include stone_ids in response.",
+  "rca of the issue": "BUG: POST /api/shipments omits stone_ids from response. Root cause: routes/shipments.py create_shipment builds a fresh ShipmentResponse inline (lines 194-212) that was not updated when stone_ids was added to the Shipment model. The build_shipment_response helper (used by GET endpoints) already includes stone_ids (line 119), so the inconsistency is only in create. Reproduction: POST /api/shipments with body containing stone_ids=['a','b'] → response.stone_ids=[]; GET /api/shipments/{id} → stone_ids=['a','b']. Mitigation: add stone_ids=list(stone_id_set) at line 204 OR replace entire manual constructor with `return await build_shipment_response(shipment_doc)` after inserting."
+}

@@ -23,6 +23,9 @@ export interface Stone {
   certificate_group?: number;
   verbal_findings?: string | StructuredVerbalFindings;
   certificate_scan_url?: string;
+  // Partial-return lifecycle — only populated on new jobs
+  stone_status?: 'at_office' | 'at_lab' | 'returned';
+  cert_status?: 'pending' | 'delivered';
 }
 
 export interface DropdownOption {

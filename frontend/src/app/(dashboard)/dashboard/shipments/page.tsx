@@ -59,14 +59,11 @@ import {
 } from 'lucide-react';
 
 import type {
-  Shipment,
-  StructuredVerbalFindings,
-  Stone,
-  Job,
-  DropdownSettings,
+  Shipment, StructuredVerbalFindings, Stone, Job, DropdownSettings,
   ShipmentOptions,
 } from './_types';
 import { printShipmentMemo } from './_print/shipment-memo';
+import { PartialStonesPicker } from './_components/PartialStonesPicker';
 
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -85,6 +82,9 @@ export default function ShipmentsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+  // For partial-return shipments: specific stones within the selected jobs.
+  // Empty => all stones of those jobs (legacy/full flow).
+  const [selectedStoneIds, setSelectedStoneIds] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     shipment_type: '',
     courier: '',
@@ -265,6 +265,7 @@ export default function ShipmentsPage() {
       await shipmentsApi.create({
         ...formData,
         job_ids: selectedJobs,
+        stone_ids: selectedStoneIds,
       });
       setCreateDialogOpen(false);
       setFormData({
@@ -276,6 +277,7 @@ export default function ShipmentsPage() {
         notes: '',
       });
       setSelectedJobs([]);
+      setSelectedStoneIds([]);
       fetchData();
     } catch (error) {
       console.error('Failed to create shipment:', error);
@@ -1075,6 +1077,14 @@ export default function ShipmentsPage() {
                 </p>
               )}
             </div>
+
+            {/* Partial stones picker for return shipments (stones/certificates from lab) */}
+            <PartialStonesPicker
+              jobs={availableJobs.filter((j) => selectedJobs.includes(j.id))}
+              shipmentType={formData.shipment_type}
+              selectedStoneIds={selectedStoneIds}
+              onChange={setSelectedStoneIds}
+            />
           </div>
 
           <DialogFooter>

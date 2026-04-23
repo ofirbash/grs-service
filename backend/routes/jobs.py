@@ -141,7 +141,12 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
                 "color_stability_test": stone_data.color_stability_test,
                 "fee": fee,
                 "position": position,
-                "certificate_scan": None
+                "certificate_scan": None,
+                # Partial-return lifecycle: every new stone starts at the office,
+                # cert not yet issued. Legacy stones (pre-feature) lack these fields
+                # and keep using the old job-level flow.
+                "stone_status": "at_office",
+                "cert_status": "pending",
             }
             stones.append(stone)
             total_value += stone_data.value

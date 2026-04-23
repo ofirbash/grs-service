@@ -84,6 +84,7 @@ import { CreateJobDialog } from './_components/CreateJobDialog';
 import { JobSummaryGrid } from './_components/JobSummaryGrid';
 import { JobPaymentCard } from './_components/JobPaymentCard';
 import { JobNotificationsCard } from './_components/JobNotificationsCard';
+import { StoneStatusBadges } from './_components/StoneStatusBadges';
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
@@ -1705,6 +1706,7 @@ export default function JobsPage() {
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-xs font-semibold text-navy-900">{stone.sku}</span>
+                        <StoneStatusBadges stone={stone} />
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-navy-900">${stone.fee.toLocaleString()}</span>
                           {isAdmin && editMode && (
@@ -1761,7 +1763,7 @@ export default function JobsPage() {
                                 data-testid={`select-stone-${stone.id}`}
                               />
                             </TableCell>
-                            <TableCell className="font-mono text-sm">{stone.sku}</TableCell>
+                            <TableCell className="font-mono text-sm">{stone.sku}<StoneStatusBadges stone={stone} /></TableCell>
                             <TableCell>{stone.stone_type}</TableCell>
                             <TableCell>{stone.weight} ct</TableCell>
                             <TableCell>{stone.shape}</TableCell>
@@ -1845,7 +1847,7 @@ export default function JobsPage() {
                                       data-testid={`select-stone-${stone.id}`}
                                     />
                                   </TableCell>
-                                  <TableCell className="font-mono text-sm">{stone.sku}</TableCell>
+                                  <TableCell className="font-mono text-sm">{stone.sku}<StoneStatusBadges stone={stone} /></TableCell>
                                   <TableCell>{stone.stone_type}</TableCell>
                                   <TableCell>{stone.weight} ct</TableCell>
                                   <TableCell>{stone.shape}</TableCell>

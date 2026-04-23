@@ -129,6 +129,9 @@ class StoneResponse(BaseModel):
     certificate_scan_url: Optional[str] = None
     job_id: Optional[str] = None
     job_number: Optional[int] = None
+    # Partial-return lifecycle (only populated on jobs created after the feature launched)
+    stone_status: Optional[str] = None   # "at_office" | "at_lab" | "returned"
+    cert_status: Optional[str] = None    # "pending" | "delivered"
 
 
 # Verbal Findings Models
@@ -277,6 +280,9 @@ class ShipmentCreate(BaseModel):
     tracking_number: Optional[str] = None
     date_sent: Optional[datetime] = None
     job_ids: List[str] = []
+    # Optional: restrict the shipment to specific stones within the included jobs.
+    # Empty/missing => all stones of the included jobs (back-compat).
+    stone_ids: List[str] = []
     notes: Optional[str] = None
 
 
@@ -306,6 +312,7 @@ class ShipmentResponse(BaseModel):
     date_sent: Optional[datetime] = None
     status: str
     job_ids: List[str]
+    stone_ids: List[str] = []
     jobs: Optional[List[Dict[str, Any]]] = None
     total_jobs: int
     total_stones: int
