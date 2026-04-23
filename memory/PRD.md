@@ -28,6 +28,23 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
+### Session: Feb 23, 2026 - View Job Dialog Partial Split (Iter 25)
+
+**Phase 3 View Job Dialog decomposition** (3 of 5 planned sub-components done):
+- `_components/JobSummaryGrid.tsx` (125 lines) — top info grid (client/branch/service/status/value/fee/discount/net) + notes section, supports edit-mode with `EditJobFormData` interface
+- `_components/JobPaymentCard.tsx` (249 lines) — full payment panel: balance strip with progress bar, manual-payment button, payment history list, adjustment-mode flow, payment-link generate/copy/open
+- `_components/JobNotificationsCard.tsx` (97 lines) — per-type preview/resend email + SMS buttons, filters by `is_available`
+
+**Net**: jobs/page.tsx **2,864 → 2,544 (−320 this iter)**. Cumulative: **3,845 → 2,544 (−1,301 / −33.8%)**
+
+**Deferred**:
+- `JobStonesSection` — highly coupled to edit-mode, stone selection, certificate grouping, nested stone dialog; needs dedicated session
+- `JobActionsRow` (Memo + Lab Invoice upload cards) — couples to `fileInputRef`/`labInvoiceInputRef` + upload handlers
+
+**Testing (iter 25)** — frontend testing agent reports zero regressions. Summary grid edit mode, payment balance strip, adjustment flow, payment-link copy/open, and notification preview/SMS all verified to work identically.
+
+
+
 ### Session: Feb 23, 2026 - Code Quality Phase 3 + useMemo (Iter 24)
 
 **Phase 3 frontend splitting** (P0) — extracted 3 more dialogs:
