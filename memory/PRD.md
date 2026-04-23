@@ -787,3 +787,45 @@ User asks:
 - Job #24 modal: 11 stones rendered with trash icons visible (2 ungrouped + 3 certificate groups with stones); works for certs 1 (pair), 2 (pair), 3 (layout)
 - Shipment #11 modal: 3 jobs each with trash icon in a new action column
 - Backend regression: `/api/jobs`, `/api/shipments`, `/api/shipments/{id}/jobs` all healthy; DELETE non-existent returns 404
+
+---
+
+## Session: Apr 23, 2026 (eve) — Manual Payments (Wire / Cash)
+
+User asks:
+1. Admin records manual payment (wire/cash) with amount + destination + note
+2. Each payment auto-assigned an ID
+3. Email + SMS receipt after payment (email has receipt inline + link; SMS has login-required link)
+
+User choices confirmed: partial payments supported; over-payment blocked (400); inline HTML + public link only (no PDF); login-required receipt view; super_admin + branch_admin can record; receipt shows job summary + itemised stones + "$400 of $900 paid" if partial.
+
+### Backend
+- `PricingConfig.payment_destinations` — editable list persisted in `pricing_config` doc (default 4 entries: Bank Wire Leumi/Hapoalim, Cash Israel/HK offices)
+- `POST /api/jobs/{job_id}/manual-payment` (routes/manual_payments.py)
+  - Generates `PMT-XXXXXXXX` id (8 hex chars, uuid4)
+  - Appends to `job.payments[]` with `{id, method: "manual", amount, destination, note, recorded_at, recorded_by}`
+  - Blocks over-payment (400 if amount > balance due)
+  - Marks `payment_status` = "paid" / "partial" based on cumulative vs net total (net = total_fee − discount)
+  - Optionally emails HTML receipt via Resend + SMS via SMS4Free (both best-effort, failures logged)
+- `GET /api/receipts/{payment_id}` — structured receipt payload, login-required (customers can only see their own jobs)
+- New email template type `manual_payment_receipt` with receipt-ID hero block (dark navy), paid/partial status banner, itemised stones table, portal link CTA
+- New SMS message for `manual_payment_receipt` including payment ID + login URL
+- `JobResponse.payments[]` added to the pydantic model (datetime serialised to ISO)
+
+### Frontend
+- **Settings → Stone Types & Shapes tab**: new "Payment Destinations" card (add/remove/edit list); persists via `settingsApi.updatePricing`
+- **Jobs page → Job detail**:
+  - Added `Job.payments[]` field to the TS interface
+  - Payment section now renders a balance strip: "$X of $Y paid" + mini progress bar (green when fully paid, navy while partial)
+  - New "Record Manual Payment (wire / cash)" button — only shown when balance > 0
+  - Payment history list below showing each payment's ID (mono), amount, destination, date
+  - New dialog (`data-testid=manual-payment-dialog`) with: amount (pre-filled with balance), destination select, optional note, Email + SMS checkboxes. Post-submit shows the generated payment ID in a hero tile, paid-in-full or remaining-balance banner, and per-channel notification status
+- `manualPaymentsApi.record` + `manualPaymentsApi.getReceipt` in api.ts
+- "Paid" pill styling extended with an amber "Partial" pill when `payment_status === 'partial'`
+
+### Smoke tests
+- Over-payment (amount > balance) → 400 "Amount exceeds balance due"
+- Partial payment ($4 of $10) → status `partial`, balance $6, payment id returned
+- Balance payment ($6) → status `paid`, balance 0, second payment id returned
+- GET receipt returns correct breakdown with `is_fully_paid: true` once combined
+- Email + SMS triggered on record (logs "[MOCK PAYMENT EMAIL] ..." when Resend unconfigured)

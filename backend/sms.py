@@ -123,6 +123,13 @@ def build_sms_message(notification_type: str, job: dict, client: dict) -> str:
             f"Bashari Lab-Direct: Job #{job_number} - Physical certificates "
             f"are ready for collection at our office.{link_text}"
         ),
+        "manual_payment_receipt": (
+            f"Bashari Lab-Direct: Payment received for Job #{job_number}. "
+            f"Receipt {job.get('latest_payment', {}).get('id', '')}. "
+            f"Log in to view: {login_url}" if login_url
+            else f"Bashari Lab-Direct: Payment received for Job #{job_number}. "
+                 f"Receipt {job.get('latest_payment', {}).get('id', '')}."
+        ),
     }
 
     return messages.get(notification_type, f"Bashari Lab-Direct: Job #{job_number} status update.{link_text}")

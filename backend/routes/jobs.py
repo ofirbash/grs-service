@@ -78,6 +78,10 @@ async def build_job_response(job: dict) -> JobResponse:
         payment_status=job.get("payment_status"),
         payment_token=job.get("payment_token"),
         payment_url=f"{FRONTEND_URL}/pay?token={job['payment_token']}" if job.get("payment_token") and FRONTEND_URL else None,
+        payments=[
+            {**p, "recorded_at": p["recorded_at"].isoformat() if hasattr(p.get("recorded_at"), "isoformat") else p.get("recorded_at")}
+            for p in (job.get("payments", []) or [])
+        ],
         created_at=job["created_at"],
         updated_at=job["updated_at"]
     )

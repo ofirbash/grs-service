@@ -441,6 +441,77 @@ def build_notification_email_html(
             {_cta_button('View Job in Portal', portal_link)}
         """
 
+    elif notification_type == "manual_payment_receipt":
+        # Expects job to carry `latest_payment` object + `payment_total_paid`.
+        latest_payment = job.get("latest_payment") or {}
+        payment_id = latest_payment.get("id", "—")
+        paid_amount = latest_payment.get("amount", 0) or 0
+        paid_at_raw = latest_payment.get("recorded_at")
+        try:
+            if isinstance(paid_at_raw, str):
+                paid_at_display = paid_at_raw
+            else:
+                paid_at_display = paid_at_raw.strftime("%d %b %Y, %H:%M") if paid_at_raw else "—"
+        except Exception:
+            paid_at_display = str(paid_at_raw) if paid_at_raw else "—"
+
+        total_fee = job.get("total_fee", 0) or 0
+        discount = job.get("discount", 0) or 0
+        net_total = max(0, total_fee - discount)
+        total_paid = job.get("payment_total_paid", 0) or 0
+        balance = max(0, net_total - total_paid)
+        is_fully_paid = balance <= 0
+
+        subject = f"Receipt · Job #{job_number} · ${paid_amount:,.2f} received"
+
+        receipt_id_block = f"""
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0 20px;">
+              <tr>
+                <td style="background: {BRAND_NAVY}; color: #ffffff; padding: 18px 22px; border-radius: 8px;">
+                  <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #d4d4d8;">Payment Receipt</div>
+                  <div style="font-size: 24px; font-weight: 800; letter-spacing: 1px; margin-top: 4px;">{payment_id}</div>
+                  <div style="font-size: 12px; color: #d4d4d8; margin-top: 4px;">Recorded {paid_at_display}</div>
+                </td>
+              </tr>
+            </table>
+        """
+
+        status_banner = (
+            f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 14px 0;">
+              <tr>
+                <td style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 4px;">
+                  <div style="color: #065f46; font-weight: 700; font-size: 13px;">Paid in full — Thank you!</div>
+                  <div style="color: #047857; font-size: 11px; margin-top: 2px;">Total received: ${total_paid:,.2f} / ${net_total:,.2f}</div>
+                </td>
+              </tr>
+            </table>"""
+            if is_fully_paid
+            else f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 14px 0;">
+              <tr>
+                <td style="background: #fffbeb; border-left: 4px solid #d97706; padding: 12px 16px; border-radius: 4px;">
+                  <div style="color: #78350f; font-weight: 700; font-size: 13px;">${total_paid:,.2f} of ${net_total:,.2f} paid</div>
+                  <div style="color: #92400e; font-size: 11px; margin-top: 2px;">Balance remaining: ${balance:,.2f}</div>
+                </td>
+              </tr>
+            </table>"""
+        )
+
+        # Stones breakdown
+        stones_html = generate_stones_table_html(stones, include_fees=True)
+
+        body_inner = f"""
+            <h2 style="color: {BRAND_NAVY}; font-size: 22px; margin: 0 0 12px;">Payment received</h2>
+            {greeting}
+            <p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">We've recorded a payment of <strong style="color: {BRAND_NAVY};">${paid_amount:,.2f}</strong> toward <strong>Job #{job_number}</strong>.</p>
+            {receipt_id_block}
+            {_job_meta_pill(job)}
+            {status_banner}
+            <h3 style="color: {BRAND_NAVY}; font-size: 15px; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: 0.5px;">Job breakdown</h3>
+            {stones_html}
+            {_cta_button('View Full Receipt', f"{PORTAL_URL}/dashboard/receipt/{payment_id}")}
+            <p style="color: {TEXT_MUTED}; font-size: 12px; margin-top: 16px;">Please keep this email for your records. The payment ID <strong style="color: {BRAND_NAVY};">{payment_id}</strong> can be used to look up this receipt anytime in the client portal.</p>
+        """
+
     elif notification_type == "welcome":
         subject = f"Welcome to {COMPANY_DISPLAY_NAME}"
         contact = client.get("email", "")

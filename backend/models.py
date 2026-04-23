@@ -232,6 +232,7 @@ class JobResponse(BaseModel):
     payment_status: Optional[str] = None
     payment_token: Optional[str] = None
     payment_url: Optional[str] = None
+    payments: List[Dict[str, Any]] = []
     created_at: datetime
     updated_at: datetime
 
@@ -334,6 +335,7 @@ class PricingUpdateRequest(BaseModel):
     service_types: List[str] = ["Express", "Normal", "Recheck"]
     stone_types: Optional[List[str]] = None
     shapes: Optional[List[str]] = None
+    payment_destinations: Optional[List[str]] = None
 
 
 # Dropdown Settings

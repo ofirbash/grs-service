@@ -48,6 +48,7 @@ from routes.pricing_routes import router as pricing_router
 from routes.users import router as users_router
 from routes.dashboard import router as dashboard_router
 from routes.payments import router as payments_router
+from routes.manual_payments import router as manual_payments_router
 from routes.addresses import router as addresses_router
 from routes.documents import router as documents_router
 
@@ -67,6 +68,7 @@ api_router.include_router(pricing_router)
 api_router.include_router(users_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(payments_router)
+api_router.include_router(manual_payments_router)
 api_router.include_router(addresses_router)
 api_router.include_router(documents_router)
 

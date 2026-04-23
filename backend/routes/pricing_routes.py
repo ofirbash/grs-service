@@ -12,6 +12,14 @@ DEFAULT_SHAPES = ['Round', 'Oval', 'Cushion', 'Pear', 'Heart', 'Marquise', 'Prin
 router = APIRouter()
 
 
+DEFAULT_PAYMENT_DESTINATIONS = [
+    "Bank Wire – Leumi",
+    "Bank Wire – Hapoalim",
+    "Cash – Israel Office",
+    "Cash – HK Office",
+]
+
+
 @router.get("/pricing")
 async def get_pricing_config(user: dict = Depends(get_current_user)):
     """Get pricing configuration from database or defaults"""
@@ -27,6 +35,7 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
             "service_types": pricing.get("service_types", ["Express", "Normal", "Recheck"]),
             "stone_types": pricing.get("stone_types", DEFAULT_STONE_TYPES),
             "shapes": pricing.get("shapes", DEFAULT_SHAPES),
+            "payment_destinations": pricing.get("payment_destinations", DEFAULT_PAYMENT_DESTINATIONS),
         }
 
     brackets = [normalize_bracket(b) for b in PRICING_BRACKETS]
@@ -37,6 +46,7 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
         "service_types": ["Express", "Normal", "Recheck"],
         "stone_types": DEFAULT_STONE_TYPES,
         "shapes": DEFAULT_SHAPES,
+        "payment_destinations": DEFAULT_PAYMENT_DESTINATIONS,
     }
 
 
@@ -54,6 +64,8 @@ async def update_pricing_config(data: PricingUpdateRequest, user: dict = Depends
         update_data["stone_types"] = data.stone_types
     if data.shapes is not None:
         update_data["shapes"] = data.shapes
+    if data.payment_destinations is not None:
+        update_data["payment_destinations"] = data.payment_destinations
 
     await db.pricing_config.update_one(
         {"type": "pricing"},

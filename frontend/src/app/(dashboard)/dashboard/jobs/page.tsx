@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi, cloudinaryApi, notificationsApi } from '@/lib/api';
+import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi, cloudinaryApi, notificationsApi, manualPaymentsApi } from '@/lib/api';
 import { useAuthStore, useBranchFilterStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -140,6 +140,15 @@ interface Job {
   payment_status?: string;
   payment_token?: string;
   payment_url?: string;
+  payments?: Array<{
+    id: string;
+    method: string;
+    amount: number;
+    destination?: string;
+    note?: string;
+    recorded_at: string;
+    recorded_by?: string;
+  }>;
   created_at: string;
 }
 
@@ -394,6 +403,17 @@ export default function JobsPage() {
     }
   }, [searchParams]);
   const [serviceTypes, setServiceTypes] = useState<string[]>(['Express', 'Normal', 'Recheck']);
+  const [paymentDestinations, setPaymentDestinations] = useState<string[]>([]);
+
+  // Manual payment dialog state
+  const [manualPaymentOpen, setManualPaymentOpen] = useState(false);
+  const [manualPaymentAmount, setManualPaymentAmount] = useState('');
+  const [manualPaymentDestination, setManualPaymentDestination] = useState('');
+  const [manualPaymentNote, setManualPaymentNote] = useState('');
+  const [manualPaymentNotifyEmail, setManualPaymentNotifyEmail] = useState(true);
+  const [manualPaymentNotifySms, setManualPaymentNotifySms] = useState(true);
+  const [recordingPayment, setRecordingPayment] = useState(false);
+  const [lastPaymentResult, setLastPaymentResult] = useState<{ id: string; amount: number; balance: number; is_fully_paid: boolean; email_status?: string; sms_status?: string } | null>(null);
   const [stoneTypes, setStoneTypes] = useState<string[]>(DEFAULT_STONE_TYPES);
   const [shapes, setShapes] = useState<string[]>(DEFAULT_SHAPES);
   const [csFeeCost, setCsFeeCost] = useState(50);
@@ -585,6 +605,7 @@ export default function JobsPage() {
       if (pricingData.mounted_jewellery_fee != null) setMountedFeeCost(pricingData.mounted_jewellery_fee);
       if (pricingData.stone_types?.length) setStoneTypes(pricingData.stone_types);
       if (pricingData.shapes?.length) setShapes(pricingData.shapes);
+      if (pricingData.payment_destinations?.length) setPaymentDestinations(pricingData.payment_destinations);
       
       // Initialize dropdowns if empty
       if (!dropdownData.identification?.length) {
@@ -1473,6 +1494,55 @@ export default function JobsPage() {
       alert(err.response?.data?.detail || 'Failed to generate invoice. Please try again.');
     } finally {
       setGeneratingInvoice(false);
+    }
+  };
+
+  const openManualPaymentDialog = () => {
+    if (!selectedJob) return;
+    const net = Math.max(0, (selectedJob.total_fee || 0) - (selectedJob.discount || 0));
+    const paid = (selectedJob.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+    const balance = Math.max(0, net - paid);
+    setManualPaymentAmount(balance.toFixed(2));
+    setManualPaymentDestination(paymentDestinations[0] || '');
+    setManualPaymentNote('');
+    setManualPaymentNotifyEmail(true);
+    setManualPaymentNotifySms(true);
+    setLastPaymentResult(null);
+    setManualPaymentOpen(true);
+  };
+
+  const handleRecordManualPayment = async () => {
+    if (!selectedJob) return;
+    const amt = parseFloat(manualPaymentAmount);
+    if (!amt || amt <= 0) { alert('Enter an amount greater than 0'); return; }
+    if (!manualPaymentDestination) { alert('Please pick a destination'); return; }
+
+    setRecordingPayment(true);
+    try {
+      const res = await manualPaymentsApi.record(selectedJob.id, {
+        amount: amt,
+        destination: manualPaymentDestination,
+        note: manualPaymentNote,
+        notify_email: manualPaymentNotifyEmail,
+        notify_sms: manualPaymentNotifySms,
+      });
+      setLastPaymentResult({
+        id: res.payment.id,
+        amount: res.payment.amount,
+        balance: res.balance,
+        is_fully_paid: res.balance === 0,
+        email_status: res.notifications?.email?.status,
+        sms_status: res.notifications?.sms?.status,
+      });
+      // Refresh job detail + list
+      const updated = await jobsApi.getById(selectedJob.id);
+      setSelectedJob(updated);
+      await fetchData();
+    } catch (e) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      alert(err?.response?.data?.detail || 'Failed to record payment');
+    } finally {
+      setRecordingPayment(false);
     }
   };
 
@@ -2469,10 +2539,71 @@ export default function JobsPage() {
                         Payment
                         {selectedJob.payment_status === 'paid' ? (
                           <Badge className="bg-navy-900 text-white text-[10px] px-1.5 py-0">Paid</Badge>
+                        ) : selectedJob.payment_status === 'partial' ? (
+                          <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] px-1.5 py-0">Partial</Badge>
                         ) : selectedJob.payment_token ? (
                           <Badge variant="outline" className="text-navy-600 border-navy-300 text-[10px] px-1.5 py-0">Pending</Badge>
                         ) : null}
                       </Label>
+
+                      {/* Balance summary + Record manual button */}
+                      {(() => {
+                        const net = Math.max(0, (selectedJob.total_fee || 0) - (selectedJob.discount || 0));
+                        const paid = (selectedJob.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+                        const balance = Math.max(0, net - paid);
+                        const pct = net > 0 ? Math.min(100, Math.round((paid / net) * 100)) : 0;
+                        return (
+                          <div className="space-y-1" data-testid="payment-balance-strip">
+                            <div className="flex items-center justify-between text-[11px] text-navy-600">
+                              <span>${paid.toLocaleString()} of ${net.toLocaleString()} paid</span>
+                              {balance > 0 && <span className="text-amber-700 font-semibold">Balance ${balance.toLocaleString()}</span>}
+                            </div>
+                            <div className="h-1.5 rounded-full bg-navy-100 overflow-hidden">
+                              <div
+                                className={`h-full transition-[width] duration-500 ${balance === 0 ? 'bg-emerald-500' : 'bg-navy-900'}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Manual payment button (only when balance remains) */}
+                      {Math.max(0, (selectedJob.total_fee || 0) - (selectedJob.discount || 0)) > (selectedJob.payments || []).reduce((s, p) => s + (p.amount || 0), 0) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={openManualPaymentDialog}
+                          className="w-full text-xs border-navy-300"
+                          data-testid="record-manual-payment-button"
+                        >
+                          <CreditCard className="h-3 w-3 mr-1" />
+                          Record Manual Payment (wire / cash)
+                        </Button>
+                      )}
+
+                      {/* Payment history */}
+                      {(selectedJob.payments || []).length > 0 && (
+                        <div className="pt-1">
+                          <div className="text-[10px] uppercase tracking-wide text-navy-500 mb-1">Payment history</div>
+                          <div className="space-y-1">
+                            {(selectedJob.payments || []).slice().reverse().map((p) => (
+                              <div key={p.id} className="flex items-center justify-between text-[11px] border border-navy-100 rounded-md px-2 py-1 bg-navy-50/40" data-testid={`payment-row-${p.id}`}>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-semibold text-navy-900 text-[10px]">{p.id}</span>
+                                    <span className="text-navy-900 font-semibold">${p.amount.toLocaleString()}</span>
+                                  </div>
+                                  <div className="text-[10px] text-navy-500 truncate">
+                                    {p.destination || '—'} · {new Date(p.recorded_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {selectedJob.payment_status === 'paid' && !adjustmentMode ? (
                         <div className="space-y-1.5">
                           <p className="text-xs text-navy-900 flex items-center gap-1">
@@ -3574,6 +3705,133 @@ export default function JobsPage() {
               <FileText className="h-4 w-4 mr-2" />
               Download
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Payment Dialog */}
+      <Dialog open={manualPaymentOpen} onOpenChange={(open) => {
+        setManualPaymentOpen(open);
+        if (!open) setLastPaymentResult(null);
+      }}>
+        <DialogContent className="sm:max-w-lg" data-testid="manual-payment-dialog">
+          <DialogHeader>
+            <DialogTitle className="text-lg text-navy-900 flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              {lastPaymentResult ? 'Payment recorded' : 'Record Manual Payment'}
+            </DialogTitle>
+            <DialogDescription>
+              {lastPaymentResult
+                ? `Payment ID ${lastPaymentResult.id} saved successfully.`
+                : `Log a wire transfer or cash payment against Job #${selectedJob?.job_number}. The client will receive a receipt ${manualPaymentNotifyEmail || manualPaymentNotifySms ? '(' + [manualPaymentNotifyEmail && 'email', manualPaymentNotifySms && 'SMS'].filter(Boolean).join(' + ') + ')' : ''}.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {lastPaymentResult ? (
+            <div className="space-y-3 py-2">
+              <div className="rounded-lg bg-navy-900 text-white p-4">
+                <div className="text-[10px] uppercase tracking-widest text-navy-300">Payment ID</div>
+                <div className="text-2xl font-bold font-mono mt-1" data-testid="result-payment-id">{lastPaymentResult.id}</div>
+                <div className="text-xs text-navy-200 mt-2">Amount: ${lastPaymentResult.amount.toLocaleString()}</div>
+              </div>
+              {lastPaymentResult.is_fully_paid ? (
+                <div className="rounded-md bg-emerald-50 border border-emerald-200 p-2 text-sm text-emerald-800 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Job paid in full
+                </div>
+              ) : (
+                <div className="rounded-md bg-amber-50 border border-amber-200 p-2 text-sm text-amber-800">
+                  Balance remaining: <strong>${lastPaymentResult.balance.toLocaleString()}</strong>
+                </div>
+              )}
+              <div className="text-xs text-navy-500 space-y-1">
+                <div>Email: {lastPaymentResult.email_status ? <span className="font-semibold text-navy-700">{lastPaymentResult.email_status}</span> : <span>skipped</span>}</div>
+                <div>SMS: {lastPaymentResult.sms_status ? <span className="font-semibold text-navy-700">{lastPaymentResult.sms_status}</span> : <span>skipped</span>}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <div>
+                <Label className="text-xs">Amount (USD)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={manualPaymentAmount}
+                  onChange={(e) => setManualPaymentAmount(e.target.value)}
+                  data-testid="manual-payment-amount"
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Destination</Label>
+                <Select value={manualPaymentDestination} onValueChange={setManualPaymentDestination}>
+                  <SelectTrigger data-testid="manual-payment-destination">
+                    <SelectValue placeholder="Pick a destination" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentDestinations.map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {paymentDestinations.length === 0 && (
+                  <p className="text-[11px] text-amber-700 mt-1">No destinations configured. Add them under Settings → Pricing.</p>
+                )}
+              </div>
+              <div>
+                <Label className="text-xs">Note (optional)</Label>
+                <Textarea
+                  value={manualPaymentNote}
+                  onChange={(e) => setManualPaymentNote(e.target.value)}
+                  rows={2}
+                  placeholder="Reference, check number, etc."
+                  data-testid="manual-payment-note"
+                />
+              </div>
+              <div className="flex items-center gap-4 text-sm">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={manualPaymentNotifyEmail}
+                    onChange={(e) => setManualPaymentNotifyEmail(e.target.checked)}
+                    className="h-4 w-4 rounded border-navy-300"
+                    data-testid="manual-payment-notify-email"
+                  />
+                  <span>Email receipt to client</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={manualPaymentNotifySms}
+                    onChange={(e) => setManualPaymentNotifySms(e.target.checked)}
+                    className="h-4 w-4 rounded border-navy-300"
+                    data-testid="manual-payment-notify-sms"
+                  />
+                  <span>SMS receipt link</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualPaymentOpen(false)} data-testid="manual-payment-close">
+              {lastPaymentResult ? 'Close' : 'Cancel'}
+            </Button>
+            {!lastPaymentResult && (
+              <Button
+                onClick={handleRecordManualPayment}
+                disabled={recordingPayment || !manualPaymentAmount || !manualPaymentDestination}
+                className="bg-navy-900 hover:bg-navy-800"
+                data-testid="manual-payment-submit"
+              >
+                {recordingPayment ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Recording...</>
+                ) : (
+                  <>Record Payment</>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

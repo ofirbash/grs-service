@@ -341,8 +341,26 @@ export const settingsApi = {
     color_stability_fee: number;
     mounted_jewellery_fee: number;
     service_types: string[];
+    payment_destinations?: string[];
+    stone_types?: string[];
+    shapes?: string[];
   }) => {
     const response = await api.put('/pricing', data);
+    return response.data;
+  },
+};
+
+// Manual payments API
+export const manualPaymentsApi = {
+  record: async (
+    jobId: string,
+    data: { amount: number; destination: string; note?: string; notify_email?: boolean; notify_sms?: boolean }
+  ) => {
+    const response = await api.post(`/jobs/${jobId}/manual-payment`, data);
+    return response.data;
+  },
+  getReceipt: async (paymentId: string) => {
+    const response = await api.get(`/receipts/${paymentId}`);
     return response.data;
   },
 };

@@ -47,6 +47,7 @@ import {
   Search,
   Shield,
   Diamond,
+  CreditCard,
 } from 'lucide-react';
 
 // Types
@@ -85,6 +86,7 @@ interface PricingConfig {
   service_types: string[];
   stone_types: string[];
   shapes: string[];
+  payment_destinations: string[];
 }
 
 const STONE_TYPES = ['all', 'Emerald', 'Sapphire', 'Ruby', 'Diamond', 'Spinel', 'Tanzanite', 'Other'];
@@ -134,6 +136,7 @@ export default function SettingsPage() {
     service_types: ['Express', 'Normal', 'Recheck'],
     stone_types: [],
     shapes: [],
+    payment_destinations: [],
   });
   const [editingPricing, setEditingPricing] = useState(false);
   const [savingPricing, setSavingPricing] = useState(false);
@@ -144,10 +147,12 @@ export default function SettingsPage() {
     service_types: [],
     stone_types: [],
     shapes: [],
+    payment_destinations: [],
   });
   const [newServiceType, setNewServiceType] = useState('');
   const [newStoneType, setNewStoneType] = useState('');
   const [newShape, setNewShape] = useState('');
+  const [newPaymentDestination, setNewPaymentDestination] = useState('');
   const [usedServiceTypes, setUsedServiceTypes] = useState<Set<string>>(new Set());
 
   // Admin Users State
@@ -1442,6 +1447,73 @@ export default function SettingsPage() {
                       }
                     }}
                     data-testid="add-shape-button"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Payment Destinations */}
+            <Card className="border-navy-200">
+              <CardHeader>
+                <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Payment Destinations
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-[11px] text-navy-500">Options shown in the &quot;Record Manual Payment&quot; dialog.</p>
+                <div className="space-y-1.5">
+                  {(pricingForm.payment_destinations || []).map((dest, idx) => (
+                    <div key={idx} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
+                      <span className="text-sm text-navy-900">{dest}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPricingForm(prev => ({
+                          ...prev,
+                          payment_destinations: (prev.payment_destinations || []).filter((_, i) => i !== idx),
+                        }))}
+                        className="h-6 w-6 p-0 hover:bg-red-50"
+                        data-testid={`delete-payment-destination-${idx}`}
+                      >
+                        <X className="h-3 w-3 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={newPaymentDestination}
+                    onChange={(e) => setNewPaymentDestination(e.target.value)}
+                    placeholder="e.g. Bank Wire – Discount"
+                    className="text-sm border-navy-200"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newPaymentDestination.trim()) {
+                        setPricingForm(prev => ({
+                          ...prev,
+                          payment_destinations: [...(prev.payment_destinations || []), newPaymentDestination.trim()],
+                        }));
+                        setNewPaymentDestination('');
+                      }
+                    }}
+                    data-testid="new-payment-destination-input"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!newPaymentDestination.trim()}
+                    onClick={() => {
+                      if (newPaymentDestination.trim()) {
+                        setPricingForm(prev => ({
+                          ...prev,
+                          payment_destinations: [...(prev.payment_destinations || []), newPaymentDestination.trim()],
+                        }));
+                        setNewPaymentDestination('');
+                      }
+                    }}
+                    data-testid="add-payment-destination-button"
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
