@@ -28,6 +28,18 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
+### Session: Feb 23, 2026 - Create Job UX + Verbal Email polish (Iter 27)
+
+**Create Job dialog**:
+- Client picker upgraded from plain `Select` to `SearchableSelect` — search by **name, company, or email**; list also shows `Name · Company — email` for disambiguation
+- **Branch field removed** — branch is now auto-derived from the selected client (no cross-branch jobs possible). A small helper line under the picker shows the inherited branch + code. Backend `POST /jobs` also enforces: `branch_id` must match `client.branch_id` (400 if mismatched; silently overwritten if omitted).
+
+**Verbal results email**:
+- Added **Weight** column (pulls from `stone.weight`, falls back to `vf.weight` if the lab overrode during grading)
+- Renamed **Treatment → Comment** (source field was always `comment`; matches the admin UI terminology)
+
+
+
 ### Session: Feb 23, 2026 - Partial Return Shipments (Iter 26) 🆕 MAJOR FEATURE
 
 **Scenario**: job with 5 stones, lab tested 4 and wants to return them while the 5th stays for later grading. Same for certificates.

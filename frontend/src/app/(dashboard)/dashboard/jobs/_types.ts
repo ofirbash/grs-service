@@ -150,6 +150,7 @@ export interface Client {
   phone?: string;
   company?: string;
   address?: string;
+  branch_id?: string;
 }
 
 export interface Branch {

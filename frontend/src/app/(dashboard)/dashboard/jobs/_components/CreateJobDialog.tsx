@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -84,39 +85,39 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
 
       <div className="space-y-6 py-4">
         {/* Job details */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Client <span className="text-red-500">*</span></Label>
-            <Select
+            <SearchableSelect
               value={formData.client_id}
-              onValueChange={(value) => setFormData({ ...formData, client_id: value })}
-            >
-              <SelectTrigger data-testid="job-client-select">
-                <SelectValue placeholder="Select client" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Branch <span className="text-red-500">*</span></Label>
-            <Select
-              value={formData.branch_id}
-              onValueChange={(value) => setFormData({ ...formData, branch_id: value })}
-            >
-              <SelectTrigger data-testid="job-branch-select">
-                <SelectValue placeholder="Select branch" />
-              </SelectTrigger>
-              <SelectContent>
-                {branches.map((branch) => (
-                  <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onValueChange={(value) => {
+                // When a client is picked, auto-derive the branch — jobs must live
+                // in the client's branch (no cross-branch jobs).
+                const c = clients.find((cl) => cl.id === value);
+                setFormData({
+                  ...formData,
+                  client_id: value,
+                  branch_id: c?.branch_id || '',
+                });
+              }}
+              options={clients.map((c) => ({
+                value: c.id,
+                label: `${c.name}${c.company ? ` · ${c.company}` : ''}${c.email ? ` — ${c.email}` : ''}`,
+              }))}
+              placeholder="Select client..."
+              searchPlaceholder="Search by name, company or email..."
+              data-testid="job-client-select"
+            />
+            {formData.client_id && (() => {
+              const c = clients.find((cl) => cl.id === formData.client_id);
+              const b = branches.find((br) => br.id === c?.branch_id);
+              return b ? (
+                <p className="text-[11px] text-navy-500">
+                  Branch: <span className="font-medium text-navy-700">{b.name}</span>
+                  {b.code ? <span className="text-navy-400"> ({b.code})</span> : null}
+                </p>
+              ) : null;
+            })()}
           </div>
 
           <div className="space-y-2">

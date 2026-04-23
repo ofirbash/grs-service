@@ -115,6 +115,19 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
 
+    # Enforce: a job must live in the client's own branch (no cross-branch jobs).
+    # The frontend auto-fills branch_id from the selected client, but we guard
+    # the API too for direct-caller safety.
+    client_branch_id = str(client.get("branch_id")) if client.get("branch_id") else None
+    if client_branch_id and job.branch_id and job.branch_id != client_branch_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Job branch must match the client's branch.",
+        )
+    # Always prefer the client's branch if one exists, even if the caller omitted it
+    if client_branch_id:
+        job.branch_id = client_branch_id
+
     last_job = await db.jobs.find_one(sort=[("job_number", -1)])
     job_number = (last_job.get("job_number", 0) if last_job else 0) + 1
 

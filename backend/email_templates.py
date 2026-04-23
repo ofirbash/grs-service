@@ -186,20 +186,25 @@ def generate_verbal_results_table_html(stones: list, verbal_findings: list) -> s
                 {},
             )
 
+        # Weight comes from the stone itself; fall back to verbal findings if
+        # the lab overrode it during grading.
+        weight_val = (vf.get("weight") if vf else None) or stone.get("weight")
+        weight = f"{weight_val} ct" if weight_val else "—"
         identification = vf.get("identification", "—") if vf else "—"
         color = vf.get("color", "—") if vf else "—"
         origin = vf.get("origin", "—") if vf else "—"
-        treatment = vf.get("comment", "—") if vf else "—"
+        comment = vf.get("comment", "—") if vf else "—"
         cert_id = vf.get("certificate_id", "—") if vf else "—"
 
         rows += f"""
         <tr style="border-bottom: 1px solid #e5e7eb;">
             <td style="padding: 8px; font-family: 'Courier New', monospace; font-weight: 600; color: {BRAND_NAVY}; font-size: 12px;">{stone.get('sku', 'N/A')}</td>
             <td style="padding: 8px; color: {TEXT_BODY}; font-size: 12px;">{cert_id}</td>
+            <td style="padding: 8px; color: {TEXT_BODY}; font-size: 12px;">{weight}</td>
             <td style="padding: 8px; color: {TEXT_BODY}; font-size: 12px;">{identification}</td>
             <td style="padding: 8px; color: {TEXT_BODY}; font-size: 12px;">{color}</td>
             <td style="padding: 8px; color: {TEXT_BODY}; font-size: 12px;">{origin}</td>
-            <td style="padding: 8px; color: {TEXT_BODY}; font-size: 12px;">{treatment}</td>
+            <td style="padding: 8px; color: {TEXT_BODY}; font-size: 12px;">{comment}</td>
         </tr>"""
     return f"""
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin: 16px 0; font-family: Arial, sans-serif; border: 1px solid #d9e2ec;">
@@ -207,10 +212,11 @@ def generate_verbal_results_table_html(stones: list, verbal_findings: list) -> s
             <tr style="background-color: {BRAND_NAVY};">
                 <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600; font-size: 11px; text-transform: uppercase;">SKU</th>
                 <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600; font-size: 11px; text-transform: uppercase;">Cert. ID</th>
+                <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600; font-size: 11px; text-transform: uppercase;">Weight</th>
                 <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600; font-size: 11px; text-transform: uppercase;">Identification</th>
                 <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600; font-size: 11px; text-transform: uppercase;">Color</th>
                 <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600; font-size: 11px; text-transform: uppercase;">Origin</th>
-                <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600; font-size: 11px; text-transform: uppercase;">Treatment</th>
+                <th style="padding: 10px; text-align: left; color: #ffffff; font-weight: 600; font-size: 11px; text-transform: uppercase;">Comment</th>
             </tr>
         </thead>
         <tbody>{rows}</tbody>
