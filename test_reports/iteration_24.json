@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 24 frontend-only regression verifying Phase-3 dialog extractions (CreateJobDialog, StoneDialogs=GroupStonesDialog+AddStoneDialog) and useMemo optimizations (filteredJobs, selectedJobStoneGroups, selectedJobUngroupedStones, filteredShipments, typeCounts). All extracted dialogs render and behave identically to pre-refactor. Memoized filters remain fully reactive to search input (no stale state). All iter-23 dialogs still work. Zero real console/page errors (only benign Next.js RSC prefetch warnings which are production build artifacts, not regressions).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dialog accessibility (carryover from iter 23)", "issues": ["Radix DialogContent 'Missing Description or aria-describedby' warning likely still fires on extracted dialogs (CreateJobDialog, AddStoneDialog, GroupStonesDialog). Non-functional a11y polish — consider adding <DialogDescription> inside each extracted dialog wrapper."]}
+    ]
+  },
+  "passed_tests": [
+    "Admin login (admin@bashari.com / admin123) → /dashboard; sessionStorage.token present (len 215); localStorage.token null; session keys ['token','auth-storage'], localStorage keys [] (iter-23 P1 security still intact)",
+    "/dashboard/jobs: 24 job rows render (data-testid=job-row-<n>)",
+    "Memoized filteredJobs reactivity: search '24' → 1 row; clear → 24 rows (useMemo recomputes correctly on dependency change)",
+    "Create Job Dialog (NEW CreateJobDialog.tsx extracted) opens from 'Create Job' button — contains 'Create New Job' title, Client/Branch/Service Type selects, 'Stones *' section with 'At least one stone required' helper, Add Stone button, Type/Weight/Shape/Value row, Cancel + Create Job actions",
+    "View Job Dialog opens on row click (Job #23) — shows Client/Branch/Service/Status/Total Value/Fees/Notifications",
+    "Record Manual Payment dialog (iter 23) opens over View Job — amount prefilled $509.00 (outstanding balance)",
+    "Document Viewer dialog (iter 23) opens from 'View' on Signed Memo — dialog stack = 2 (over job dialog)",
+    "AddStoneDialog (NEW StoneDialogs.tsx extracted) opens in Edit mode — shows 'Add Stone to Job #23' title, Stone Type / Weight (ct) / Value (USD) / Shape fields, Cancel + Add Stone actions — dialog stack = 2",
+    "/dashboard/shipments: 11 shipment cards (data-testid=shipment-card-<n>)",
+    "Memoized filteredShipments reactivity: search '1' → 6 cards; clear → 11 cards",
+    "Memoized typeCounts reactivity visible in UI: 'All 11' / 'Send Stones to Lab' / etc. tabs render correct counts (visible in screenshot)",
+    "Shipment Print PDF popup captured via page.expect_popup(): title 'Shipment #11 — Bashari Lab-Direct'; body contains 'Bashari Lab-Direct', 'Eliyahu Bashari Diamonds LTD', 'Shipment Memo', 'Shipment #11', 'SHIPMENT DETAILS', 'JOBS IN THIS SHIPMENT (3)' — memo structure intact (iter 23 regression pass)",
+    "/dashboard/settings: 4 tabs (Stones Settings / Branches / Payments / Admin Users) all clickable without errors",
+    "Console: 0 real errors (only Next.js RSC prefetch warnings on /dashboard/* routes — benign production-mode artifact, falls back to browser nav)"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "(Optional, carryover from iter 23) Add <DialogDescription> to extracted dialogs (CreateJobDialog, AddStoneDialog, GroupStonesDialog, ManualPaymentDialog, DocumentViewerDialog) to silence Radix aria-describedby warning.",
+    "(Informational) GroupStonesDialog (extracted) was loaded/importable but not visually exercised during this run because Job #23 exposed only 1 editable checkbox — recommend main-agent spot-check on a job with ≥2 ungrouped stones. Code import path is clean (no runtime error on page load)."
+  ],
+  "critical_code_review_comments": [
+    "CreateJobDialog.tsx (251 lines) — clean props interface, receives state/handlers; contents identical to previous inline dialog. Extraction is behaviorally transparent.",
+    "StoneDialogs.tsx (170 lines) — exports both GroupStonesDialog and AddStoneDialog; AddStoneDialog dynamically shows 'Add Stone to Job #<id>' matching pre-refactor behavior. Title and all inputs render correctly.",
+    "useMemo additions verified reactive: jobs/page.tsx ln 560 (filteredJobs), 573 (selectedJobStoneGroups), 577 (selectedJobUngroupedStones); shipments/page.tsx ln 598 (filteredShipments), 612 (typeCounts). No stale-state regressions observed — search input → table updates immediately.",
+    "jobs/page.tsx is still 2,864 lines — heavy View Job Dialog (~800 lines) deferred as noted by main agent. Recommend prioritizing its extraction next as this file remains the largest in the codebase. Other candidates: Job row rendering block could also be extracted into JobsTableRow component.",
+    "No files >700 lines were newly introduced. CreateJobDialog (251) and StoneDialogs (170) are well within recommended size."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (not requested)", "frontend": "100% (13/13 regression checks passed)" },
+  "test_credentials": { "admin": "admin@bashari.com / admin123", "customer": "customer@test.com / customer123" },
+  "seed_data_creation": "None. No POSTs submitted this iteration (Manual Payment, Create Job, Add Stone dialogs opened but cancelled).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Frontend runs in production mode (yarn build → next start). Key testids: job-row-<n>, shipment-card-<n>, preview-notification-<event>, send-sms-<event>. Create Job button label is 'Create Job' (NOT 'New Job'). View Job opens on clicking the row (not a button). Job #23 is the outstanding-balance sample with $509.00 pre-fill for manual payment. Shipment #11 is the 3-job SEND_TO_LAB sample for print-memo regression. Shipment type-filter controls render as <button> (NOT role=tab); iterate via 'button:has-text(...)' or text counts ('All 11', 'Send Stones to Lab N', ...). RSC prefetch 'Failed to fetch' warnings on /dashboard/* must be filtered — they are Next.js production-mode link-prefetch artifacts, not functional errors. GroupStonesDialog needs ≥2 ungrouped stones to exercise; Job #23 in current seed had only 1 editable checkbox visible in edit-mode."
+}

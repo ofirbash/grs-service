@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi, cloudinaryApi, notificationsApi, manualPaymentsApi } from '@/lib/api';
 import { escapeHtml as esc } from '@/lib/sanitize';
@@ -86,6 +86,8 @@ import { DocumentViewerDialog } from './_components/DocumentViewerDialog';
 import { SmsPreviewDialog } from './_components/SmsPreviewDialog';
 import { EmailPreviewDialog } from './_components/EmailPreviewDialog';
 import { UnsavedChangesDialog, BulkStatusDialog, ClientInvoiceDialog } from './_components/MiscDialogs';
+import { GroupStonesDialog, AddStoneDialog } from './_components/StoneDialogs';
+import { CreateJobDialog } from './_components/CreateJobDialog';
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
@@ -157,9 +159,9 @@ export default function JobsPage() {
   };
 
   // Check if form is valid for submission (all required fields filled)
-  const isFormValid = () => {
-    const hasRequiredFields = formData.client_id && formData.branch_id && formData.service_type;
-    const hasValidStone = stones.some(s => s.stone_type && s.weight && s.value);
+  const isFormValid = (): boolean => {
+    const hasRequiredFields = Boolean(formData.client_id && formData.branch_id && formData.service_type);
+    const hasValidStone = stones.some(s => Boolean(s.stone_type && s.weight && s.value));
     return hasRequiredFields && hasValidStone;
   };
 
@@ -555,13 +557,27 @@ export default function JobsPage() {
     }
   };
 
-  const filteredJobs = jobs.filter((job) => {
-    const matchesSearch =
-      job.job_number.toString().includes(searchTerm) ||
-      job.client_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredJobs = useMemo(
+    () => jobs.filter((job) => {
+      const matchesSearch =
+        job.job_number.toString().includes(searchTerm) ||
+        job.client_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    }),
+    [jobs, searchTerm, statusFilter],
+  );
+
+  // Memoised derivations of the currently-open job's stones.
+  // Without useMemo these recompute on every keystroke in the dialog body.
+  const selectedJobStoneGroups = useMemo(
+    () => (selectedJob ? organizeStonesIntoGroups(selectedJob.stones) : []),
+    [selectedJob],
+  );
+  const selectedJobUngroupedStones = useMemo(
+    () => (selectedJob ? selectedJob.stones.filter((s) => !s.certificate_group) : []),
+    [selectedJob],
+  );
 
   const openJobDetails = (job: Job) => {
     setSelectedJob(job);
@@ -1543,208 +1559,25 @@ export default function JobsPage() {
       </Card>
 
       {/* Create Job Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={handleCreateDialogClose}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-navy-900">Create New Job</DialogTitle>
-            <DialogDescription>Create a new job with stones for testing</DialogDescription>
-          </DialogHeader>
-
-          {/* Validation Errors */}
-          {validationErrors.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-sm font-medium text-red-800 mb-1">Please fix the following errors:</p>
-              <ul className="list-disc list-inside text-sm text-red-700">
-                {validationErrors.map((error, idx) => (
-                  <li key={`err-${idx}-${error.slice(0, 20)}`}>{error}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="space-y-6 py-4">
-            {/* Job Details */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Client <span className="text-red-500">*</span></Label>
-                <Select
-                  value={formData.client_id}
-                  onValueChange={(value) => setFormData({ ...formData, client_id: value })}
-                >
-                  <SelectTrigger data-testid="job-client-select">
-                    <SelectValue placeholder="Select client" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Branch <span className="text-red-500">*</span></Label>
-                <Select
-                  value={formData.branch_id}
-                  onValueChange={(value) => setFormData({ ...formData, branch_id: value })}
-                >
-                  <SelectTrigger data-testid="job-branch-select">
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Service Type <span className="text-red-500">*</span></Label>
-                <Select
-                  value={formData.service_type}
-                  onValueChange={(value) => setFormData({ ...formData, service_type: value })}
-                >
-                  <SelectTrigger data-testid="job-service-select">
-                    <SelectValue placeholder="Select service" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {serviceTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Stones */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-base font-semibold">Stones <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-navy-500 mt-1">At least one stone required. Shape is optional.</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddStone}
-                  data-testid="add-stone-button"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Stone
-                </Button>
-              </div>
-
-              <div className="border border-navy-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr,80px,100px,100px,auto] gap-2 p-3 bg-navy-50 text-sm font-medium text-navy-700">
-                  <div>Type <span className="text-red-500">*</span></div>
-                  <div>Weight <span className="text-red-500">*</span></div>
-                  <div>Shape</div>
-                  <div>Value <span className="text-red-500">*</span></div>
-                  <div></div>
-                </div>
-                {stones.map((stone, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-[1fr,80px,100px,100px,auto] gap-2 p-3 border-t border-navy-200"
-                  >
-                    <Select
-                      value={stone.stone_type}
-                      onValueChange={(value) => handleStoneChange(index, 'stone_type', value)}
-                    >
-                      <SelectTrigger data-testid={`stone-type-${index}`}>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stoneTypes.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={stone.weight}
-                      onChange={(e) => handleStoneChange(index, 'weight', e.target.value)}
-                      className="border-navy-200"
-                      data-testid={`stone-weight-${index}`}
-                    />
-
-                    <Select
-                      value={stone.shape}
-                      onValueChange={(value) => handleStoneChange(index, 'shape', value)}
-                    >
-                      <SelectTrigger data-testid={`stone-shape-${index}`}>
-                        <SelectValue placeholder="Shape" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {shapes.map((shape) => (
-                          <SelectItem key={shape} value={shape}>
-                            {shape}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={stone.value}
-                      onChange={(e) => handleStoneChange(index, 'value', e.target.value)}
-                      className="border-navy-200"
-                      data-testid={`stone-value-${index}`}
-                    />
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveStone(index)}
-                      disabled={stones.length === 1}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => handleCreateDialogClose(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateJob}
-              disabled={creating || !isFormValid()}
-              className="bg-navy-900 hover:bg-navy-800"
-              data-testid="confirm-create-job-button"
-            >
-              {creating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Create Job'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateJobDialog
+        open={createDialogOpen}
+        onOpenChange={handleCreateDialogClose}
+        validationErrors={validationErrors}
+        formData={formData}
+        setFormData={setFormData}
+        clients={clients}
+        branches={branches}
+        serviceTypes={serviceTypes}
+        stoneTypes={stoneTypes}
+        shapes={shapes}
+        stones={stones}
+        onStoneChange={(index, field, value) => handleStoneChange(index, field, value)}
+        onAddStone={handleAddStone}
+        onRemoveStone={handleRemoveStone}
+        creating={creating}
+        isFormValid={isFormValid}
+        onSubmit={handleCreateJob}
+      />
 
       {/* View Job Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={(open) => {
@@ -1938,7 +1771,7 @@ export default function JobsPage() {
                 
                 {/* Certificate Summary - only show if there are grouped stones */}
                 {(() => {
-                  const groups = organizeStonesIntoGroups(selectedJob.stones);
+                  const groups = selectedJobStoneGroups;
                   const groupedCerts = groups.filter(g => g.groupNumber !== null);
                   
                   if (groupedCerts.length > 0) {
@@ -2004,8 +1837,7 @@ export default function JobsPage() {
                     </TableHeader>
                     <TableBody>
                       {/* Ungrouped stones first - simple list */}
-                      {selectedJob.stones
-                        .filter(s => !s.certificate_group)
+                      {selectedJobUngroupedStones
                         .map((stone) => (
                           <TableRow 
                             key={stone.id}
@@ -2549,147 +2381,26 @@ export default function JobsPage() {
       </Dialog>
 
       {/* Group Stones for Certificate Dialog */}
-      <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-lg text-navy-900">Group Stones for Certificate</DialogTitle>
-            <DialogDescription>
-              Create a certificate group for {selectedStones.length} selected stone(s).
-              Maximum 30 stones per certificate.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4">
-            <p className="text-sm text-navy-600">
-              Selected stones will be grouped together and assigned to a single certificate.
-            </p>
-            {selectedStones.length > 30 && (
-              <p className="text-sm text-red-600 mt-2">
-                Warning: Maximum 30 stones per certificate. Please deselect some stones.
-              </p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setGroupDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleGroupStones}
-              disabled={savingGroup || selectedStones.length === 0 || selectedStones.length > 30}
-              className="bg-navy-900 hover:bg-navy-800"
-              data-testid="confirm-group-button"
-            >
-              {savingGroup ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Grouping...
-                </>
-              ) : (
-                'Create Certificate Group'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <GroupStonesDialog
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        selectedCount={selectedStones.length}
+        saving={savingGroup}
+        onConfirm={handleGroupStones}
+      />
 
       {/* Add Stone Dialog */}
-      <Dialog open={addStoneDialogOpen} onOpenChange={setAddStoneDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Stone to Job #{selectedJob?.job_number}</DialogTitle>
-            <DialogDescription>
-              Add a new stone to this job. Type, weight, and value are required.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Stone Type <span className="text-red-500">*</span></Label>
-              <Select
-                value={newStone.stone_type}
-                onValueChange={(value) => setNewStone({ ...newStone, stone_type: value })}
-              >
-                <SelectTrigger data-testid="add-stone-type-select">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stoneTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Weight (ct) <span className="text-red-500">*</span></Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={newStone.weight}
-                  onChange={(e) => setNewStone({ ...newStone, weight: e.target.value })}
-                  data-testid="add-stone-weight-input"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Value (USD) <span className="text-red-500">*</span></Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={newStone.value}
-                  onChange={(e) => setNewStone({ ...newStone, value: e.target.value })}
-                  data-testid="add-stone-value-input"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Shape</Label>
-              <Select
-                value={newStone.shape}
-                onValueChange={(value) => setNewStone({ ...newStone, shape: value })}
-              >
-                <SelectTrigger data-testid="add-stone-shape-select">
-                  <SelectValue placeholder="Select shape (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {shapes.map((shape) => (
-                    <SelectItem key={shape} value={shape}>
-                      {shape}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddStoneDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddStoneToJob}
-              disabled={addingStone || !newStone.stone_type || !newStone.weight || !newStone.value}
-              className="bg-navy-900 hover:bg-navy-800"
-              data-testid="confirm-add-stone-button"
-            >
-              {addingStone ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                'Add Stone'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AddStoneDialog
+        open={addStoneDialogOpen}
+        onOpenChange={setAddStoneDialogOpen}
+        jobNumber={selectedJob?.job_number}
+        stoneTypes={stoneTypes}
+        shapes={shapes}
+        newStone={newStone}
+        setNewStone={setNewStone}
+        adding={addingStone}
+        onConfirm={handleAddStoneToJob}
+      />
 
       {/* Nested Stone Dialog - opens on top of job dialog */}
       <Dialog open={stoneDialogOpen} onOpenChange={handleStoneDialogClose}>

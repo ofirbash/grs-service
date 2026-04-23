@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { escapeHtml as esc } from '@/lib/sanitize';
@@ -595,29 +595,37 @@ export default function ShipmentsPage() {
     }
   };
 
-  const filteredShipments = shipments.filter((shipment) => {
-    const matchesSearch =
-      shipment.shipment_number.toString().includes(searchTerm) ||
-      shipment.courier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      shipment.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || shipment.status === statusFilter;
-    const matchesType = typeFilter === 'all' || shipment.shipment_type === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
-  });
+  const filteredShipments = useMemo(
+    () => shipments.filter((shipment) => {
+      const matchesSearch =
+        shipment.shipment_number.toString().includes(searchTerm) ||
+        shipment.courier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        shipment.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || shipment.status === statusFilter;
+      const matchesType = typeFilter === 'all' || shipment.shipment_type === typeFilter;
+      return matchesSearch && matchesStatus && matchesType;
+    }),
+    [shipments, searchTerm, statusFilter, typeFilter],
+  );
 
   // Counts per type (ignores type filter but respects status + search)
-  const typeCounts: Record<string, number> = { all: 0, send_stones_to_lab: 0, stones_from_lab: 0, certificates_from_lab: 0 };
-  shipments.forEach((s) => {
-    const matchesSearch =
-      s.shipment_number.toString().includes(searchTerm) ||
-      s.courier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
-    if (matchesSearch && matchesStatus) {
-      typeCounts.all += 1;
-      if (s.shipment_type in typeCounts) typeCounts[s.shipment_type] += 1;
-    }
-  });
+  const typeCounts: Record<string, number> = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: 0, send_stones_to_lab: 0, stones_from_lab: 0, certificates_from_lab: 0,
+    };
+    shipments.forEach((s) => {
+      const matchesSearch =
+        s.shipment_number.toString().includes(searchTerm) ||
+        s.courier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
+      if (matchesSearch && matchesStatus) {
+        counts.all += 1;
+        if (s.shipment_type in counts) counts[s.shipment_type] += 1;
+      }
+    });
+    return counts;
+  }, [shipments, searchTerm, statusFilter]);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "success" | "warning" | "destructive"> = {
