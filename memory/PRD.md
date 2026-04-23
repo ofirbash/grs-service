@@ -28,6 +28,27 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
+### Session: Feb 23, 2026 - Code Quality Phase 3 + useMemo (Iter 24)
+
+**Phase 3 frontend splitting** (P0) — extracted 3 more dialogs:
+- `_components/StoneDialogs.tsx` — GroupStonesDialog + AddStoneDialog
+- `_components/CreateJobDialog.tsx` — full New Job creation modal (200 lines) with typed `JobFormData` / `StoneInput` props
+- `jobs/page.tsx`: **3,156 → 2,864 lines (−292 this iter; cumulative 3,845 → 2,864, −981 / −25.5%)**
+
+**`useMemo` optimizations** (P1):
+- `filteredJobs` in jobs/page.tsx — re-computes only when jobs / searchTerm / statusFilter change (previously recomputed on every keystroke)
+- `selectedJobStoneGroups` + `selectedJobUngroupedStones` — memoised derivations for the View Job Dialog
+- `filteredShipments` + `typeCounts` in shipments/page.tsx
+- All verified reactive via testing agent (typing in search still updates live)
+
+**View Job Dialog deferred** — the 800-line View Job Dialog with edit mode, payment section, notifications panel, and actions sidebar has deep state coupling and needs its own dedicated session to split into sub-components (JobSummaryHeader, JobStonesSection, JobPaymentSection, JobNotificationsPanel, JobActionsSidebar).
+
+**Custom data-loading hooks deferred** — `useJobsData` / `usePricing` would require migrating 15+ state setters out of JobsPage and into hooks. Deferred as a separate clean-up session to avoid risk.
+
+**Testing (iter 24)** — frontend testing agent reports zero failures; all extracted dialogs work identically, memoized filters remain reactive, all iter-23 dialogs still functional.
+
+
+
 ### Session: Feb 23, 2026 - Code Quality Phase 2 + Security + Print (Iter 23)
 
 **Phase 2 frontend splitting** — extracted 7 self-contained dialog components from the jobs page:
