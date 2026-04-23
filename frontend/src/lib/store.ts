@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { setToken, clearToken } from './tokenStorage';
 
 interface User {
   id: string;
@@ -25,16 +26,19 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       setAuth: (token, user) => {
-        localStorage.setItem('token', token);
+        setToken(token);
         set({ token, user, isAuthenticated: true });
       },
       logout: () => {
-        localStorage.removeItem('token');
+        clearToken();
         set({ token: null, user: null, isAuthenticated: false });
       },
     }),
     {
       name: 'auth-storage',
+      // Auth state lives only for the duration of the browser tab — tokens
+      // are wiped when the user closes the tab, reducing XSS blast radius.
+      storage: createJSONStorage(() => sessionStorage),
     }
   )
 );

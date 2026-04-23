@@ -52,7 +52,6 @@ import {
   Eye,
   Lock,
   Mail,
-  Send,
   Clock,
   CheckCircle2,
   Receipt,
@@ -66,9 +65,7 @@ import { Switch } from '@/components/ui/switch';
 import type {
   StructuredVerbalFindings,
   Stone,
-  DropdownOption,
   DropdownSettings,
-  CertificateGroup,
   Job,
   NotificationStatus,
   NotificationPreview,
@@ -84,6 +81,11 @@ import {
   organizeStonesIntoGroups,
 } from './_helpers';
 import { ShipmentChip } from './_components/ShipmentChip';
+import { ManualPaymentDialog } from './_components/ManualPaymentDialog';
+import { DocumentViewerDialog } from './_components/DocumentViewerDialog';
+import { SmsPreviewDialog } from './_components/SmsPreviewDialog';
+import { EmailPreviewDialog } from './_components/EmailPreviewDialog';
+import { UnsavedChangesDialog, BulkStatusDialog, ClientInvoiceDialog } from './_components/MiscDialogs';
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
@@ -3043,504 +3045,109 @@ export default function JobsPage() {
       </Dialog>
 
       {/* Unsaved Changes Confirmation Dialog */}
-      <Dialog open={unsavedConfirmOpen} onOpenChange={setUnsavedConfirmOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Unsaved Changes</DialogTitle>
-            <DialogDescription>
-              You have unsaved changes. Would you like to save before closing?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setUnsavedConfirmOpen(false);
-                setVerbalEditMode(false);
-                setStoneDialogOpen(false);
-              }}
-              data-testid="discard-changes-button"
-            >
-              Discard
-            </Button>
-            <Button
-              onClick={async () => {
-                setUnsavedConfirmOpen(false);
-                await handleSaveStone();
-                setStoneDialogOpen(false);
-              }}
-              className="bg-navy-900 hover:bg-navy-800"
-              data-testid="save-and-close-button"
-            >
-              Save & Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UnsavedChangesDialog
+        open={unsavedConfirmOpen}
+        onOpenChange={setUnsavedConfirmOpen}
+        onDiscard={() => {
+          setUnsavedConfirmOpen(false);
+          setVerbalEditMode(false);
+          setStoneDialogOpen(false);
+        }}
+        onSave={async () => {
+          setUnsavedConfirmOpen(false);
+          await handleSaveStone();
+          setStoneDialogOpen(false);
+        }}
+      />
 
       {/* SMS Preview Dialog */}
-      <Dialog open={!!smsPreview} onOpenChange={(open) => { if (!open) setSmsPreview(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              SMS Preview
-            </DialogTitle>
-            <DialogDescription>
-              Review the message before sending
-            </DialogDescription>
-          </DialogHeader>
-          {smsPreview && (
-            <div className="space-y-3">
-              <div className="text-xs text-navy-500">
-                <span className="font-medium">To:</span> {smsPreview.name} ({smsPreview.phone})
-              </div>
-              <div className="bg-navy-50 border border-navy-200 rounded-lg p-3 text-sm text-navy-900 whitespace-pre-wrap">
-                {smsPreview.message}
-              </div>
-              <p className="text-[10px] text-navy-400">{smsPreview.message.length} characters</p>
-            </div>
-          )}
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setSmsPreview(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmSendSms}
-              disabled={sendingSms !== null}
-              className="bg-navy-900 hover:bg-navy-800"
-              data-testid="confirm-send-sms-button"
-            >
-              {sendingSms ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
-              ) : (
-                <><MessageSquare className="h-4 w-4 mr-2" />Send SMS</>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SmsPreviewDialog
+        preview={smsPreview}
+        onClose={() => setSmsPreview(null)}
+        onConfirm={handleConfirmSendSms}
+        sending={sendingSms !== null}
+      />
 
       {/* View Certificate Scan Dialog */}
-      <Dialog open={viewCertScanOpen} onOpenChange={setViewCertScanOpen}>
-        <DialogContent className="sm:max-w-5xl max-h-[95vh]">
-          <DialogHeader>
-            <DialogTitle>Certificate Scan - {viewingStone?.sku}</DialogTitle>
-          </DialogHeader>
-          <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ minHeight: '500px', maxHeight: '75vh' }}>
-            {viewingStone?.certificate_scan_url && (
-              viewingStone.certificate_scan_url.startsWith('data:application/pdf') || 
-              viewingStone.certificate_scan_url.toLowerCase().endsWith('.pdf') ? (
-                <iframe
-                  src={viewingStone.certificate_scan_url}
-                  className="w-full h-full rounded-lg"
-                  style={{ minHeight: '500px', maxHeight: '75vh' }}
-                  title={`Certificate for ${viewingStone.sku}`}
-                />
-              ) : (
-                <img
-                  src={viewingStone.certificate_scan_url}
-                  alt={`Certificate for ${viewingStone.sku}`}
-                  className="max-w-full max-h-[70vh] object-contain"
-                />
-              )
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewCertScanOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DocumentViewerDialog
+        open={viewCertScanOpen}
+        onOpenChange={setViewCertScanOpen}
+        title={`Certificate Scan - ${viewingStone?.sku || ''}`}
+        url={viewingStone?.certificate_scan_url}
+      />
 
       {/* View Memo Dialog */}
-      <Dialog open={viewMemoOpen} onOpenChange={setViewMemoOpen}>
-        <DialogContent className="sm:max-w-5xl max-h-[95vh]">
-          <DialogHeader>
-            <DialogTitle>Signed Memo - Job #{selectedJob?.job_number}</DialogTitle>
-          </DialogHeader>
-          <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ minHeight: '500px', maxHeight: '75vh' }}>
-            {selectedJob?.signed_memo_url && (
-              selectedJob.signed_memo_url.startsWith('data:application/pdf') || 
-              selectedJob.signed_memo_url.toLowerCase().endsWith('.pdf') ? (
-                <iframe
-                  src={selectedJob.signed_memo_url}
-                  className="w-full h-full rounded-lg"
-                  style={{ minHeight: '500px', maxHeight: '75vh' }}
-                  title={`Signed Memo for Job ${selectedJob.job_number}`}
-                />
-              ) : (
-                <img
-                  src={selectedJob.signed_memo_url}
-                  alt={`Signed Memo for Job ${selectedJob.job_number}`}
-                  className="max-w-full max-h-[70vh] object-contain"
-                />
-              )
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewMemoOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DocumentViewerDialog
+        open={viewMemoOpen}
+        onOpenChange={setViewMemoOpen}
+        title={`Signed Memo - Job #${selectedJob?.job_number || ''}`}
+        url={selectedJob?.signed_memo_url}
+      />
 
       {/* View Lab Invoice Dialog */}
-      <Dialog open={viewLabInvoiceOpen} onOpenChange={setViewLabInvoiceOpen}>
-        <DialogContent className="sm:max-w-5xl max-h-[95vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Lab Invoice - Job #{selectedJob?.job_number}
-              <Badge variant="secondary" className="bg-navy-200 text-navy-700">Admin Only</Badge>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex items-center justify-center bg-gray-100 rounded-lg" style={{ minHeight: '500px', maxHeight: '75vh' }}>
-            {selectedJob?.lab_invoice_url && (
-              selectedJob.lab_invoice_url.startsWith('data:application/pdf') || 
-              selectedJob.lab_invoice_url.toLowerCase().endsWith('.pdf') ? (
-                <iframe
-                  src={selectedJob.lab_invoice_url}
-                  className="w-full h-full rounded-lg"
-                  style={{ minHeight: '500px', maxHeight: '75vh' }}
-                  title={`Lab Invoice for Job ${selectedJob.job_number}`}
-                />
-              ) : (
-                <img
-                  src={selectedJob.lab_invoice_url}
-                  alt={`Lab Invoice for Job ${selectedJob.job_number}`}
-                  className="max-w-full max-h-[70vh] object-contain"
-                />
-              )
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewLabInvoiceOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DocumentViewerDialog
+        open={viewLabInvoiceOpen}
+        onOpenChange={setViewLabInvoiceOpen}
+        title={`Lab Invoice - Job #${selectedJob?.job_number || ''}`}
+        url={selectedJob?.lab_invoice_url}
+        adminOnly
+      />
 
       {/* Bulk Status Update Dialog */}
-      <Dialog open={bulkStatusDialogOpen} onOpenChange={setBulkStatusDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-navy-900">
-              Update Job Status
-            </DialogTitle>
-            <DialogDescription>
-              Update status for {selectedJobIds.length} selected job(s)
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <Label className="text-navy-700 mb-2 block">New Status</Label>
-            <Select value={bulkStatus} onValueChange={setBulkStatus}>
-              <SelectTrigger data-testid="bulk-status-select">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="stones_accepted">Stones Accepted</SelectItem>
-                <SelectItem value="sent_to_lab">Sent to Lab</SelectItem>
-                <SelectItem value="verbal_uploaded">Verbal Uploaded</SelectItem>
-                <SelectItem value="stones_returned">Stones Returned</SelectItem>
-                <SelectItem value="cert_uploaded">Cert. Uploaded</SelectItem>
-                <SelectItem value="cert_returned">Cert. Returned</SelectItem>
-                <SelectItem value="done">Done</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkStatusDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleBulkStatusUpdate}
-              disabled={updatingBulkStatus || !bulkStatus}
-              className="bg-navy-900 hover:bg-navy-800"
-              data-testid="confirm-bulk-status-button"
-            >
-              {updatingBulkStatus ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                'Update Status'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BulkStatusDialog
+        open={bulkStatusDialogOpen}
+        onOpenChange={setBulkStatusDialogOpen}
+        selectedCount={selectedJobIds.length}
+        status={bulkStatus}
+        setStatus={setBulkStatus}
+        updating={updatingBulkStatus}
+        onConfirm={handleBulkStatusUpdate}
+      />
 
       {/* Email Preview Modal */}
-      <Dialog open={previewModalOpen} onOpenChange={(open) => {
-        setPreviewModalOpen(open);
-        if (!open) {
-          setNotificationPreview(null);
-        }
-      }}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Review Email Before Sending
-            </DialogTitle>
-            <DialogDescription>
-              Preview the email content before sending to the client.
-            </DialogDescription>
-          </DialogHeader>
-
-          {loadingPreview ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-navy-600" />
-            </div>
-          ) : notificationPreview ? (
-            <div className="flex-1 overflow-y-auto space-y-4 py-4">
-              {/* Email Details */}
-              <div className="grid grid-cols-2 gap-4 p-4 bg-navy-50 rounded-lg">
-                <div>
-                  <Label className="text-navy-500 text-xs">To</Label>
-                  <p className="font-medium text-navy-900">{notificationPreview.recipient_email}</p>
-                  <p className="text-sm text-navy-600">{notificationPreview.recipient_name}</p>
-                </div>
-                <div>
-                  <Label className="text-navy-500 text-xs">Job</Label>
-                  <p className="font-medium text-navy-900">#{notificationPreview.job_number}</p>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-navy-500 text-xs">Subject</Label>
-                  <p className="font-medium text-navy-900">{notificationPreview.subject}</p>
-                </div>
-                {notificationPreview.attachments.length > 0 && (
-                  <div className="col-span-2">
-                    <Label className="text-navy-500 text-xs">Attachments</Label>
-                    <div className="flex gap-2 mt-1">
-                      {notificationPreview.attachments.map((att, idx) => (
-                        <Badge key={`att-${idx}-${att.name}`} variant="secondary" className="bg-navy-200 text-navy-700">
-                          <FileText className="h-3 w-3 mr-1" />
-                          {att.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Email Preview — sandboxed iframe to prevent XSS from any untrusted fields in the rendered HTML */}
-              <div className="border rounded-lg overflow-hidden">
-                <div className="bg-navy-100 px-4 py-2 text-sm font-medium text-navy-700 border-b">
-                  Email Preview
-                </div>
-                <iframe
-                  title="Email preview"
-                  srcDoc={notificationPreview.html_body}
-                  sandbox=""
-                  style={{ height: '400px' }}
-                  className="w-full border-0 bg-white"
-                  data-testid="notification-email-preview"
-                />
-              </div>
-
-              {!notificationPreview.can_send && (
-                <div className="bg-navy-50 border border-navy-200 rounded-lg p-4">
-                  <p className="text-navy-700 text-sm">
-                    <strong>Note:</strong> Email sending is not configured. The API key may be missing.
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          <DialogFooter className="border-t pt-4 mt-auto">
-            <Button variant="outline" onClick={() => setPreviewModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSendNotification}
-              disabled={sendingEmail || !notificationPreview?.can_send}
-              className="bg-green-600 hover:bg-green-700"
-              data-testid="send-notification-button"
-            >
-              {sendingEmail ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Send Email
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EmailPreviewDialog
+        open={previewModalOpen}
+        onOpenChange={(open) => {
+          setPreviewModalOpen(open);
+          if (!open) setNotificationPreview(null);
+        }}
+        loading={loadingPreview}
+        preview={notificationPreview}
+        sending={sendingEmail}
+        onSend={handleSendNotification}
+      />
 
       {/* View Client Invoice Dialog */}
-      <Dialog open={viewInvoiceOpen} onOpenChange={setViewInvoiceOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              Client Invoice - Job #{selectedJob?.job_number}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden" style={{ height: '70vh' }}>
-            {selectedJob?.invoice_url && (
-              <iframe
-                src={`https://docs.google.com/viewer?url=${encodeURIComponent(selectedJob.invoice_url)}&embedded=true`}
-                className="w-full h-full border-0"
-                title="Invoice PDF"
-              />
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewInvoiceOpen(false)}>
-              Close
-            </Button>
-            <Button
-              onClick={() => window.open(selectedJob?.invoice_url, '_blank')}
-              className="bg-navy-900 hover:bg-navy-800"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ClientInvoiceDialog
+        open={viewInvoiceOpen}
+        onOpenChange={setViewInvoiceOpen}
+        jobNumber={selectedJob?.job_number}
+        invoiceUrl={selectedJob?.invoice_url}
+      />
 
       {/* Manual Payment Dialog */}
-      <Dialog open={manualPaymentOpen} onOpenChange={(open) => {
-        setManualPaymentOpen(open);
-        if (!open) setLastPaymentResult(null);
-      }}>
-        <DialogContent className="sm:max-w-lg" data-testid="manual-payment-dialog">
-          <DialogHeader>
-            <DialogTitle className="text-lg text-navy-900 flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              {lastPaymentResult ? 'Payment recorded' : 'Record Manual Payment'}
-            </DialogTitle>
-            <DialogDescription>
-              {lastPaymentResult
-                ? `Payment ID ${lastPaymentResult.id} saved successfully.`
-                : `Log a wire transfer or cash payment against Job #${selectedJob?.job_number}. The client will receive a receipt ${manualPaymentNotifyEmail || manualPaymentNotifySms ? '(' + [manualPaymentNotifyEmail && 'email', manualPaymentNotifySms && 'SMS'].filter(Boolean).join(' + ') + ')' : ''}.`}
-            </DialogDescription>
-          </DialogHeader>
-
-          {lastPaymentResult ? (
-            <div className="space-y-3 py-2">
-              <div className="rounded-lg bg-navy-900 text-white p-4">
-                <div className="text-[10px] uppercase tracking-widest text-navy-300">Payment ID</div>
-                <div className="text-2xl font-bold font-mono mt-1" data-testid="result-payment-id">{lastPaymentResult.id}</div>
-                <div className="text-xs text-navy-200 mt-2">Amount: ${lastPaymentResult.amount.toLocaleString()}</div>
-              </div>
-              {lastPaymentResult.is_fully_paid ? (
-                <div className="rounded-md bg-emerald-50 border border-emerald-200 p-2 text-sm text-emerald-800 flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Job paid in full
-                </div>
-              ) : (
-                <div className="rounded-md bg-amber-50 border border-amber-200 p-2 text-sm text-amber-800">
-                  Balance remaining: <strong>${lastPaymentResult.balance.toLocaleString()}</strong>
-                </div>
-              )}
-              <div className="text-xs text-navy-500 space-y-1">
-                <div>Email: {lastPaymentResult.email_status ? <span className="font-semibold text-navy-700">{lastPaymentResult.email_status}</span> : <span>skipped</span>}</div>
-                <div>SMS: {lastPaymentResult.sms_status ? <span className="font-semibold text-navy-700">{lastPaymentResult.sms_status}</span> : <span>skipped</span>}</div>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3 py-2">
-              <div>
-                <Label className="text-xs">Amount (USD)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={manualPaymentAmount}
-                  onChange={(e) => setManualPaymentAmount(e.target.value)}
-                  data-testid="manual-payment-amount"
-                  placeholder="0.00"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Destination</Label>
-                <Select value={manualPaymentDestination} onValueChange={setManualPaymentDestination}>
-                  <SelectTrigger data-testid="manual-payment-destination">
-                    <SelectValue placeholder="Pick a destination" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentDestinations.map((d) => (
-                      <SelectItem key={d} value={d}>{d}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {paymentDestinations.length === 0 && (
-                  <p className="text-[11px] text-amber-700 mt-1">No destinations configured. Add them under Settings → Pricing.</p>
-                )}
-              </div>
-              <div>
-                <Label className="text-xs">Note (optional)</Label>
-                <Textarea
-                  value={manualPaymentNote}
-                  onChange={(e) => setManualPaymentNote(e.target.value)}
-                  rows={2}
-                  placeholder="Reference, check number, etc."
-                  data-testid="manual-payment-note"
-                />
-              </div>
-              <div className="flex items-center gap-4 text-sm">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={manualPaymentNotifyEmail}
-                    onChange={(e) => setManualPaymentNotifyEmail(e.target.checked)}
-                    className="h-4 w-4 rounded border-navy-300"
-                    data-testid="manual-payment-notify-email"
-                  />
-                  <span>Email receipt to client</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={manualPaymentNotifySms}
-                    onChange={(e) => setManualPaymentNotifySms(e.target.checked)}
-                    className="h-4 w-4 rounded border-navy-300"
-                    data-testid="manual-payment-notify-sms"
-                  />
-                  <span>SMS receipt link</span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setManualPaymentOpen(false)} data-testid="manual-payment-close">
-              {lastPaymentResult ? 'Close' : 'Cancel'}
-            </Button>
-            {!lastPaymentResult && (
-              <Button
-                onClick={handleRecordManualPayment}
-                disabled={recordingPayment || !manualPaymentAmount || !manualPaymentDestination}
-                className="bg-navy-900 hover:bg-navy-800"
-                data-testid="manual-payment-submit"
-              >
-                {recordingPayment ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Recording...</>
-                ) : (
-                  <>Record Payment</>
-                )}
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ManualPaymentDialog
+        open={manualPaymentOpen}
+        onOpenChange={(open) => {
+          setManualPaymentOpen(open);
+          if (!open) setLastPaymentResult(null);
+        }}
+        jobNumber={selectedJob?.job_number}
+        paymentDestinations={paymentDestinations}
+        amount={manualPaymentAmount}
+        setAmount={setManualPaymentAmount}
+        destination={manualPaymentDestination}
+        setDestination={setManualPaymentDestination}
+        note={manualPaymentNote}
+        setNote={setManualPaymentNote}
+        notifyEmail={manualPaymentNotifyEmail}
+        setNotifyEmail={setManualPaymentNotifyEmail}
+        notifySms={manualPaymentNotifySms}
+        setNotifySms={setManualPaymentNotifySms}
+        recording={recordingPayment}
+        lastResult={lastPaymentResult}
+        onSubmit={handleRecordManualPayment}
+      />
     </div>
   );
 }

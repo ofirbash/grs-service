@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { getToken } from '@/lib/tokenStorage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,7 +58,7 @@ export default function ProfilePage() {
 
       const updated = await authApi.updateProfile(updateData);
       // Update auth store
-      const token = localStorage.getItem('token') || '';
+      const token = getToken() || '';
       setAuth(token, { ...user, ...updated });
       setSaved(true);
       setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }));

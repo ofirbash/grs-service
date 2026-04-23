@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 23 frontend-only regression verifying: (1) sessionStorage auth-token migration (P1 security), (2) jobs/page.tsx Phase-2 dialog extractions (ManualPaymentDialog, DocumentViewerDialog, SmsPreviewDialog, EmailPreviewDialog, UnsavedChangesDialog, BulkStatusDialog, ClientInvoiceDialog), (3) shipments/_print/shipment-memo.ts new memo-style printable document (P1). Zero console errors across all flows. All dialogs render and behave identically to pre-refactor. Auth token lives exclusively in sessionStorage after login (value len=215), localStorage.token is null, and both are fully cleared on logout.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dialog accessibility", "issues": ["Radix warning: 'Missing Description or aria-describedby={undefined} for {DialogContent}'. Fires on job-detail and shipment-detail dialogs. Cosmetic a11y warning, not functional — consider adding <DialogDescription> (or aria-describedby={undefined} explicitly) to the extracted DocumentViewerDialog/ManualPaymentDialog wrappers and the job/shipment detail DialogContent."]}
+    ]
+  },
+  "passed_tests": [
+    "Admin login (admin@bashari.com / admin123) -> /dashboard, no page errors",
+    "Auth token security: window.sessionStorage.getItem('token') PRESENT (len 215); window.localStorage.getItem('token') = null; sessionStorage keys = ['token','auth-storage']; localStorage keys = []",
+    "Logout: sessionStorage.token cleared to null; localStorage remains empty; zustand 'auth-storage' key retained with cleared user (expected)",
+    "/dashboard/jobs: 24 job rows render (data-testid=job-row-<n>); 24 job-card-* testids also present",
+    "Job detail dialog opens for job #23 (outstanding balance) — shows Signed Memo/Client Invoice/Payment/Lab Invoice sections + Notifications sub-panel",
+    "ManualPaymentDialog opens from 'Record Manual Payment (wire / cash)' button — amount input (prefilled $509.00), Destination dropdown (Bank Wire — Leumi), Note textarea, Email receipt / SMS receipt link checkboxes, Cancel + Record Payment buttons",
+    "DocumentViewerDialog opens from 'View' on Signed Memo — shows title 'Signed Memo - Job #23' and renders the uploaded document image",
+    "Job #21 detail dialog: Notifications section exposes 'Stones Received' with Resend (email) + SMS buttons (data-testid=preview-notification-stones_accepted, send-sms-stones_accepted)",
+    "/dashboard/shipments: 11 cards render (data-testid=shipment-card-<n>); shipment-detail dialog opens with 'Print PDF' + 'Edit' buttons",
+    "Print PDF popup (printShipmentMemo): new window captured via page.expect_popup(); title 'Shipment #11 — Bashari Lab-Direct'; body contains 'Shipment Memo', 'Bashari', 'Sender', 'Courier', 'Receiver', 'Jobs', 'Stones'; Bashari logo URL (customer-assets.emergentagent.com) present",
+    "/dashboard/settings: 4 tabs (Stones Settings, Branches, Payments, Admin Users) all clickable without errors",
+    "Console: 0 console.error and 0 pageerror events across login→jobs→manual-payment→document-viewer→job#21→shipments→print-memo→settings flows"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "(Optional a11y polish) Add DialogDescription / aria-describedby to extracted dialog components and the job/shipment detail DialogContent to silence Radix warning.",
+    "(Optional) Consider also clearing the zustand 'auth-storage' sessionStorage key on logout (currently retained with cleared user state — harmless but untidy)."
+  ],
+  "critical_code_review_comments": [
+    "sessionStorage migration is correctly implemented end-to-end: token stored via tokenStorage helper and zustand persist uses createJSONStorage(() => sessionStorage). Verified at runtime (len 215 session, null local).",
+    "printShipmentMemo HTML correctly includes the full Bashari memo structure: company header + logo + Shipment Memo title + jobs table + 3-signature footer (Sender/Courier/Receiver). XSS-safe via esc() helper. Popup opens via window.open('','_blank') + document.write — consider adding a printWindow.document.close() after write (already in file per search) and a try/catch around writeln for popup-blocked scenarios (graceful fallback already appears absent — minor).",
+    "Extracted dialog components (ManualPaymentDialog, DocumentViewerDialog, etc.) are behaviorally identical to pre-refactor — manual payment prefilled with outstanding balance $509, destination defaults to first payment destination, email/SMS checkboxes checked by default. No regressions detected.",
+    "Radix Dialog a11y warning is cosmetic but should eventually be addressed for screen-reader compliance — not blocking this iteration."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (not requested)", "frontend": "100% (all 12 regression checks passed)" },
+  "test_credentials": { "admin": "admin@bashari.com / admin123", "customer": "customer@test.com / customer123" },
+  "seed_data_creation": "None. Manual-payment dialog opened but not submitted (no payments recorded this iteration).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Frontend is running in production mode (yarn build). Popup capture for printShipmentMemo requires Playwright's page.expect_popup() context manager (NOT context.wait_for_event('page') — that timed out intermittently). Popup screenshot must omit quality kwarg (PNG only). Key testids: job-row-<n>, job-card-<n>, shipment-card-<n>, preview-notification-<event>, send-sms-<event>. Settings tabs are role=tab elements named 'Stones Settings/Branches/Payments/Admin Users'. ManualPaymentDialog amount field is input[type=number] prefilled with outstanding balance. Radix DialogContent aria-describedby warning is the only (benign) console signal on modal opens."
+}

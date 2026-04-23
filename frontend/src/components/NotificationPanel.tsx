@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { getToken } from '@/lib/tokenStorage';
 import {
   Mail,
   Send,
@@ -80,7 +81,7 @@ export function NotificationPanel({ jobId, currentStatus, onNotificationSent }: 
 
   const fetchNotificationStatus = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const response = await fetch(`${API_URL}/jobs/${jobId}/notifications/status`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -103,7 +104,7 @@ export function NotificationPanel({ jobId, currentStatus, onNotificationSent }: 
     setPreviewLoading(true);
     setSendError('');
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const response = await fetch(`${API_URL}/jobs/${jobId}/notifications/preview/${notificationType}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -126,7 +127,7 @@ export function NotificationPanel({ jobId, currentStatus, onNotificationSent }: 
     setSendLoading(true);
     setSendError('');
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const response = await fetch(`${API_URL}/jobs/${jobId}/notifications/send/${preview.notification_type}`, {
         method: 'POST',
         headers: {

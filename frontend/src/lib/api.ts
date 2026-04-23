@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken, clearToken } from './tokenStorage';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -11,11 +12,9 @@ const api = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -26,8 +25,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        clearToken();
         window.location.href = '/login';
       }
     }
