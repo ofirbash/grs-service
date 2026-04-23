@@ -6,18 +6,10 @@ import pytest
 import requests
 import os
 import uuid
+from test_config import BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD, CUSTOMER_EMAIL, CUSTOMER_PASSWORD, BRANCH_ADMIN_EMAIL, BRANCH_ADMIN_PASSWORD
 from datetime import datetime
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
-
 # Test credentials
-ADMIN_EMAIL = "admin@bashari.com"
-ADMIN_PASSWORD = "admin123"
-CUSTOMER_EMAIL = "customer@test.com"
-CUSTOMER_PASSWORD = "customer123"
-BRANCH_ADMIN_EMAIL = "ofir1@bashds.com"
-BRANCH_ADMIN_PASSWORD = "admin123"
-
 # Safe test client IDs (whitelisted for email testing)
 SAFE_CLIENT_ID = "699d74286ed929c698bfe682"  # ofir1@bashds.com
 SAFE_CLIENT_ID_2 = "69ae84cea4faa5cd3560dbc2"  # test Israel - ofir3@bashds.com

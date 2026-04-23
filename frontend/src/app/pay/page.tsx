@@ -81,6 +81,7 @@ function PaymentForm() {
     if (!token) return;
     fetchPaymentDetails();
     fetchExchangeRate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // Handle return from Tranzila success/fail redirect
@@ -88,6 +89,7 @@ function PaymentForm() {
     if (statusParam === 'success' && token) {
       pollPaymentStatus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusParam, token]);
 
   // Poll payment status while iframe is visible
@@ -100,6 +102,7 @@ function PaymentForm() {
         if (pollRef.current) clearInterval(pollRef.current);
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showIframe, token]);
 
   const pollPaymentStatus = async () => {

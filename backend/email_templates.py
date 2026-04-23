@@ -333,57 +333,73 @@ def _fees_breakdown_table(stones: list, discount: float = 0) -> tuple:
 # Main builder
 # ---------------------------------------------------------------------------
 
-def build_notification_email_html(
-    notification_type: str, job: dict, client: dict, payment_url: str = ""
-) -> tuple:
-    """Build HTML email content for the given notification type.
-
-    Returns (subject, html_body)
-    """
-    job_number = job.get("job_number", "N/A")
-    client_name = client.get("name", "Valued Customer")
-    stones = job.get("stones", [])
-    verbal_findings = job.get("verbal_findings", [])
-    portal_link = f"{PORTAL_URL}/dashboard/jobs"
-
-    # Common intro tone
-    greeting = (
-        f'<p style="color: {TEXT_BODY}; font-size: 15px; margin: 0 0 6px;">Hello <strong style="color: {BRAND_NAVY};">{client_name}</strong>,</p>'
+def _greeting(client_name: str) -> str:
+    return (
+        f'<p style="color: {TEXT_BODY}; font-size: 15px; margin: 0 0 6px;">'
+        f'Hello <strong style="color: {BRAND_NAVY};">{client_name}</strong>,</p>'
     )
 
-    # ---------- Template cases ----------
-    if notification_type == "stones_accepted":
-        subject = f"Job #{job_number} · Stones received at the lab"
-        stones_table = generate_stones_table_html(stones, include_fees=True)
-        body_inner = f"""
-            <h2 style="color: {BRAND_NAVY}; font-size: 22px; margin: 0 0 12px;">Stones received</h2>
-            {greeting}
-            <p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">We have received your stones and logged them into our system. You'll receive another update once verbal results are ready.</p>
-            {_job_meta_pill(job)}
-            <h3 style="color: {BRAND_NAVY}; font-size: 15px; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: 0.5px;">Stones received</h3>
-            {stones_table}
-            {_cta_button('View Job in Portal', portal_link)}
-            <p style="color: {TEXT_MUTED}; font-size: 12px; margin-top: 16px;"><em>The signed Memo-In document is attached to this email.</em></p>
-        """
 
-    elif notification_type == "verbal_uploaded":
-        subject = f"Job #{job_number} · Verbal results ready"
-        verbal_table = generate_verbal_results_table_html(stones, verbal_findings)
-        body_inner = f"""
-            <h2 style="color: {BRAND_NAVY}; font-size: 22px; margin: 0 0 12px;">Verbal results available</h2>
-            {greeting}
-            <p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">The preliminary (verbal) findings from our gemologists are now available. Full certificates will follow once issued.</p>
-            {_job_meta_pill(job)}
-            <h3 style="color: {BRAND_NAVY}; font-size: 15px; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: 0.5px;">Verbal findings</h3>
-            {verbal_table}
-            {_cta_button('View Results in Portal', portal_link)}
-        """
+def _heading(text: str) -> str:
+    return f'<h2 style="color: {BRAND_NAVY}; font-size: 22px; margin: 0 0 12px;">{text}</h2>'
 
-    elif notification_type == "stones_returned":
-        subject = f"Job #{job_number} · Stones ready for collection · Payment due"
-        fees_table, amount_due = _fees_breakdown_table(stones, job.get("discount", 0))
 
-        due_banner = f"""
+def _intro_p(text: str) -> str:
+    return f'<p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">{text}</p>'
+
+
+def _section_h3(text: str) -> str:
+    return (
+        f'<h3 style="color: {BRAND_NAVY}; font-size: 15px; margin: 20px 0 6px; '
+        f'text-transform: uppercase; letter-spacing: 0.5px;">{text}</h3>'
+    )
+
+
+def _muted_note(text: str) -> str:
+    return f'<p style="color: {TEXT_MUTED}; font-size: 12px; margin-top: 16px;"><em>{text}</em></p>'
+
+
+# ---------- Per-type renderers (each returns (subject, body_inner)) ----------
+
+def _render_stones_accepted(ctx: dict) -> tuple:
+    job = ctx["job"]
+    subject = f"Job #{ctx['job_number']} · Stones received at the lab"
+    body = (
+        _heading("Stones received")
+        + ctx["greeting"]
+        + _intro_p("We have received your stones and logged them into our system. "
+                  "You'll receive another update once verbal results are ready.")
+        + _job_meta_pill(job)
+        + _section_h3("Stones received")
+        + generate_stones_table_html(ctx["stones"], include_fees=True)
+        + _cta_button("View Job in Portal", ctx["portal_link"])
+        + _muted_note("The signed Memo-In document is attached to this email.")
+    )
+    return subject, body
+
+
+def _render_verbal_uploaded(ctx: dict) -> tuple:
+    job = ctx["job"]
+    subject = f"Job #{ctx['job_number']} · Verbal results ready"
+    body = (
+        _heading("Verbal results available")
+        + ctx["greeting"]
+        + _intro_p("The preliminary (verbal) findings from our gemologists are now available. "
+                  "Full certificates will follow once issued.")
+        + _job_meta_pill(job)
+        + _section_h3("Verbal findings")
+        + generate_verbal_results_table_html(ctx["stones"], ctx["verbal_findings"])
+        + _cta_button("View Results in Portal", ctx["portal_link"])
+    )
+    return subject, body
+
+
+def _render_stones_returned(ctx: dict) -> tuple:
+    job = ctx["job"]
+    subject = f"Job #{ctx['job_number']} · Stones ready for collection · Payment due"
+    fees_table, amount_due = _fees_breakdown_table(ctx["stones"], job.get("discount", 0))
+
+    due_banner = f"""
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 18px 0;">
           <tr>
             <td style="background-color: #fffbeb; border-left: 4px solid #d97706; padding: 14px 16px;">
@@ -392,154 +408,206 @@ def build_notification_email_html(
             </td>
           </tr>
         </table>
-        """
+    """
 
-        pay_cta = _cta_button("Pay Now Online", payment_url) if payment_url else ""
+    pay_cta = _cta_button("Pay Now Online", ctx["payment_url"]) if ctx["payment_url"] else ""
 
-        body_inner = f"""
-            <h2 style="color: {BRAND_NAVY}; font-size: 22px; margin: 0 0 12px;">Stones ready for collection</h2>
-            {greeting}
-            <p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;"><strong style="color: {BRAND_NAVY};">Your stones have returned to our Israel office and are ready for collection.</strong></p>
-            {_job_meta_pill(job)}
-            {due_banner}
-            {pay_cta}
-            <h3 style="color: {BRAND_NAVY}; font-size: 15px; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: 0.5px;">Fee breakdown</h3>
-            {fees_table}
-            <p style="color: {TEXT_MUTED}; font-size: 12px; margin-top: 16px;"><em>The detailed invoice is attached to this email.</em></p>
-        """
+    body = (
+        _heading("Stones ready for collection")
+        + ctx["greeting"]
+        + f'<p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">'
+          f'<strong style="color: {BRAND_NAVY};">Your stones have returned to our Israel '
+          f'office and are ready for collection.</strong></p>'
+        + _job_meta_pill(job)
+        + due_banner
+        + pay_cta
+        + _section_h3("Fee breakdown")
+        + fees_table
+        + _muted_note("The detailed invoice is attached to this email.")
+    )
+    return subject, body
 
-    elif notification_type == "cert_uploaded":
-        subject = f"Job #{job_number} · Certificate scans available"
-        scans_table = generate_cert_scans_table_html(stones)
-        body_inner = f"""
-            <h2 style="color: {BRAND_NAVY}; font-size: 22px; margin: 0 0 12px;">Certificate scans available</h2>
-            {greeting}
-            <p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">The digital scans of your certificates are ready for download. Physical certificates will follow shortly.</p>
-            {_job_meta_pill(job)}
-            <h3 style="color: {BRAND_NAVY}; font-size: 15px; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: 0.5px;">Certificate downloads</h3>
-            {scans_table}
-            {_cta_button('View All in Portal', portal_link)}
-        """
 
-    elif notification_type == "cert_returned":
-        subject = f"Job #{job_number} · Physical certificates ready"
-        cert_count = len([s for s in stones if s.get("certificate_scan_url")])
-        body_inner = f"""
-            <h2 style="color: {BRAND_NAVY}; font-size: 22px; margin: 0 0 12px;">Physical certificates ready</h2>
-            {greeting}
-            <p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;"><strong style="color: {BRAND_NAVY};">Your physical certificates have arrived at our office and are ready for final collection.</strong></p>
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 18px 0;">
-              <tr>
-                <td style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 14px 16px;">
-                  <div style="color: #065f46; font-size: 14px;">Please visit our office to collect your certificates along with your stones.</div>
-                </td>
-              </tr>
-            </table>
-            {_job_meta_pill(job)}
-            <p style="color: {TEXT_BODY}; font-size: 13px; margin: 16px 0 4px;"><strong>Total certificates:</strong> {cert_count}</p>
-            <p style="color: {TEXT_BODY}; font-size: 13px;">Thank you for choosing {COMPANY_DISPLAY_NAME} for your gemstone certification.</p>
-            {_cta_button('View Job in Portal', portal_link)}
-        """
+def _render_cert_uploaded(ctx: dict) -> tuple:
+    job = ctx["job"]
+    subject = f"Job #{ctx['job_number']} · Certificate scans available"
+    body = (
+        _heading("Certificate scans available")
+        + ctx["greeting"]
+        + _intro_p("The digital scans of your certificates are ready for download. "
+                  "Physical certificates will follow shortly.")
+        + _job_meta_pill(job)
+        + _section_h3("Certificate downloads")
+        + generate_cert_scans_table_html(ctx["stones"])
+        + _cta_button("View All in Portal", ctx["portal_link"])
+    )
+    return subject, body
 
-    elif notification_type == "manual_payment_receipt":
-        # Expects job to carry `latest_payment` object + `payment_total_paid`.
-        latest_payment = job.get("latest_payment") or {}
-        payment_id = latest_payment.get("id", "—")
-        paid_amount = latest_payment.get("amount", 0) or 0
-        paid_at_raw = latest_payment.get("recorded_at")
-        try:
-            if isinstance(paid_at_raw, str):
-                paid_at_display = paid_at_raw
-            else:
-                paid_at_display = paid_at_raw.strftime("%d %b %Y, %H:%M") if paid_at_raw else "—"
-        except Exception:
-            paid_at_display = str(paid_at_raw) if paid_at_raw else "—"
 
-        total_fee = job.get("total_fee", 0) or 0
-        discount = job.get("discount", 0) or 0
-        net_total = max(0, total_fee - discount)
-        total_paid = job.get("payment_total_paid", 0) or 0
-        balance = max(0, net_total - total_paid)
-        is_fully_paid = balance <= 0
+def _render_cert_returned(ctx: dict) -> tuple:
+    job = ctx["job"]
+    subject = f"Job #{ctx['job_number']} · Physical certificates ready"
+    cert_count = len([s for s in ctx["stones"] if s.get("certificate_scan_url")])
 
-        subject = f"Receipt · Job #{job_number} · ${paid_amount:,.2f} received"
+    green_banner = """
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 18px 0;">
+          <tr>
+            <td style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 14px 16px;">
+              <div style="color: #065f46; font-size: 14px;">Please visit our office to collect your certificates along with your stones.</div>
+            </td>
+          </tr>
+        </table>
+    """
+    body = (
+        _heading("Physical certificates ready")
+        + ctx["greeting"]
+        + f'<p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">'
+          f'<strong style="color: {BRAND_NAVY};">Your physical certificates have arrived '
+          f'at our office and are ready for final collection.</strong></p>'
+        + green_banner
+        + _job_meta_pill(job)
+        + f'<p style="color: {TEXT_BODY}; font-size: 13px; margin: 16px 0 4px;"><strong>Total certificates:</strong> {cert_count}</p>'
+        + f'<p style="color: {TEXT_BODY}; font-size: 13px;">Thank you for choosing {COMPANY_DISPLAY_NAME} for your gemstone certification.</p>'
+        + _cta_button("View Job in Portal", ctx["portal_link"])
+    )
+    return subject, body
 
-        receipt_id_block = f"""
-            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0 20px;">
-              <tr>
-                <td style="background: {BRAND_NAVY}; color: #ffffff; padding: 18px 22px; border-radius: 8px;">
-                  <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #d4d4d8;">Payment Receipt</div>
-                  <div style="font-size: 24px; font-weight: 800; letter-spacing: 1px; margin-top: 4px;">{payment_id}</div>
-                  <div style="font-size: 12px; color: #d4d4d8; margin-top: 4px;">Recorded {paid_at_display}</div>
-                </td>
-              </tr>
-            </table>
-        """
 
-        status_banner = (
-            f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 14px 0;">
+def _format_payment_timestamp(raw) -> str:
+    if not raw:
+        return "—"
+    if isinstance(raw, str):
+        return raw
+    try:
+        return raw.strftime("%d %b %Y, %H:%M")
+    except Exception:
+        return str(raw)
+
+
+def _render_manual_payment_receipt(ctx: dict) -> tuple:
+    job = ctx["job"]
+    latest_payment = job.get("latest_payment") or {}
+    payment_id = latest_payment.get("id", "—")
+    paid_amount = latest_payment.get("amount", 0) or 0
+    paid_at_display = _format_payment_timestamp(latest_payment.get("recorded_at"))
+
+    total_fee = job.get("total_fee", 0) or 0
+    discount = job.get("discount", 0) or 0
+    net_total = max(0, total_fee - discount)
+    total_paid = job.get("payment_total_paid", 0) or 0
+    balance = max(0, net_total - total_paid)
+    is_fully_paid = balance <= 0
+
+    subject = f"Receipt · Job #{ctx['job_number']} · ${paid_amount:,.2f} received"
+
+    receipt_id_block = f"""
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0 20px;">
+          <tr>
+            <td style="background: {BRAND_NAVY}; color: #ffffff; padding: 18px 22px; border-radius: 8px;">
+              <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #d4d4d8;">Payment Receipt</div>
+              <div style="font-size: 24px; font-weight: 800; letter-spacing: 1px; margin-top: 4px;">{payment_id}</div>
+              <div style="font-size: 12px; color: #d4d4d8; margin-top: 4px;">Recorded {paid_at_display}</div>
+            </td>
+          </tr>
+        </table>
+    """
+
+    if is_fully_paid:
+        status_banner = f"""
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 14px 0;">
               <tr>
                 <td style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 4px;">
                   <div style="color: #065f46; font-weight: 700; font-size: 13px;">Paid in full — Thank you!</div>
                   <div style="color: #047857; font-size: 11px; margin-top: 2px;">Total received: ${total_paid:,.2f} / ${net_total:,.2f}</div>
                 </td>
               </tr>
-            </table>"""
-            if is_fully_paid
-            else f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 14px 0;">
+            </table>
+        """
+    else:
+        status_banner = f"""
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 14px 0;">
               <tr>
                 <td style="background: #fffbeb; border-left: 4px solid #d97706; padding: 12px 16px; border-radius: 4px;">
                   <div style="color: #78350f; font-weight: 700; font-size: 13px;">${total_paid:,.2f} of ${net_total:,.2f} paid</div>
                   <div style="color: #92400e; font-size: 11px; margin-top: 2px;">Balance remaining: ${balance:,.2f}</div>
                 </td>
               </tr>
-            </table>"""
-        )
-
-        # Stones breakdown
-        stones_html = generate_stones_table_html(stones, include_fees=True)
-
-        body_inner = f"""
-            <h2 style="color: {BRAND_NAVY}; font-size: 22px; margin: 0 0 12px;">Payment received</h2>
-            {greeting}
-            <p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">We've recorded a payment of <strong style="color: {BRAND_NAVY};">${paid_amount:,.2f}</strong> toward <strong>Job #{job_number}</strong>.</p>
-            {receipt_id_block}
-            {_job_meta_pill(job)}
-            {status_banner}
-            <h3 style="color: {BRAND_NAVY}; font-size: 15px; margin: 20px 0 6px; text-transform: uppercase; letter-spacing: 0.5px;">Job breakdown</h3>
-            {stones_html}
-            {_cta_button('View Full Receipt', f"{PORTAL_URL}/dashboard/receipt/{payment_id}")}
-            <p style="color: {TEXT_MUTED}; font-size: 12px; margin-top: 16px;">Please keep this email for your records. The payment ID <strong style="color: {BRAND_NAVY};">{payment_id}</strong> can be used to look up this receipt anytime in the client portal.</p>
+            </table>
         """
 
-    elif notification_type == "welcome":
-        subject = f"Welcome to {COMPANY_DISPLAY_NAME}"
-        contact = client.get("email", "")
-        body_inner = f"""
-            <h2 style="color: {BRAND_NAVY}; font-size: 22px; margin: 0 0 12px;">Welcome to {COMPANY_DISPLAY_NAME}</h2>
-            {greeting}
-            <p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 10px;">We're pleased to have you as a client. Our new online portal gives you real-time visibility into every job — stone intake, verbal results, certificate downloads and payments — all in one place.</p>
-            <h3 style="color: {BRAND_NAVY}; font-size: 14px; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: 0.5px;">What you can do in the portal</h3>
-            <ul style="color: {TEXT_BODY}; font-size: 13px; padding-left: 20px; line-height: 1.7;">
-              <li>Track your jobs from intake to certificate collection</li>
-              <li>Download verbal results and certificate scans</li>
-              <li>Review fees and pay invoices online</li>
-              <li>Update your contact details and password anytime</li>
-            </ul>
-            <p style="color: {TEXT_BODY}; font-size: 13px; margin: 14px 0 0;">Sign in using your registered email: <strong style="color: {BRAND_NAVY};">{contact}</strong></p>
-            {_cta_button('Open Client Portal', PORTAL_URL)}
-            <p style="color: {TEXT_MUTED}; font-size: 12px; margin-top: 16px;">If this is your first time logging in, click <strong>Forgot password?</strong> on the login screen to set a password.</p>
-        """
+    body = (
+        _heading("Payment received")
+        + ctx["greeting"]
+        + f'<p style="color: {TEXT_BODY}; font-size: 14px; margin: 0 0 6px;">'
+          f'We\'ve recorded a payment of <strong style="color: {BRAND_NAVY};">${paid_amount:,.2f}</strong> '
+          f'toward <strong>Job #{ctx["job_number"]}</strong>.</p>'
+        + receipt_id_block
+        + _job_meta_pill(job)
+        + status_banner
+        + _section_h3("Job breakdown")
+        + generate_stones_table_html(ctx["stones"], include_fees=True)
+        + _cta_button("View Full Receipt", f"{PORTAL_URL}/dashboard/receipt/{payment_id}")
+        + f'<p style="color: {TEXT_MUTED}; font-size: 12px; margin-top: 16px;">'
+          f'Please keep this email for your records. The payment ID '
+          f'<strong style="color: {BRAND_NAVY};">{payment_id}</strong> can be used to look up '
+          f'this receipt anytime in the client portal.</p>'
+    )
+    return subject, body
 
-    else:
-        subject = f"Job #{job_number} · Update from {COMPANY_DISPLAY_NAME}"
-        body_inner = f"""
-            <h2 style="color: {BRAND_NAVY}; font-size: 22px; margin: 0 0 12px;">Job update</h2>
-            {greeting}
-            <p style="color: {TEXT_BODY}; font-size: 14px;">Your job <strong>#{job_number}</strong> has been updated. Please log in to view the latest details.</p>
-            {_cta_button('View Job in Portal', portal_link)}
-        """
 
+def _render_welcome(ctx: dict) -> tuple:
+    contact = ctx["client"].get("email", "")
+    subject = f"Welcome to {COMPANY_DISPLAY_NAME}"
+    body = (
+        _heading(f"Welcome to {COMPANY_DISPLAY_NAME}")
+        + ctx["greeting"]
+        + '<p style="color: ' + TEXT_BODY + '; font-size: 14px; margin: 0 0 10px;">'
+          "We're pleased to have you as a client. Our new online portal gives you real-time "
+          "visibility into every job — stone intake, verbal results, certificate downloads "
+          "and payments — all in one place.</p>"
+        + f'<h3 style="color: {BRAND_NAVY}; font-size: 14px; margin: 18px 0 6px; text-transform: uppercase; letter-spacing: 0.5px;">What you can do in the portal</h3>'
+        + f'<ul style="color: {TEXT_BODY}; font-size: 13px; padding-left: 20px; line-height: 1.7;">'
+          "<li>Track your jobs from intake to certificate collection</li>"
+          "<li>Download verbal results and certificate scans</li>"
+          "<li>Review fees and pay invoices online</li>"
+          "<li>Update your contact details and password anytime</li>"
+          "</ul>"
+        + f'<p style="color: {TEXT_BODY}; font-size: 13px; margin: 14px 0 0;">'
+          f'Sign in using your registered email: <strong style="color: {BRAND_NAVY};">{contact}</strong></p>'
+        + _cta_button("Open Client Portal", PORTAL_URL)
+        + f'<p style="color: {TEXT_MUTED}; font-size: 12px; margin-top: 16px;">'
+          "If this is your first time logging in, click <strong>Forgot password?</strong> "
+          "on the login screen to set a password.</p>"
+    )
+    return subject, body
+
+
+def _render_default(ctx: dict) -> tuple:
+    subject = f"Job #{ctx['job_number']} · Update from {COMPANY_DISPLAY_NAME}"
+    body = (
+        _heading("Job update")
+        + ctx["greeting"]
+        + f'<p style="color: {TEXT_BODY}; font-size: 14px;">'
+          f'Your job <strong>#{ctx["job_number"]}</strong> has been updated. '
+          "Please log in to view the latest details.</p>"
+        + _cta_button("View Job in Portal", ctx["portal_link"])
+    )
+    return subject, body
+
+
+# Dispatch table keeps complexity flat and each branch independently testable.
+_TEMPLATE_RENDERERS = {
+    "stones_accepted": _render_stones_accepted,
+    "verbal_uploaded": _render_verbal_uploaded,
+    "stones_returned": _render_stones_returned,
+    "cert_uploaded": _render_cert_uploaded,
+    "cert_returned": _render_cert_returned,
+    "manual_payment_receipt": _render_manual_payment_receipt,
+    "welcome": _render_welcome,
+}
+
+
+def _wrap_email(subject: str, body_inner: str) -> str:
     body = f"""
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
@@ -549,8 +617,7 @@ def build_notification_email_html(
       </tr>
     </table>
     """
-
-    html_body = f"""<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -573,4 +640,31 @@ def build_notification_email_html(
 </html>
 """
 
-    return subject, html_body
+
+def build_notification_email_html(
+    notification_type: str, job: dict, client: dict, payment_url: str = ""
+) -> tuple:
+    """Build HTML email content for the given notification type.
+
+    Returns (subject, html_body). Delegates to type-specific renderers via a
+    dispatch dict, which keeps this function's complexity at O(1).
+    """
+    job_number = job.get("job_number", "N/A")
+    client_name = client.get("name", "Valued Customer")
+
+    ctx = {
+        "job": job,
+        "client": client,
+        "job_number": job_number,
+        "client_name": client_name,
+        "stones": job.get("stones", []),
+        "verbal_findings": job.get("verbal_findings", []),
+        "portal_link": f"{PORTAL_URL}/dashboard/jobs",
+        "payment_url": payment_url,
+        "greeting": _greeting(client_name),
+    }
+
+    renderer = _TEMPLATE_RENDERERS.get(notification_type, _render_default)
+    subject, body_inner = renderer(ctx)
+
+    return subject, _wrap_email(subject, body_inner)

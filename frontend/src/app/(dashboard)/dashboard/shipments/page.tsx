@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
+import { escapeHtml as esc } from '@/lib/sanitize';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -435,10 +436,10 @@ export default function ShipmentsPage() {
             ${job.stones.map((stone, idx) => `
               <tr>
                 <td>${idx + 1}</td>
-                <td>${stone.sku}</td>
-                <td>${stone.stone_type}</td>
+                <td>${esc(stone.sku)}</td>
+                <td>${esc(stone.stone_type)}</td>
                 <td>${stone.weight} ct</td>
-                <td>${stone.shape}</td>
+                <td>${esc(stone.shape)}</td>
                 <td>$${stone.value.toLocaleString()}</td>
                 <td>$${stone.fee.toLocaleString()}</td>
                 <td>${stone.certificate_group ? `Cert ${stone.certificate_group}` : '-'}</td>
@@ -486,15 +487,15 @@ export default function ShipmentsPage() {
           <div class="grid">
             <div class="field">
               <div class="label">Client</div>
-              <div class="value">${job.client_name || 'N/A'}</div>
+              <div class="value">${esc(job.client_name || 'N/A')}</div>
             </div>
             <div class="field">
               <div class="label">Branch</div>
-              <div class="value">${job.branch_name || 'N/A'}</div>
+              <div class="value">${esc(job.branch_name || 'N/A')}</div>
             </div>
             <div class="field">
               <div class="label">Service Type</div>
-              <div class="value">${job.service_type || 'N/A'}</div>
+              <div class="value">${esc(job.service_type || 'N/A')}</div>
             </div>
             <div class="field">
               <div class="label">Status</div>
@@ -521,7 +522,7 @@ export default function ShipmentsPage() {
         ${job.notes ? `
         <div class="section">
           <h3>Notes</h3>
-          <p>${job.notes}</p>
+          <p>${esc(job.notes)}</p>
         </div>
         ` : ''}
         
@@ -685,11 +686,11 @@ export default function ShipmentsPage() {
               ${allStones.map((stone, idx) => `
                 <tr>
                   <td>${idx + 1}</td>
-                  <td>${stone.sku}</td>
+                  <td>${esc(stone.sku)}</td>
                   <td>#${stone.job_number}</td>
-                  <td>${stone.stone_type}</td>
+                  <td>${esc(stone.stone_type)}</td>
                   <td>${stone.weight} ct</td>
-                  <td>${stone.shape}</td>
+                  <td>${esc(stone.shape)}</td>
                   <td>$${stone.value.toLocaleString()}</td>
                   <td>$${stone.fee.toLocaleString()}</td>
                 </tr>
@@ -760,11 +761,11 @@ export default function ShipmentsPage() {
               </div>
               <div class="field">
                 <span class="label">Courier:</span>
-                <span class="value">${shipment.courier}</span>
+                <span class="value">${esc(shipment.courier)}</span>
               </div>
               <div class="field">
                 <span class="label">Tracking:</span>
-                <span class="value">${shipment.tracking_number || 'N/A'}</span>
+                <span class="value">${esc(shipment.tracking_number || 'N/A')}</span>
               </div>
             </div>
           </div>
@@ -774,11 +775,11 @@ export default function ShipmentsPage() {
             <div class="grid">
               <div class="field">
                 <span class="label">From:</span>
-                <span class="value">${shipment.source_address}</span>
+                <span class="value">${esc(shipment.source_address)}</span>
               </div>
               <div class="field">
                 <span class="label">To:</span>
-                <span class="value">${shipment.destination_address}</span>
+                <span class="value">${esc(shipment.destination_address)}</span>
               </div>
             </div>
           </div>
@@ -810,7 +811,7 @@ export default function ShipmentsPage() {
           ${shipment.notes ? `
           <div class="section">
             <h3>Notes</h3>
-            <p>${shipment.notes}</p>
+            <p>${esc(shipment.notes)}</p>
           </div>
           ` : ''}
           
@@ -1986,7 +1987,7 @@ export default function ShipmentsPage() {
                               key={stone.id}
                               className="cursor-pointer hover:bg-navy-100"
                               onClick={() => openNestedStoneDialog(stone)}
-                              data-testid={`job-stone-row-${stone.sku}`}
+                              data-testid={`job-stone-row-${esc(stone.sku)}`}
                             >
                               <TableCell className="font-mono text-sm">{stone.sku}</TableCell>
                               <TableCell>{stone.stone_type}</TableCell>
@@ -2029,7 +2030,7 @@ export default function ShipmentsPage() {
                                     key={stone.id}
                                     className="cursor-pointer hover:bg-navy-100 bg-navy-50/50"
                                     onClick={() => openNestedStoneDialog(stone)}
-                                    data-testid={`job-stone-row-${stone.sku}`}
+                                    data-testid={`job-stone-row-${esc(stone.sku)}`}
                                   >
                                     <TableCell className="font-mono text-sm">{stone.sku}</TableCell>
                                     <TableCell>{stone.stone_type}</TableCell>

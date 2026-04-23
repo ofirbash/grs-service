@@ -8,12 +8,9 @@ Tests for Email Notification API endpoints
 import pytest
 import requests
 import os
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://bashari-lab-direct.preview.emergentagent.com/api').rstrip('/')
+from test_config import BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD, CUSTOMER_EMAIL, CUSTOMER_PASSWORD, BRANCH_ADMIN_EMAIL, BRANCH_ADMIN_PASSWORD
 
 # Test credentials
-ADMIN_EMAIL = "admin@bashari.com"
-ADMIN_PASSWORD = "admin123"
 TEST_JOB_ID = "699d5beae87250434c9f9b40"
 
 # Valid notification types

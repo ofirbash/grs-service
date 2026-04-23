@@ -6,12 +6,9 @@ import pytest
 import requests
 import os
 import uuid
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://bashari-lab-direct.preview.emergentagent.com/api').rstrip('/')
+from test_config import BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD, CUSTOMER_EMAIL, CUSTOMER_PASSWORD, BRANCH_ADMIN_EMAIL, BRANCH_ADMIN_PASSWORD
 
 # Test credentials
-ADMIN_EMAIL = "admin@bashari.com"
-ADMIN_PASSWORD = "admin123"
 TEST_JOB_ID = "69b67dac4d2b625c24832749"
 
 

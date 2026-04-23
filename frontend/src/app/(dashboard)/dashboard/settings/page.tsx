@@ -878,7 +878,7 @@ export default function SettingsPage() {
               <CardContent className="space-y-3">
                 <div className="space-y-1.5">
                   {pricingForm.stone_types.map((type, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
+                    <div key={`${type}-${idx}`} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
                       <span className="text-sm text-navy-900">{type}</span>
                       <Button
                         variant="ghost"
@@ -945,7 +945,7 @@ export default function SettingsPage() {
               <CardContent className="space-y-3">
                 <div className="space-y-1.5">
                   {pricingForm.shapes.map((shape, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
+                    <div key={`${shape}-${idx}`} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
                       <span className="text-sm text-navy-900">{shape}</span>
                       <Button
                         variant="ghost"
@@ -1278,7 +1278,7 @@ export default function SettingsPage() {
                 {/* Mobile Cards */}
                 <div className="md:hidden space-y-2">
                   {(editingPricing ? pricingForm.brackets : pricing.brackets).map((bracket, index) => (
-                    <div key={index} className="border border-navy-200 rounded-lg p-3 text-sm">
+                    <div key={`bkt-${bracket.min_value}-${bracket.max_value}-${index}`} className="border border-navy-200 rounded-lg p-3 text-sm">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium text-navy-900">${bracket.min_value.toLocaleString()} - ${bracket.max_value.toLocaleString()}</span>
                         {editingPricing && (
@@ -1315,7 +1315,7 @@ export default function SettingsPage() {
                     </TableHeader>
                     <TableBody>
                       {(editingPricing ? pricingForm.brackets : pricing.brackets).map((bracket, index) => (
-                        <TableRow key={index} className="hover:bg-navy-50" data-testid={`pricing-bracket-${index}`}>
+                        <TableRow key={`bkt-${bracket.min_value}-${bracket.max_value}-${index}`} className="hover:bg-navy-50" data-testid={`pricing-bracket-${index}`}>
                           <TableCell>
                             {editingPricing ? (
                               <Input
@@ -1473,7 +1473,7 @@ export default function SettingsPage() {
             <CardContent className="space-y-3">
               <div className="space-y-1.5">
                 {(pricingForm.payment_destinations || []).map((dest, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
+                  <div key={`${dest}-${idx}`} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
                     <span className="text-sm text-navy-900">{dest}</span>
                     <Button
                       variant="ghost"

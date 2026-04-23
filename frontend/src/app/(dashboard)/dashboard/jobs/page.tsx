@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi, cloudinaryApi, notificationsApi, manualPaymentsApi } from '@/lib/api';
+import { escapeHtml as esc } from '@/lib/sanitize';
 import { useAuthStore, useBranchFilterStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -559,6 +560,7 @@ export default function JobsPage() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranchId]);
 
   // Handle opening a specific job from URL parameter
@@ -958,10 +960,10 @@ export default function JobsPage() {
       return `
         <tr class="${isGrouped ? 'grouped-row' : ''}">
           <td>${index}</td>
-          <td>${stone.sku}</td>
-          <td>${stone.stone_type}</td>
-          <td>${stone.weight} ct</td>
-          <td>${stone.shape}</td>
+          <td>${esc(stone.sku)}</td>
+          <td>${esc(stone.stone_type)}</td>
+          <td>${esc(String(stone.weight))} ct</td>
+          <td>${esc(stone.shape)}</td>
           <td class="flags">${flagsStr}</td>
           <td>$${stone.value.toLocaleString()}</td>
           <td>$${stone.fee.toLocaleString()}</td>
@@ -1092,18 +1094,18 @@ export default function JobsPage() {
         <div class="parties">
           <div class="party-card">
             <h3>Client</h3>
-            <div class="name">${clientFull?.name || job.client_name || 'N/A'}</div>
-            ${clientFull?.company ? `<div class="line">${clientFull.company}</div>` : ''}
-            ${clientFull?.address ? `<div class="line">${clientFull.address}</div>` : ''}
-            ${clientFull?.phone ? `<div class="line">Tel: ${clientFull.phone}</div>` : ''}
-            ${clientFull?.email ? `<div class="line">${clientFull.email}</div>` : ''}
+            <div class="name">${esc(clientFull?.name || job.client_name || 'N/A')}</div>
+            ${clientFull?.company ? `<div class="line">${esc(clientFull.company)}</div>` : ''}
+            ${clientFull?.address ? `<div class="line">${esc(clientFull.address)}</div>` : ''}
+            ${clientFull?.phone ? `<div class="line">Tel: ${esc(clientFull.phone)}</div>` : ''}
+            ${clientFull?.email ? `<div class="line">${esc(clientFull.email)}</div>` : ''}
           </div>
           <div class="party-card">
             <h3>Lab Branch</h3>
-            <div class="name">${branchFull?.name || job.branch_name || 'N/A'}</div>
-            ${branchFull?.address ? `<div class="line">${branchFull.address}</div>` : ''}
-            ${branchFull?.phone ? `<div class="line">Tel: ${branchFull.phone}</div>` : ''}
-            ${branchFull?.email ? `<div class="line">${branchFull.email}</div>` : ''}
+            <div class="name">${esc(branchFull?.name || job.branch_name || 'N/A')}</div>
+            ${branchFull?.address ? `<div class="line">${esc(branchFull.address)}</div>` : ''}
+            ${branchFull?.phone ? `<div class="line">Tel: ${esc(branchFull.phone)}</div>` : ''}
+            ${branchFull?.email ? `<div class="line">${esc(branchFull.email)}</div>` : ''}
           </div>
         </div>
 
@@ -1112,11 +1114,11 @@ export default function JobsPage() {
           <div class="meta-grid">
             <div class="field">
               <div class="label">Service Type</div>
-              <div class="value">${job.service_type}</div>
+              <div class="value">${esc(job.service_type)}</div>
             </div>
             <div class="field">
               <div class="label">Status</div>
-              <div class="value">${job.status.replace(/_/g, ' ')}</div>
+              <div class="value">${esc(job.status.replace(/_/g, ' '))}</div>
             </div>
             <div class="field">
               <div class="label">Total Stones</div>
@@ -1168,7 +1170,7 @@ export default function JobsPage() {
 
         ${
           job.notes
-            ? `<div class="section"><h3>Notes</h3><p style="font-size:11px;color:#3f3f46;margin:0;">${job.notes}</p></div>`
+            ? `<div class="section"><h3>Notes</h3><p style="font-size:11px;color:#3f3f46;margin:0;">${esc(job.notes)}</p></div>`
             : ''
         }
 
@@ -1851,7 +1853,7 @@ export default function JobsPage() {
               <p className="text-sm font-medium text-red-800 mb-1">Please fix the following errors:</p>
               <ul className="list-disc list-inside text-sm text-red-700">
                 {validationErrors.map((error, idx) => (
-                  <li key={idx}>{error}</li>
+                  <li key={`err-${idx}-${error.slice(0, 20)}`}>{error}</li>
                 ))}
               </ul>
             </div>
@@ -3618,7 +3620,7 @@ export default function JobsPage() {
                     <Label className="text-navy-500 text-xs">Attachments</Label>
                     <div className="flex gap-2 mt-1">
                       {notificationPreview.attachments.map((att, idx) => (
-                        <Badge key={idx} variant="secondary" className="bg-navy-200 text-navy-700">
+                        <Badge key={`att-${idx}-${att.name}`} variant="secondary" className="bg-navy-200 text-navy-700">
                           <FileText className="h-3 w-3 mr-1" />
                           {att.name}
                         </Badge>
@@ -3628,15 +3630,18 @@ export default function JobsPage() {
                 )}
               </div>
 
-              {/* Email Preview */}
+              {/* Email Preview — sandboxed iframe to prevent XSS from any untrusted fields in the rendered HTML */}
               <div className="border rounded-lg overflow-hidden">
                 <div className="bg-navy-100 px-4 py-2 text-sm font-medium text-navy-700 border-b">
                   Email Preview
                 </div>
-                <div 
-                  className="p-4 bg-white"
-                  style={{ maxHeight: '400px', overflowY: 'auto' }}
-                  dangerouslySetInnerHTML={{ __html: notificationPreview.html_body }}
+                <iframe
+                  title="Email preview"
+                  srcDoc={notificationPreview.html_body}
+                  sandbox=""
+                  style={{ height: '400px' }}
+                  className="w-full border-0 bg-white"
+                  data-testid="notification-email-preview"
                 />
               </div>
 

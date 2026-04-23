@@ -5,14 +5,9 @@ Tests the Cloudinary signature and upload endpoints
 import pytest
 import requests
 import os
-
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://bashari-lab-direct.preview.emergentagent.com/api')
+from test_config import BASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD, CUSTOMER_EMAIL, CUSTOMER_PASSWORD, BRANCH_ADMIN_EMAIL, BRANCH_ADMIN_PASSWORD
 
 # Test credentials
-TEST_EMAIL = "admin@bashari.com"
-TEST_PASSWORD = "admin123"
-
-
 class TestCloudinarySignature:
     """Test Cloudinary signature endpoint"""
     
@@ -20,8 +15,8 @@ class TestCloudinarySignature:
     def setup(self):
         """Get auth token for tests"""
         response = requests.post(f"{BASE_URL}/auth/login", json={
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         if response.status_code == 200:
             self.token = response.json().get("access_token")
@@ -107,8 +102,8 @@ class TestJobMemoUpload:
     def setup(self):
         """Get auth token and find a job for tests"""
         response = requests.post(f"{BASE_URL}/auth/login", json={
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         if response.status_code == 200:
             self.token = response.json().get("access_token")
@@ -165,8 +160,8 @@ class TestStoneCertificateScanUpload:
     def setup(self):
         """Get auth token and find a stone for tests"""
         response = requests.post(f"{BASE_URL}/auth/login", json={
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         if response.status_code == 200:
             self.token = response.json().get("access_token")
@@ -223,8 +218,8 @@ class TestLegacyBase64Display:
     def setup(self):
         """Get auth token"""
         response = requests.post(f"{BASE_URL}/auth/login", json={
-            "email": TEST_EMAIL,
-            "password": TEST_PASSWORD
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         if response.status_code == 200:
             self.token = response.json().get("access_token")
