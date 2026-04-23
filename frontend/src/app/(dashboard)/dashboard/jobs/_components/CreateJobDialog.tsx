@@ -140,8 +140,8 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
 
         {/* Stones */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <Label className="text-base font-semibold">Stones <span className="text-red-500">*</span></Label>
               <p className="text-xs text-navy-500 mt-1">At least one stone required. Shape is optional.</p>
             </div>
@@ -150,96 +150,179 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
               variant="outline"
               size="sm"
               onClick={onAddStone}
+              className="flex-shrink-0"
               data-testid="add-stone-button"
             >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Stone
+              <Plus className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Add Stone</span>
             </Button>
           </div>
 
+          {/* Mobile: stacked cards. Desktop: dense grid (≥ sm) */}
           <div className="border border-navy-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-[1fr,80px,100px,100px,auto] gap-2 p-3 bg-navy-50 text-sm font-medium text-navy-700">
+            {/* Desktop column headers */}
+            <div className="hidden sm:grid grid-cols-[1fr,80px,100px,100px,auto] gap-2 p-3 bg-navy-50 text-sm font-medium text-navy-700">
               <div>Type <span className="text-red-500">*</span></div>
               <div>Weight <span className="text-red-500">*</span></div>
               <div>Shape</div>
               <div>Value <span className="text-red-500">*</span></div>
               <div></div>
             </div>
+
             {stones.map((stone, index) => (
               <div
                 key={index}
-                className="grid grid-cols-[1fr,80px,100px,100px,auto] gap-2 p-3 border-t border-navy-200"
+                className="border-t border-navy-200 first:border-t-0 sm:first:border-t"
               >
-                <Select
-                  value={stone.stone_type}
-                  onValueChange={(value) => onStoneChange(index, 'stone_type', value)}
-                >
-                  <SelectTrigger data-testid={`stone-type-${index}`}>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stoneTypes.map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Desktop row */}
+                <div className="hidden sm:grid grid-cols-[1fr,80px,100px,100px,auto] gap-2 p-3">
+                  <Select
+                    value={stone.stone_type}
+                    onValueChange={(value) => onStoneChange(index, 'stone_type', value)}
+                  >
+                    <SelectTrigger data-testid={`stone-type-${index}`}>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stoneTypes.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={stone.weight}
+                    onChange={(e) => onStoneChange(index, 'weight', e.target.value)}
+                    className="border-navy-200"
+                    data-testid={`stone-weight-${index}`}
+                  />
+                  <Select
+                    value={stone.shape}
+                    onValueChange={(value) => onStoneChange(index, 'shape', value)}
+                  >
+                    <SelectTrigger data-testid={`stone-shape-${index}`}>
+                      <SelectValue placeholder="Shape" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {shapes.map((shape) => (
+                        <SelectItem key={shape} value={shape}>{shape}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={stone.value}
+                    onChange={(e) => onStoneChange(index, 'value', e.target.value)}
+                    className="border-navy-200"
+                    data-testid={`stone-value-${index}`}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onRemoveStone(index)}
+                    disabled={stones.length === 1}
+                    className="text-red-500 hover:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
 
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={stone.weight}
-                  onChange={(e) => onStoneChange(index, 'weight', e.target.value)}
-                  className="border-navy-200"
-                  data-testid={`stone-weight-${index}`}
-                />
-
-                <Select
-                  value={stone.shape}
-                  onValueChange={(value) => onStoneChange(index, 'shape', value)}
-                >
-                  <SelectTrigger data-testid={`stone-shape-${index}`}>
-                    <SelectValue placeholder="Shape" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {shapes.map((shape) => (
-                      <SelectItem key={shape} value={shape}>{shape}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={stone.value}
-                  onChange={(e) => onStoneChange(index, 'value', e.target.value)}
-                  className="border-navy-200"
-                  data-testid={`stone-value-${index}`}
-                />
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onRemoveStone(index)}
-                  disabled={stones.length === 1}
-                  className="text-red-500 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {/* Mobile stacked card */}
+                <div className="sm:hidden p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-navy-500">
+                      Stone {index + 1}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onRemoveStone(index)}
+                      disabled={stones.length === 1}
+                      className="text-red-500 hover:text-red-600 h-7 w-7"
+                      data-testid={`remove-stone-mobile-${index}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Type <span className="text-red-500">*</span></Label>
+                    <Select
+                      value={stone.stone_type}
+                      onValueChange={(value) => onStoneChange(index, 'stone_type', value)}
+                    >
+                      <SelectTrigger data-testid={`stone-type-mobile-${index}`}>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stoneTypes.map((type) => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Weight (ct) <span className="text-red-500">*</span></Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={stone.weight}
+                        onChange={(e) => onStoneChange(index, 'weight', e.target.value)}
+                        className="border-navy-200"
+                        data-testid={`stone-weight-mobile-${index}`}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Value (USD) <span className="text-red-500">*</span></Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={stone.value}
+                        onChange={(e) => onStoneChange(index, 'value', e.target.value)}
+                        className="border-navy-200"
+                        data-testid={`stone-value-mobile-${index}`}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Shape</Label>
+                    <Select
+                      value={stone.shape}
+                      onValueChange={(value) => onStoneChange(index, 'shape', value)}
+                    >
+                      <SelectTrigger data-testid={`stone-shape-mobile-${index}`}>
+                        <SelectValue placeholder="Shape" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {shapes.map((shape) => (
+                          <SelectItem key={shape} value={shape}>{shape}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+      <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+        <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+          Cancel
+        </Button>
         <Button
           onClick={onSubmit}
           disabled={creating || !isFormValid()}
-          className="bg-navy-900 hover:bg-navy-800"
+          className="bg-navy-900 hover:bg-navy-800 w-full sm:w-auto"
           data-testid="confirm-create-job-button"
         >
           {creating ? (
