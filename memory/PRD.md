@@ -28,6 +28,36 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
+### Session: Feb 23, 2026 - Partial Return Shipments (Iter 26) 🆕 MAJOR FEATURE
+
+**Scenario**: job with 5 stones, lab tested 4 and wants to return them while the 5th stays for later grading. Same for certificates.
+
+**Per-stone lifecycle tracking**:
+- `Stone.stone_status`: `at_office` → `at_lab` → `returned` (one-way progression; rechecks = new job)
+- `Stone.cert_status`: `pending` → `delivered`
+- Only NEW jobs get these fields (no retroactive migration — legacy jobs keep job-level flow)
+
+**Partial-shipment scope**:
+- `Shipment.stone_ids[]` — optional; empty ⇒ all stones of included jobs (back-compat)
+- `shipment.total_stones` / `total_value` count only the selected stones
+
+**Delivery hook** (`_apply_stone_lifecycle`): when shipment transitions to `delivered` (or `in_transit` for send-to-lab), updates status of included stones only. Partial shipments **skip** the job.status cascade — per-stone badges in UI reflect reality, job.status stays untouched.
+
+**Email enumeration**: `stones_returned` and `cert_returned` templates now partition stones into **Returned in this shipment** and **Still at the lab** tables (Type/Weight/SKU per row). Subject becomes "Partial return — 2 of 3 stones ready" when partial; falls back to old wording for fully-returned or legacy jobs.
+
+**Frontend**:
+- `shipments/_components/PartialStonesPicker.tsx` (NEW) — per-certificate-group checkboxes in Create Shipment dialog for return flows; legacy jobs show amber "whole job ships" badge
+- `jobs/_components/StoneStatusBadges.tsx` (NEW) — pill badges next to each SKU in View Job dialog (3 render sites: mobile card, desktop ungrouped table, desktop grouped table)
+- Ungrouped stones each render as a singleton picker group
+- `shipmentsApi.create` + backend POST both accept/return `stone_ids`
+
+**Testing**:
+- Backend: 58/58 pytest tests pass, +10 new `tests/test_partial_shipments.py` covering helpers, partial flows, legacy compat, email enumeration
+- End-to-end curl: created 3-stone job → stones `at_office/pending` → sent to lab delivered → all `at_lab` → partial return of 2 → 2 `returned` + 1 `at_lab`, job.status unchanged, email subject "Partial return — 2 of 3 stones ready"
+- Testing agent (iter 26) confirmed zero regressions, legacy jobs use old wording, frontend badges render correctly; fixed one non-blocking bug where POST /shipments response omitted stone_ids
+
+
+
 ### Session: Feb 23, 2026 - View Job Dialog Partial Split (Iter 25)
 
 **Phase 3 View Job Dialog decomposition** (3 of 5 planned sub-components done):

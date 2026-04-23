@@ -202,6 +202,7 @@ async def create_shipment(shipment: ShipmentCreate, user: dict = Depends(require
         date_sent=shipment_doc["date_sent"],
         status="pending",
         job_ids=valid_job_ids,
+        stone_ids=list(stone_id_set),
         total_jobs=len(valid_job_ids),
         total_stones=total_stones,
         total_value=total_value,
