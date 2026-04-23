@@ -28,6 +28,21 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
+### Session: Feb 23, 2026 - Code Quality Report Remediation (Iter 22)
+- ✅ **Backend complexity refactor** — split three hot-spot functions into small, single-responsibility helpers with no behaviour change:
+  - `routes/dashboard.py::get_dashboard_stats` → `_build_jobs_query`, `_aggregate_job_totals`, `_aggregate_status_breakdown`, `_count_clients`
+  - `routes/manual_payments.py::record_manual_payment` → `_compute_balance`, `_build_payment_record`, `_load_client_context`, `_send_payment_email`, `_send_payment_sms`
+  - `routes/jobs.py::build_job_response` → `_resolve_shipment_ids`, `_fetch_latest_shipment_info`, `_serialize_payments`, `_build_payment_url`
+- ✅ Verified email_templates dispatcher refactor — fixed stale `GRS Global` assertion in `test_notifications_api.py`; all 13 notification tests pass.
+- ✅ **Frontend monolith splitting (phase 1)** — extracted types/constants/subcomponents from the 3 largest files:
+  - `jobs/page.tsx` (3,845 → 3,546 lines): new `_types.ts`, `_helpers.ts`, `_components/ShipmentChip.tsx`
+  - `shipments/page.tsx` (2,479 → 2,414 lines): new `_types.ts`
+  - `settings/page.tsx` (2,062 → 2,029 lines): new `_types.ts`
+- ✅ Zero TypeScript errors across the repo.
+- ✅ Testing agent (iter 22) — **61/61 tests passed** (48 regression + 13 new refactor verification). All notification-preview types emit the correct brand string; manual-payment validation (zero/negative/over-balance) returns 400; partial/paid flow works end-to-end.
+
+
+
 ### Session: Feb 22, 2026 - Codebase Restoration & Verification
 - ✅ Pulled codebase from GitHub (ofirbash/grs-service)
 - ✅ Fixed TypeScript lint errors in jobs, shipments, stones, settings pages
