@@ -1529,7 +1529,7 @@ export default function ShipmentsPage() {
                           <span className="font-semibold text-navy-900 text-sm">#{job.job_number}</span>
                           <div className="flex items-center gap-2">
                             {getStatusBadge(job.status)}
-                            {isAdmin && (
+                            {isAdmin && editingShipment && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleRemoveJobFromShipment(job.id, job.job_number); }}
                                 className="text-red-500 p-1 -mr-1 rounded active:bg-red-50"
@@ -1564,7 +1564,7 @@ export default function ShipmentsPage() {
                           <TableHead className="text-navy-700">Stones</TableHead>
                           <TableHead className="text-navy-700">Value</TableHead>
                           <TableHead className="text-navy-700">Status</TableHead>
-                          {isAdmin && <TableHead className="text-navy-700 w-10"></TableHead>}
+                          {isAdmin && editingShipment && <TableHead className="text-navy-700 w-10"></TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1624,7 +1624,7 @@ export default function ShipmentsPage() {
                             >
                               <Badge variant="secondary">{job.status.replace(/_/g, ' ')}</Badge>
                             </TableCell>
-                            {isAdmin && (
+                            {isAdmin && editingShipment && (
                               <TableCell onClick={(e) => e.stopPropagation()}>
                                 <button
                                   onClick={() => handleRemoveJobFromShipment(job.id, job.job_number)}

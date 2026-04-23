@@ -311,12 +311,6 @@ const ShipmentChip = ({
     delivered: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     cancelled: 'bg-red-50 text-red-700 border-red-200',
   };
-  const statusDotColor: Record<string, string> = {
-    pending: 'bg-navy-400',
-    in_transit: 'bg-navy-900',
-    delivered: 'bg-emerald-500',
-    cancelled: 'bg-red-500',
-  };
   const typeLabel = SHIPMENT_TYPE_LABELS[info.shipment_type] || info.shipment_type;
   const statusLabel = SHIPMENT_STATUS_LABELS[info.status] || info.status;
   const tooltip = [
@@ -327,15 +321,30 @@ const ShipmentChip = ({
   ].filter(Boolean).join(' · ');
 
   if (compact) {
-    // Table-friendly: icon + #N + tiny coloured dot
+    // Table-friendly: icon + #N + short status label in a coloured pill
+    const shortStatusStyles: Record<string, string> = {
+      pending: 'bg-navy-100 text-navy-800',
+      in_transit: 'bg-navy-900 text-white',
+      delivered: 'bg-emerald-100 text-emerald-800',
+      cancelled: 'bg-red-100 text-red-700',
+    };
     return (
       <span
-        className="inline-flex items-center gap-1 rounded-md border border-navy-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-navy-900 whitespace-nowrap"
+        className="inline-flex items-center gap-1 whitespace-nowrap"
         title={tooltip}
       >
-        <ShipmentTypeIcon type={info.shipment_type} className="h-3 w-3" />
-        #{info.shipment_number}
-        <span className={`h-1.5 w-1.5 rounded-full ${statusDotColor[info.status] || 'bg-navy-300'}`} />
+        <span className="inline-flex items-center gap-1 rounded-md border border-navy-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-navy-900">
+          <ShipmentTypeIcon type={info.shipment_type} className="h-3 w-3" />
+          #{info.shipment_number}
+        </span>
+        <span
+          className={
+            'rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ' +
+            (shortStatusStyles[info.status] || shortStatusStyles.pending)
+          }
+        >
+          {statusLabel}
+        </span>
       </span>
     );
   }
@@ -1675,13 +1684,13 @@ export default function JobsPage() {
                       </TableHead>
                     )}
                     <TableHead className="font-semibold text-navy-700 w-16">Job #</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Client</TableHead>
-                    <TableHead className="font-semibold text-navy-700 w-24">Service</TableHead>
-                    <TableHead className="font-semibold text-navy-700 w-16 text-center">Stones</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-40">Client</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-20">Service</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-14 text-center">Stones</TableHead>
                     <TableHead className="font-semibold text-navy-700 w-28">Value / Fee</TableHead>
                     <TableHead className="font-semibold text-navy-700 w-32">Status</TableHead>
                     {isAdmin && <TableHead className="font-semibold text-navy-700 w-20">Payment</TableHead>}
-                    <TableHead className="font-semibold text-navy-700 w-24">Shipment</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-36">Shipment</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -2182,7 +2191,7 @@ export default function JobsPage() {
                         <span className="font-mono text-xs font-semibold text-navy-900">{stone.sku}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-navy-900">${stone.fee.toLocaleString()}</span>
-                          {isAdmin && (
+                          {isAdmin && editMode && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDeleteStone(stone.id, stone.sku); }}
                               className="text-red-500 p-1 -mr-1 rounded active:bg-red-50"
@@ -2215,7 +2224,7 @@ export default function JobsPage() {
                         <TableHead className="text-navy-700">Value</TableHead>
                         <TableHead className="text-navy-700">Fee</TableHead>
                         <TableHead className="text-navy-700 w-24">Certificate</TableHead>
-                        {isAdmin && <TableHead className="text-navy-700 w-10"></TableHead>}
+                        {editMode && isAdmin && <TableHead className="text-navy-700 w-10"></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2262,7 +2271,7 @@ export default function JobsPage() {
                                 <span className="text-navy-400">-</span>
                               )}
                             </TableCell>
-                            {isAdmin && (
+                            {editMode && isAdmin && (
                               <TableCell onClick={(e) => e.stopPropagation()}>
                                 <button
                                   onClick={() => handleDeleteStone(stone.id, stone.sku)}
@@ -2293,7 +2302,7 @@ export default function JobsPage() {
                             <React.Fragment key={groupNum}>
                               {/* Group header row - no hover effect */}
                               <TableRow className="bg-navy-800 hover:bg-navy-800">
-                                <TableCell colSpan={isAdmin ? 9 : 8} className="py-2">
+                                <TableCell colSpan={editMode && isAdmin ? 9 : 8} className="py-2">
                                   <div className="flex items-center justify-between text-white">
                                     <span className="font-medium flex items-center gap-2">
                                       <Link2 className="h-4 w-4" />
@@ -2347,7 +2356,7 @@ export default function JobsPage() {
                                       )}
                                     </div>
                                   </TableCell>
-                                  {isAdmin && (
+                                  {editMode && isAdmin && (
                                     <TableCell onClick={(e) => e.stopPropagation()}>
                                       <button
                                         onClick={() => handleDeleteStone(stone.id, stone.sku)}
