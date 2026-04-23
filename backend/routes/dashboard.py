@@ -7,55 +7,66 @@ from auth import get_current_user
 router = APIRouter()
 
 
-@router.get("/dashboard/stats")
-async def get_dashboard_stats(branch_id: Optional[str] = None, user: dict = Depends(get_current_user)):
-    query = {}
-    if user["role"] == "branch_admin":
-        query["branch_id"] = user.get("branch_id")
-    elif user["role"] == "super_admin" and branch_id:
-        query["branch_id"] = branch_id
-    elif user["role"] == "customer":
-        user_client_id = user.get("client_id")
-        if user_client_id:
-            query["client_id"] = user_client_id
-        else:
+async def _build_jobs_query(user: dict, branch_id: Optional[str]) -> dict:
+    """Return a Mongo query dict scoped to the user's role."""
+    role = user["role"]
+    if role == "branch_admin":
+        return {"branch_id": user.get("branch_id")}
+    if role == "super_admin" and branch_id:
+        return {"branch_id": branch_id}
+    if role == "customer":
+        client_id = user.get("client_id")
+        if not client_id:
             client = await db.clients.find_one({"email": user["email"]})
             if client:
-                query["client_id"] = str(client["_id"])
+                client_id = str(client["_id"])
+        return {"client_id": client_id} if client_id else {}
+    return {}
 
-    total_jobs = await db.jobs.count_documents(query)
-    active_jobs = await db.jobs.count_documents({**query, "status": {"$nin": ["delivered"]}})
 
+async def _aggregate_job_totals(query: dict) -> dict:
     pipeline = [
         {"$match": query},
         {"$group": {
             "_id": None,
             "total_value": {"$sum": "$total_value"},
             "total_fee": {"$sum": "$total_fee"},
-            "total_stones": {"$sum": "$total_stones"}
-        }}
+            "total_stones": {"$sum": "$total_stones"},
+        }},
     ]
+    result = await db.jobs.aggregate(pipeline).to_list(1)
+    return result[0] if result else {"total_value": 0, "total_fee": 0, "total_stones": 0}
 
-    agg_result = await db.jobs.aggregate(pipeline).to_list(1)
-    totals = agg_result[0] if agg_result else {"total_value": 0, "total_fee": 0, "total_stones": 0}
 
-    status_pipeline = [
+async def _aggregate_status_breakdown(query: dict) -> dict:
+    pipeline = [
         {"$match": query},
-        {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}},
     ]
-    status_result = await db.jobs.aggregate(status_pipeline).to_list(20)
-    status_breakdown = {s["_id"]: s["count"] for s in status_result}
+    result = await db.jobs.aggregate(pipeline).to_list(20)
+    return {s["_id"]: s["count"] for s in result}
 
+
+async def _count_clients(user: dict, branch_id: Optional[str]) -> int:
+    if user["role"] == "customer":
+        return 1
     client_query = {}
     if user["role"] == "branch_admin":
         client_query["branch_id"] = user.get("branch_id")
     elif user["role"] == "super_admin" and branch_id:
         client_query["branch_id"] = branch_id
+    return await db.clients.count_documents(client_query)
 
-    if user["role"] == "customer":
-        total_clients = 1
-    else:
-        total_clients = await db.clients.count_documents(client_query)
+
+@router.get("/dashboard/stats")
+async def get_dashboard_stats(branch_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    query = await _build_jobs_query(user, branch_id)
+
+    total_jobs = await db.jobs.count_documents(query)
+    active_jobs = await db.jobs.count_documents({**query, "status": {"$nin": ["delivered"]}})
+    totals = await _aggregate_job_totals(query)
+    status_breakdown = await _aggregate_status_breakdown(query)
+    total_clients = await _count_clients(user, branch_id)
 
     return {
         "total_jobs": total_jobs,
@@ -64,7 +75,7 @@ async def get_dashboard_stats(branch_id: Optional[str] = None, user: dict = Depe
         "total_fee": totals.get("total_fee", 0),
         "total_stones": totals.get("total_stones", 0),
         "total_clients": total_clients,
-        "jobs_by_status": status_breakdown
+        "jobs_by_status": status_breakdown,
     }
 
 

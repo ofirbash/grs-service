@@ -21,34 +21,59 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 router = APIRouter()
 
 
+def _resolve_shipment_ids(job: dict) -> list:
+    shipment_ids = job.get("shipment_ids", [])
+    if not shipment_ids and job.get("shipment_id"):
+        return [job.get("shipment_id")]
+    return shipment_ids
+
+
+async def _fetch_latest_shipment_info(shipment_ids: list) -> Optional[dict]:
+    if not shipment_ids:
+        return None
+    try:
+        shipment = await db.shipments.find_one({"_id": ObjectId(shipment_ids[-1])})
+    except Exception:
+        return None
+    if not shipment:
+        return None
+    date_sent = shipment.get("date_sent")
+    return {
+        "id": str(shipment["_id"]),
+        "shipment_number": shipment["shipment_number"],
+        "shipment_type": shipment["shipment_type"],
+        "courier": shipment["courier"],
+        "tracking_number": shipment.get("tracking_number"),
+        "source_address": shipment["source_address"],
+        "destination_address": shipment["destination_address"],
+        "status": shipment["status"],
+        "date_sent": date_sent.isoformat() if date_sent else None,
+    }
+
+
+def _serialize_payments(job: dict) -> list:
+    out = []
+    for p in (job.get("payments", []) or []):
+        recorded = p.get("recorded_at")
+        out.append({
+            **p,
+            "recorded_at": recorded.isoformat() if hasattr(recorded, "isoformat") else recorded,
+        })
+    return out
+
+
+def _build_payment_url(job: dict) -> Optional[str]:
+    token = job.get("payment_token")
+    return f"{FRONTEND_URL}/pay?token={token}" if token and FRONTEND_URL else None
+
+
 async def build_job_response(job: dict) -> JobResponse:
     """Build a JobResponse from a job document, enriching with client/branch/shipment data"""
     client = await db.clients.find_one({"_id": ObjectId(job["client_id"])})
     branch = await db.branches.find_one({"_id": ObjectId(job["branch_id"])})
 
-    shipment_info = None
-    shipment_ids = job.get("shipment_ids", [])
-    if not shipment_ids and job.get("shipment_id"):
-        shipment_ids = [job.get("shipment_id")]
-
-    if shipment_ids:
-        latest_shipment_id = shipment_ids[-1]
-        try:
-            shipment = await db.shipments.find_one({"_id": ObjectId(latest_shipment_id)})
-            if shipment:
-                shipment_info = {
-                    "id": str(shipment["_id"]),
-                    "shipment_number": shipment["shipment_number"],
-                    "shipment_type": shipment["shipment_type"],
-                    "courier": shipment["courier"],
-                    "tracking_number": shipment.get("tracking_number"),
-                    "source_address": shipment["source_address"],
-                    "destination_address": shipment["destination_address"],
-                    "status": shipment["status"],
-                    "date_sent": shipment.get("date_sent").isoformat() if shipment.get("date_sent") else None
-                }
-        except:
-            pass
+    shipment_ids = _resolve_shipment_ids(job)
+    shipment_info = await _fetch_latest_shipment_info(shipment_ids)
 
     return JobResponse(
         id=str(job["_id"]),
@@ -77,13 +102,10 @@ async def build_job_response(job: dict) -> JobResponse:
         invoice_filename=job.get("invoice_filename"),
         payment_status=job.get("payment_status"),
         payment_token=job.get("payment_token"),
-        payment_url=f"{FRONTEND_URL}/pay?token={job['payment_token']}" if job.get("payment_token") and FRONTEND_URL else None,
-        payments=[
-            {**p, "recorded_at": p["recorded_at"].isoformat() if hasattr(p.get("recorded_at"), "isoformat") else p.get("recorded_at")}
-            for p in (job.get("payments", []) or [])
-        ],
+        payment_url=_build_payment_url(job),
+        payments=_serialize_payments(job),
         created_at=job["created_at"],
-        updated_at=job["updated_at"]
+        updated_at=job["updated_at"],
     )
 
 

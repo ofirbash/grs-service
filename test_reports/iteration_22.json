@@ -1,0 +1,75 @@
+{
+  "summary": "Iteration 22 regression verifying backend refactors (dashboard.get_dashboard_stats, manual_payments.record_manual_payment, jobs.build_job_response) + email_templates dispatcher + frontend page splits (jobs/_types, jobs/_helpers, jobs/_components/ShipmentChip, shipments/_types, settings/_types). Backend: 48 prior regression tests (test_refactored_api + test_notifications_api + test_verbal_findings) PASS; new /app/backend/tests/test_iter22_refactors.py 13/13 PASS covering dashboard stats shape (admin+customer+auth), JobResponse enrichment incl. ISO-string recorded_at on payments, payment_url optional, all 5 notification preview types contain 'Bashari Lab-Direct', manual-payment rejects zero/negative + over-balance (400) and accepts $1 with destination=cash (200 + payment_status partial/paid + notifications field + persistence via GET /jobs/{id}). Frontend (admin login OK): /dashboard/jobs renders 24 rows and job-detail dialog opens; /dashboard/shipments renders 11 cards in shipments-card-grid and details dialog opens with shipment data; /dashboard/settings has 4 clickable tabs (Stones Settings, Branches, Payments, Admin Users) — Payments tab shows Pricing Configuration, Payment Destinations, Mounted Jewellery sections (screenshot verified). No JS runtime errors; RSC prefetch 'Failed to fetch' messages are benign Next.js fallbacks.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/dashboard/jobs ShipmentChip", "issues": ["ShipmentChip component has no data-testid — recommend adding data-testid=\"job-shipment-chip\" (or per-direction IN/OUT) for future automated testing; not blocking this iteration."]},
+      {"screen": "Settings tab naming", "issues": ["Spec mentions tabs 'Dropdowns / Pricing'; actual UI exposes equivalent content under 'Stones Settings' (dropdowns) and 'Payments' (pricing + destinations). Cosmetic naming drift between spec and app — tabs otherwise work."]}
+    ]
+  },
+
+  "passed_tests": [
+    "BE pytest: test_refactored_api.py 23/23 (auth admin+customer+invalid, /jobs, /jobs/{id}, /dashboard/stats, /shipments, /clients, /stones, /pricing, /settings/dropdowns, /users, /addresses, /cloudinary signature, PDF memo+invoice, notification status, customer-scoped jobs)",
+    "BE pytest: test_notifications_api.py 13/13",
+    "BE pytest: test_verbal_findings.py 12/12",
+    "BE pytest NEW test_iter22_refactors.py 13/13:",
+    "  - TestDashboardStats.admin/customer/auth-required (keys: total_jobs, active_jobs, total_value, total_fee, total_stones, total_clients, jobs_by_status)",
+    "  - TestJobResponseShape.jobs_list_has_enriched_fields (payments[].recorded_at is ISO str, client_name/branch_name/payment_status present)",
+    "  - TestJobResponseShape.single_job_fetch",
+    "  - TestNotificationPreviews 5/5 (stones_accepted, verbal_uploaded, stones_returned, cert_uploaded, cert_returned) all contain 'Bashari Lab-Direct'",
+    "  - TestManualPayment.reject_zero_or_negative → 400",
+    "  - TestManualPayment.reject_over_balance → 400",
+    "  - TestManualPayment.record_positive_payment_and_receipt → 200 with payment_status + notifications; persists on GET /jobs/{id}; receipt endpoint returns 200/404",
+    "FE: admin login → /dashboard OK",
+    "FE: /dashboard/jobs 24 rows rendered, job-detail dialog opens on row click, no JS error",
+    "FE: /dashboard/shipments 11 cards in [data-testid=shipments-card-grid], details dialog opens with shipment data",
+    "FE: /dashboard/settings tabs Stones Settings, Branches, Payments, Admin Users all clickable; Payments tab shows Pricing Configuration, Payment Destinations, Mounted Jewellery"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_iter22_refactors.py",
+    "/app/test_reports/pytest/iter22_refactors.xml",
+    "/app/test_reports/pytest/iter22_regression.xml"
+  ],
+
+  "action_items": [
+    "(Optional) Add data-testid=\"job-shipment-chip\" to ShipmentChip component for automated UI testing.",
+    "(Optional) Clarify settings tab naming — either rename 'Stones Settings' → 'Dropdowns' and add a 'Pricing' tab, or update the spec to match current UI labels."
+  ],
+
+  "critical_code_review_comments": [
+    "All 3 backend refactors preserve the public response contract — verified by field-level assertions (dashboard keys, JobResponse shape, manual-payment 400/200 semantics).",
+    "manual_payments.ManualPaymentRequest requires both `amount` and `destination`; prior iteration 21 tests did not cover this endpoint — new tests close the gap.",
+    "build_job_response correctly serializes payments[].recorded_at as ISO string (not raw datetime) — critical for JSON clients and matches iter 21 contract.",
+    "email_templates dispatcher (line 644 build_notification_email_html) works for all 5 notification types — brand string 'Bashari Lab-Direct' present in every html_body.",
+    "Frontend _types.ts / _helpers.ts / _components/ShipmentChip extraction has zero runtime impact — jobs, shipments, and settings pages all render and function identically."
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_iter22_refactors.py (new, 13 tests)"
+  ],
+
+  "success_rate": {
+    "backend": "100% (61/61: 48 regression + 13 new iter22)",
+    "frontend": "100% (jobs/shipments/settings all render, dialogs open, tabs clickable)"
+  },
+
+  "test_credentials": {
+    "admin": "admin@bashari.com / admin123",
+    "customer": "customer@test.com / customer123"
+  },
+
+  "seed_data_creation": "One $1 TEST payment (destination=cash, note='TEST iter22') recorded on a job with outstanding balance to verify POST /api/jobs/{id}/manual-payment end-to-end. Amount intentionally minimal to avoid impacting real balances; can be deleted if needed.",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "All iteration 22 refactors verified non-regressive. Reusable test file: /app/backend/tests/test_iter22_refactors.py (use TEST_BASE_URL or REACT_APP_BACKEND_URL env). ManualPayment contract requires {amount, destination, note?, notify_email?, notify_sms?}. Frontend ShipmentChip lacks data-testid — UI tests currently click table rows to open job-detail dialog. Shipments page uses card grid [data-testid=shipments-card-grid] + [data-testid^=shipment-card-] (NOT a table). Settings tabs actually named 'Stones Settings / Branches / Payments / Admin Users' (not 'Dropdowns / Pricing' as sometimes referenced). RSC-prefetch 'Failed to fetch' console warnings in Next.js are benign fallbacks during programmatic page.goto and do not indicate real failures."
+}

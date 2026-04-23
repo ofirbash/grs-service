@@ -42,45 +42,18 @@ def _sum_paid(payments: list) -> float:
     return sum(p.get("amount", 0) or 0 for p in payments or [])
 
 
-@router.post("/jobs/{job_id}/manual-payment")
-async def record_manual_payment(
-    job_id: str,
-    payload: ManualPaymentRequest,
-    user: dict = Depends(require_admin),
-):
-    """Record a manual payment (wire or cash) against a job.
-
-    - Generates a unique payment ID (PMT-XXXXXXXX)
-    - Appends to job.payments[] (supports partial payments)
-    - Rejects over-payment (amount > balance due)
-    - Updates payment_status to "paid" once cumulative paid >= net total
-    - Optionally emails + SMS the client a receipt
-    """
-    if payload.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
-
-    try:
-        job = await db.jobs.find_one({"_id": ObjectId(job_id)})
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid job id")
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-
+def _compute_balance(job: dict) -> tuple:
+    """Return (net_total, already_paid, balance) for a job."""
     total_fee = job.get("total_fee", 0) or 0
     discount = job.get("discount", 0) or 0
     net_total = max(0, total_fee - discount)
-
-    existing_payments = job.get("payments", []) or []
-    already_paid = _sum_paid(existing_payments)
+    already_paid = _sum_paid(job.get("payments", []) or [])
     balance = max(0, net_total - already_paid)
+    return net_total, already_paid, balance
 
-    if payload.amount > balance + 0.0001:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Amount exceeds balance due. Balance: ${balance:,.2f}",
-        )
 
-    payment = {
+def _build_payment_record(job_id: str, payload: "ManualPaymentRequest", user: dict) -> dict:
+    return {
         "id": _generate_payment_id(),
         "job_id": job_id,
         "method": "manual",
@@ -91,6 +64,83 @@ async def record_manual_payment(
         "recorded_by": user.get("full_name") or user.get("email") or "admin",
     }
 
+
+async def _load_client_context(client_id: Optional[str]) -> dict:
+    """Return a lightweight client dict for notification rendering."""
+    if not client_id:
+        return {}
+    try:
+        c = await db.clients.find_one({"_id": ObjectId(client_id)})
+    except Exception:
+        return {}
+    if not c:
+        return {}
+    return {
+        "name": c.get("name", ""),
+        "email": c.get("email", ""),
+        "phone": c.get("phone", ""),
+    }
+
+
+async def _send_payment_email(job_for_template: dict, client: dict) -> dict:
+    try:
+        subject, html_body = build_notification_email_html(
+            "manual_payment_receipt", job_for_template, client
+        )
+        if not resend.api_key:
+            logger.info(f"[MOCK PAYMENT EMAIL] {subject} → {client['email']}")
+            return {"status": "mocked", "recipient": client["email"]}
+        response = resend.Emails.send({
+            "from": SENDER_EMAIL,
+            "reply_to": SENDER_EMAIL,
+            "to": [client["email"]],
+            "subject": subject,
+            "html": html_body,
+        })
+        return {
+            "status": "sent",
+            "resend_id": response.get("id") if isinstance(response, dict) else str(response),
+            "recipient": client["email"],
+        }
+    except Exception as e:
+        logger.error(f"Failed to send payment receipt email: {e}")
+        return {"status": "failed", "error": str(e)}
+
+
+async def _send_payment_sms(job_for_template: dict, client: dict) -> dict:
+    try:
+        message = build_sms_message("manual_payment_receipt", job_for_template, client)
+        return await send_sms(client["phone"], message)
+    except Exception as e:
+        logger.error(f"Failed to send payment receipt SMS: {e}")
+        return {"status": "failed", "error": str(e)}
+
+
+@router.post("/jobs/{job_id}/manual-payment")
+async def record_manual_payment(
+    job_id: str,
+    payload: ManualPaymentRequest,
+    user: dict = Depends(require_admin),
+):
+    """Record a manual payment (wire or cash) against a job."""
+    if payload.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+
+    try:
+        job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid job id")
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    net_total, already_paid, balance = _compute_balance(job)
+    if payload.amount > balance + 0.0001:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Amount exceeds balance due. Balance: ${balance:,.2f}",
+        )
+
+    payment = _build_payment_record(job_id, payload, user)
     new_total_paid = already_paid + payload.amount
     is_fully_paid = new_total_paid + 0.0001 >= net_total
 
@@ -106,69 +156,17 @@ async def record_manual_payment(
 
     await db.jobs.update_one({"_id": ObjectId(job_id)}, update_doc)
 
-    # Fire-and-forget notifications (best-effort — don't block payment recording on failure)
+    # Notifications (best-effort — don't block payment recording on failure)
+    client_doc = await _load_client_context(job.get("client_id"))
+    job_for_template = {**job, "latest_payment": payment, "payment_total_paid": new_total_paid}
+
     notify_results = {"email": None, "sms": None}
-
-    # Prepare a lightweight client context
-    client_doc = {}
-    if job.get("client_id"):
-        try:
-            c = await db.clients.find_one({"_id": ObjectId(job["client_id"])})
-            if c:
-                client_doc = {
-                    "name": c.get("name", ""),
-                    "email": c.get("email", ""),
-                    "phone": c.get("phone", ""),
-                }
-        except Exception:
-            pass
-
-    # Merge latest payment info onto job dict for template rendering
-    job_for_template = dict(job)
-    job_for_template["latest_payment"] = payment
-    job_for_template["payment_total_paid"] = new_total_paid
-
     if payload.notify_email and client_doc.get("email"):
-        try:
-            subject, html_body = build_notification_email_html(
-                "manual_payment_receipt", job_for_template, client_doc
-            )
-            if resend.api_key:
-                response = resend.Emails.send({
-                    "from": SENDER_EMAIL,
-                    "reply_to": SENDER_EMAIL,
-                    "to": [client_doc["email"]],
-                    "subject": subject,
-                    "html": html_body,
-                })
-                notify_results["email"] = {
-                    "status": "sent",
-                    "resend_id": response.get("id") if isinstance(response, dict) else str(response),
-                    "recipient": client_doc["email"],
-                }
-            else:
-                notify_results["email"] = {
-                    "status": "mocked",
-                    "recipient": client_doc["email"],
-                }
-                logger.info(f"[MOCK PAYMENT EMAIL] {subject} → {client_doc['email']}")
-        except Exception as e:
-            logger.error(f"Failed to send payment receipt email: {e}")
-            notify_results["email"] = {"status": "failed", "error": str(e)}
-
+        notify_results["email"] = await _send_payment_email(job_for_template, client_doc)
     if payload.notify_sms and client_doc.get("phone"):
-        try:
-            message = build_sms_message("manual_payment_receipt", job_for_template, client_doc)
-            sms_res = await send_sms(client_doc["phone"], message)
-            notify_results["sms"] = sms_res
-        except Exception as e:
-            logger.error(f"Failed to send payment receipt SMS: {e}")
-            notify_results["sms"] = {"status": "failed", "error": str(e)}
+        notify_results["sms"] = await _send_payment_sms(job_for_template, client_doc)
 
-    # Build return payload with sanitised datetime strings
-    payment_out = dict(payment)
-    payment_out["recorded_at"] = payment["recorded_at"].isoformat()
-
+    payment_out = {**payment, "recorded_at": payment["recorded_at"].isoformat()}
     return {
         "payment": payment_out,
         "payment_status": "paid" if is_fully_paid else "partial",

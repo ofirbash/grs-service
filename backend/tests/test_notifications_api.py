@@ -118,7 +118,7 @@ class TestNotificationPreviewEndpoint:
         
         # Validate HTML body contains content
         assert len(data["html_body"]) > 0
-        assert "GRS Global" in data["html_body"]
+        assert "Bashari Lab-Direct" in data["html_body"]
         
         print(f"Preview for {notification_type}:")
         print(f"  Subject: {data['subject']}")
