@@ -709,3 +709,49 @@ All five items verified visually by rendering the print HTML and both `stones_ac
 
 ## Blocked
 - Tranzila BIT payments — awaiting App Key & Secret from user
+
+---
+
+## Session: Apr 23, 2026 — Shipments Redesign
+
+User asked for a nicer way to display shipments in the shipments page, the dashboard, and reflect shipment status in the Jobs page. User chose:
+- Labels: keep current (`Send Stones to Lab`, `Stones from Lab`, `Certificates from Lab`)
+- Colour: neutral charcoal for all 3 types (differentiate by icon + direction arrow only)
+- Progress: animated truck icon sliding left→right based on status
+- Order: Shipments page → Jobs page → Dashboard
+
+### A. Shipments page (/app/frontend/src/app/(dashboard)/dashboard/shipments/page.tsx)
+- Added `typeFilter` state + per-type counts
+- New **type tabs**: `All` / `Send Stones to Lab` / `Stones from Lab` / `Certificates from Lab` with icon + badge count
+- Replaced the old dense table with a **responsive card grid** (1 col mobile, 2 cols desktop). Each card shows:
+  - Type icon tile (Send / Gem / FileCheck2) + #shipment # + type label + courier/tracking
+  - Status badge top-right
+  - Route: `source → destination` with ArrowRight separator
+  - **Animated truck progress bar** (new `TruckProgress` component with a rail, filled portion, `Truck` icon sliding to `pending=6% / in_transit=50% / delivered=94%`, bob animation, 3 step labels)
+  - Footer: jobs · stones · value + quick actions (`Mark In Transit` / `Mark Delivered`)
+- Cancelled shipments render as a red-tinted empty rail with "Cancelled" label
+- Added `@keyframes bob` to `/app/frontend/src/app/globals.css`
+
+### C. Jobs page shipment chip (/app/frontend/src/app/(dashboard)/dashboard/jobs/page.tsx)
+- Extended `Job.shipment_info` TS type to include courier/tracking/source/destination
+- New `ShipmentChip` component + `ShipmentTypeIcon` helper + `SHIPMENT_TYPE_LABELS` / `SHIPMENT_STATUS_LABELS` constants
+- Replaced the plain `Badge #N + status` with a proper chip: type icon + `#N` + coloured status pill, with source→dest line beneath (truncated)
+- Status pill uses distinct colours: charcoal for pending, navy-900 for in_transit, emerald for delivered, red for cancelled
+
+### B. Dashboard shipments card (/app/frontend/src/app/(dashboard)/dashboard/page.tsx)
+- Replaced the vertical "Recent Shipments" list with a **3-column summary** (one col per type)
+- Each column shows: type icon tile + label + **in-transit count** (large number) + "pending" sub-counter (amber) + **mini truck progress bar** for the latest shipment of that type, with shipment # and status
+- Entire column is a clickable button → goes to `/dashboard/shipments`
+- Fetches full `allShipments` list (was previously sliced to 5)
+
+### Bug fixes during implementation
+- Removed unused `CardHeader`, `CardTitle` imports from shipments page (ESLint blocker)
+- Removed unused `ArrowRight` import from dashboard page
+- Suppressed unused `openShipmentModal` with `void` (legacy modal still rendered)
+
+### Testing
+- Visual smoke test confirmed on 1440×1000 admin session:
+  - Shipments page: tabs switch correctly; card grid renders with animated truck for each shipment
+  - Dashboard: 3-column shipments panel shows `0 in transit · 5 pending` for "To Lab" with latest=#11 delivered mini-bar
+  - Jobs page: all jobs with shipments now show the typed chip with `#N` + `Delivered`/`Pending` pill + `Israel → HK Lab`
+- Backend regression: `/api/shipments` returns 11 shipments, `/api/jobs` returns shipment_info with source/destination populated

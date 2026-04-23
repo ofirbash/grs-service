@@ -58,6 +58,9 @@ import {
   CreditCard,
   ExternalLink,
   MessageSquare,
+  Truck,
+  FileCheck2,
+  ArrowRight,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
@@ -124,6 +127,10 @@ interface Job {
     shipment_number: number;
     shipment_type: string;
     status: string;
+    courier?: string;
+    tracking_number?: string;
+    source_address?: string;
+    destination_address?: string;
   };
   signed_memo_url?: string;
   lab_invoice_url?: string;
@@ -254,6 +261,80 @@ const COMPANY_INFO = {
   email: 'grs-il@bashds.com',
   vat: '513180083',
   logoUrl: 'https://customer-assets.emergentagent.com/job_777624e9-9d3b-43c3-b65b-05602d9f9f7d/artifacts/cpw6x0ub_bashari%20logo-square%20copy.jpg',
+};
+
+// Shipment helpers (also used in jobs list to render typed chips)
+const SHIPMENT_TYPE_LABELS: Record<string, string> = {
+  send_stones_to_lab: 'Send Stones to Lab',
+  stones_from_lab: 'Stones from Lab',
+  certificates_from_lab: 'Certificates from Lab',
+};
+
+const SHIPMENT_STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  in_transit: 'In Transit',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
+};
+
+const ShipmentTypeIcon = ({ type, className = 'h-3.5 w-3.5' }: { type: string; className?: string }) => {
+  switch (type) {
+    case 'send_stones_to_lab':
+      return <Send className={className} strokeWidth={2} />;
+    case 'stones_from_lab':
+      return <Gem className={className} strokeWidth={2} />;
+    case 'certificates_from_lab':
+      return <FileCheck2 className={className} strokeWidth={2} />;
+    default:
+      return <Truck className={className} strokeWidth={2} />;
+  }
+};
+
+const ShipmentChip = ({
+  info,
+}: {
+  info: {
+    shipment_number: number;
+    shipment_type: string;
+    status: string;
+    courier?: string;
+    tracking_number?: string;
+    source_address?: string;
+    destination_address?: string;
+  };
+}) => {
+  const statusStyles: Record<string, string> = {
+    pending: 'bg-navy-100 text-navy-800 border-navy-200',
+    in_transit: 'bg-navy-900 text-white border-navy-900',
+    delivered: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    cancelled: 'bg-red-50 text-red-700 border-red-200',
+  };
+  const pillClass =
+    'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ' +
+    (statusStyles[info.status] || statusStyles.pending);
+  return (
+    <div
+      className="relative group inline-flex flex-col gap-1"
+      title={`${SHIPMENT_TYPE_LABELS[info.shipment_type] || info.shipment_type} · ${SHIPMENT_STATUS_LABELS[info.status] || info.status}`}
+    >
+      <div className="inline-flex items-center gap-1.5">
+        <span className="inline-flex items-center gap-1 rounded-md border border-navy-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-navy-900">
+          <ShipmentTypeIcon type={info.shipment_type} />
+          #{info.shipment_number}
+        </span>
+        <span className={pillClass}>
+          {SHIPMENT_STATUS_LABELS[info.status] || info.status}
+        </span>
+      </div>
+      {(info.source_address || info.destination_address) && (
+        <div className="flex items-center gap-1 text-[10px] text-navy-500 max-w-[180px] truncate">
+          <span className="truncate">{info.source_address || '?'}</span>
+          <ArrowRight className="h-2.5 w-2.5 flex-shrink-0" />
+          <span className="truncate">{info.destination_address || '?'}</span>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default function JobsPage() {
@@ -1624,10 +1705,7 @@ export default function JobsPage() {
                       )}
                       <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
                         {job.shipment_info ? (
-                          <div className="flex flex-col gap-1">
-                            <Badge variant="outline">#{job.shipment_info.shipment_number}</Badge>
-                            <span className="text-xs text-navy-400">{job.shipment_info.status}</span>
-                          </div>
+                          <ShipmentChip info={job.shipment_info} />
                         ) : (
                           '-'
                         )}

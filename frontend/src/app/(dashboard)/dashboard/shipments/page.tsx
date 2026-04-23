@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +51,9 @@ import {
   Eye,
   Pencil,
   Printer,
+  ArrowRight,
+  FileCheck2,
+  Send,
 } from 'lucide-react';
 
 interface Shipment {
@@ -136,6 +139,7 @@ export default function ShipmentsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'send_stones_to_lab' | 'stones_from_lab' | 'certificates_from_lab'>('all');
   const { user } = useAuthStore();
   const [userBranchName, setUserBranchName] = useState('');
   
@@ -831,7 +835,22 @@ export default function ShipmentsPage() {
       shipment.courier.toLowerCase().includes(searchTerm.toLowerCase()) ||
       shipment.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || shipment.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesType = typeFilter === 'all' || shipment.shipment_type === typeFilter;
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  // Counts per type (ignores type filter but respects status + search)
+  const typeCounts: Record<string, number> = { all: 0, send_stones_to_lab: 0, stones_from_lab: 0, certificates_from_lab: 0 };
+  shipments.forEach((s) => {
+    const matchesSearch =
+      s.shipment_number.toString().includes(searchTerm) ||
+      s.courier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
+    if (matchesSearch && matchesStatus) {
+      typeCounts.all += 1;
+      if (s.shipment_type in typeCounts) typeCounts[s.shipment_type] += 1;
+    }
   });
 
   const getStatusBadge = (status: string) => {
@@ -851,6 +870,76 @@ export default function ShipmentsPage() {
       certificates_from_lab: 'Certificates from Lab',
     };
     return labels[type] || type.replace(/_/g, ' ');
+  };
+
+  // Icon + direction hint per shipment type (neutral charcoal — differentiate only with icon/arrow)
+  const shipmentTypeIcon = (type: string) => {
+    switch (type) {
+      case 'send_stones_to_lab':
+        return <Send className="h-4 w-4" strokeWidth={2} />;
+      case 'stones_from_lab':
+        return <Gem className="h-4 w-4" strokeWidth={2} />;
+      case 'certificates_from_lab':
+        return <FileCheck2 className="h-4 w-4" strokeWidth={2} />;
+      default:
+        return <Package className="h-4 w-4" strokeWidth={2} />;
+    }
+  };
+
+  // Truck progress: slides left → middle → right based on status
+  const TruckProgress: React.FC<{ status: string }> = ({ status }) => {
+    if (status === 'cancelled') {
+      return (
+        <div className="relative h-7 rounded-full bg-red-50 border border-red-200 overflow-hidden">
+          <div className="absolute inset-0 flex items-center justify-center gap-1.5 text-red-700 text-[11px] font-medium">
+            <AlertCircle className="h-3 w-3" /> Cancelled
+          </div>
+        </div>
+      );
+    }
+    const pct = status === 'pending' ? 6 : status === 'in_transit' ? 50 : 94;
+    const labels = ['Pending', 'In Transit', 'Delivered'];
+    const activeIdx = status === 'pending' ? 0 : status === 'in_transit' ? 1 : 2;
+    return (
+      <div className="relative">
+        {/* Rail */}
+        <div className="relative h-7 rounded-full bg-navy-100 border border-navy-200 overflow-hidden">
+          {/* Filled portion */}
+          <div
+            className="absolute inset-y-0 left-0 bg-navy-900 transition-[width] duration-700 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+          {/* Destination flag */}
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 text-navy-400">
+            <CheckCircle className="h-3.5 w-3.5" />
+          </div>
+          {/* Truck (animated left->right) */}
+          <div
+            className="absolute top-1/2 -translate-y-1/2 transition-[left] duration-700 ease-out"
+            style={{ left: `calc(${pct}% - 14px)` }}
+          >
+            <div className="bg-white rounded-full p-0.5 shadow-sm border border-navy-200 animate-[bob_1.6s_ease-in-out_infinite]">
+              <Truck className="h-4 w-4 text-navy-900" strokeWidth={2.2} />
+            </div>
+          </div>
+        </div>
+        {/* Step labels */}
+        <div className="mt-1.5 grid grid-cols-3 text-[9px] uppercase tracking-wide font-medium">
+          {labels.map((label, i) => (
+            <span
+              key={label}
+              className={
+                (i === 0 ? 'text-left' : i === 2 ? 'text-right' : 'text-center') +
+                ' ' +
+                (i <= activeIdx ? 'text-navy-900' : 'text-navy-400')
+              }
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   const toggleJobSelection = (jobId: string) => {
@@ -888,10 +977,48 @@ export default function ShipmentsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
+      {/* Type tabs + Search + Status filter */}
       <Card className="border-navy-200">
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <CardContent className="pt-4 pb-4 space-y-4">
+          {/* Type tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-navy-200 -mx-2 px-2 pb-2 overflow-x-auto">
+            {([
+              { key: 'all', label: 'All', icon: <Package className="h-4 w-4" /> },
+              { key: 'send_stones_to_lab', label: 'Send Stones to Lab', icon: <Send className="h-4 w-4" /> },
+              { key: 'stones_from_lab', label: 'Stones from Lab', icon: <Gem className="h-4 w-4" /> },
+              { key: 'certificates_from_lab', label: 'Certificates from Lab', icon: <FileCheck2 className="h-4 w-4" /> },
+            ] as const).map((tab) => {
+              const active = typeFilter === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setTypeFilter(tab.key)}
+                  data-testid={`shipments-type-tab-${tab.key}`}
+                  className={
+                    'inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors whitespace-nowrap ' +
+                    (active
+                      ? 'bg-navy-900 text-white shadow-sm'
+                      : 'text-navy-700 hover:bg-navy-100')
+                  }
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                  <span
+                    className={
+                      'ml-1 inline-flex items-center justify-center text-[10px] font-semibold rounded-full px-1.5 py-0.5 min-w-[20px] ' +
+                      (active ? 'bg-white/20 text-white' : 'bg-navy-100 text-navy-700')
+                    }
+                  >
+                    {typeCounts[tab.key] || 0}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search + Status */}
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-navy-400" />
@@ -920,127 +1047,91 @@ export default function ShipmentsPage() {
         </CardContent>
       </Card>
 
-      {/* Shipments Table */}
-      <Card className="border-navy-200">
-        <CardHeader className="border-b border-navy-200">
-          <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            All Shipments ({filteredShipments.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {filteredShipments.length === 0 ? (
-            <div className="p-8 text-center text-navy-500">
-              <Package className="h-12 w-12 mx-auto mb-4 text-navy-300" />
-              <p>No shipments found</p>
-              <p className="text-sm mt-1">Create your first shipment to get started</p>
-            </div>
-          ) : (
-            <>
-            {/* Mobile Cards */}
-            <div className="md:hidden space-y-2 p-3">
-              {filteredShipments.map((shipment) => (
-                <div
-                  key={shipment.id}
-                  className="border border-navy-200 rounded-lg p-3 hover:bg-navy-50 cursor-pointer active:bg-navy-100"
-                  onClick={() => openShipmentDetails(shipment)}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-semibold text-navy-900">#{shipment.shipment_number}</span>
-                    {getStatusBadge(shipment.status)}
+      {/* Shipments — card grid */}
+      {filteredShipments.length === 0 ? (
+        <Card className="border-navy-200">
+          <CardContent className="p-8 text-center text-navy-500">
+            <Package className="h-12 w-12 mx-auto mb-4 text-navy-300" />
+            <p>No shipments found</p>
+            <p className="text-sm mt-1">Create your first shipment to get started</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="shipments-card-grid">
+          {filteredShipments.map((shipment) => (
+            <div
+              key={shipment.id}
+              className="group relative bg-white border border-navy-200 rounded-xl p-4 hover:shadow-md hover:border-navy-300 transition-all cursor-pointer"
+              onClick={() => openShipmentDetails(shipment)}
+              data-testid={`shipment-card-${shipment.shipment_number}`}
+            >
+              {/* Top row: number + type chip + status badge */}
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex-shrink-0 h-9 w-9 rounded-lg bg-navy-900 text-white flex items-center justify-center">
+                    {shipmentTypeIcon(shipment.shipment_type)}
                   </div>
-                  <div className="text-sm text-navy-600">{formatShipmentType(shipment.shipment_type)}</div>
-                  <div className="flex items-center justify-between text-xs text-navy-500 mt-1">
-                    <span>{shipment.courier} &middot; {shipment.source_address} → {shipment.destination_address}</span>
-                  </div>
-                  <div className="text-xs text-navy-400 mt-1">{shipment.total_jobs} job(s) &middot; {shipment.total_stones} stone(s)</div>
-                </div>
-              ))}
-            </div>
-            {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-navy-50">
-                    <TableHead className="font-semibold text-navy-700">Shipment #</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Type</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Courier</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Route</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Tracking</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Jobs</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Value</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Status</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredShipments.map((shipment) => (
-                    <TableRow
-                      key={shipment.id}
-                      className="hover:bg-navy-50 cursor-pointer"
-                      onClick={() => openShipmentDetails(shipment)}
-                      data-testid={`shipment-row-${shipment.shipment_number}`}
-                    >
-                      <TableCell className="font-medium text-navy-900">
-                        #{shipment.shipment_number}
-                      </TableCell>
-                      <TableCell className="text-navy-600">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-navy-900 text-base">#{shipment.shipment_number}</span>
+                      <span className="text-[10px] uppercase tracking-wider text-navy-500 font-medium">
                         {formatShipmentType(shipment.shipment_type)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Truck className="h-4 w-4 text-navy-400" />
-                          {shipment.courier}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-navy-600 max-w-xs truncate">
-                        {shipment.source_address} → {shipment.destination_address}
-                      </TableCell>
-                      <TableCell className="text-navy-600 font-mono text-sm">
-                        {shipment.tracking_number || '-'}
-                      </TableCell>
-                      <TableCell className="text-navy-600">
-                        {shipment.total_jobs} ({shipment.total_stones} stones)
-                      </TableCell>
-                      <TableCell className="text-navy-600 font-medium">
-                        ${shipment.total_value.toLocaleString()}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(shipment.status)}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-2">
-                          {shipment.status === 'pending' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUpdateStatus(shipment.id, 'in_transit')}
-                              className="text-xs"
-                              data-testid={`mark-transit-${shipment.shipment_number}`}
-                            >
-                              Mark In Transit
-                            </Button>
-                          )}
-                          {shipment.status === 'in_transit' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUpdateStatus(shipment.id, 'delivered')}
-                              className="text-xs text-navy-600 border-green-200 hover:bg-green-50"
-                              data-testid={`mark-delivered-${shipment.shipment_number}`}
-                            >
-                              Mark Delivered
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </span>
+                    </div>
+                    <div className="text-xs text-navy-500 truncate">
+                      {shipment.courier} {shipment.tracking_number ? `· ${shipment.tracking_number}` : ''}
+                    </div>
+                  </div>
+                </div>
+                {getStatusBadge(shipment.status)}
+              </div>
+
+              {/* Route */}
+              <div className="flex items-center gap-2 text-xs text-navy-600 mb-3 min-w-0">
+                <span className="truncate font-medium text-navy-800">{shipment.source_address}</span>
+                <ArrowRight className="h-3 w-3 text-navy-400 flex-shrink-0" />
+                <span className="truncate font-medium text-navy-800">{shipment.destination_address}</span>
+              </div>
+
+              {/* Truck progress */}
+              <TruckProgress status={shipment.status} />
+
+              {/* Footer: stats + actions */}
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-navy-100">
+                <div className="flex items-center gap-4 text-xs text-navy-600">
+                  <span><strong className="text-navy-900">{shipment.total_jobs}</strong> jobs</span>
+                  <span><strong className="text-navy-900">{shipment.total_stones}</strong> stones</span>
+                  <span><strong className="text-navy-900">${shipment.total_value.toLocaleString()}</strong></span>
+                </div>
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  {shipment.status === 'pending' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleUpdateStatus(shipment.id, 'in_transit')}
+                      className="text-xs h-7"
+                      data-testid={`mark-transit-${shipment.shipment_number}`}
+                    >
+                      Mark In Transit
+                    </Button>
+                  )}
+                  {shipment.status === 'in_transit' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleUpdateStatus(shipment.id, 'delivered')}
+                      className="text-xs h-7 text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                      data-testid={`mark-delivered-${shipment.shipment_number}`}
+                    >
+                      Mark Delivered
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      )}
 
       {/* Create Shipment Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>

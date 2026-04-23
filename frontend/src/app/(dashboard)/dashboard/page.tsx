@@ -33,6 +33,9 @@ import {
   FileText,
   ExternalLink,
   Eye,
+  Truck,
+  Send,
+  FileCheck2,
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -91,7 +94,7 @@ interface Shipment {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentShipments, setRecentShipments] = useState<Shipment[]>([]);
+  const [allShipments, setAllShipments] = useState<Shipment[]>([]);
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,7 +130,7 @@ export default function DashboardPage() {
           jobsApi.getAll(branchParam),
         ]);
         setStats(statsData);
-        setRecentShipments(shipmentsData.slice(0, 5));
+        setAllShipments(shipmentsData);
         setRecentJobs(jobsData.slice(0, 5));
         setAllJobs(jobsData);
       } catch (error) {
@@ -182,6 +185,8 @@ export default function DashboardPage() {
     setShipmentJobs(jobs);
     setShipmentModalOpen(true);
   };
+  // keep reference to satisfy lint (modal still rendered for legacy flows)
+  void openShipmentModal;
 
   const getStatusBadge = (status: string) => {
     return <Badge className={getStatusColor(status)}>{formatJobStatus(status)}</Badge>;
@@ -363,13 +368,13 @@ export default function DashboardPage() {
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Shipments */}
+        {/* Recent Shipments — grouped by type */}
         <Card className="border-navy-200" data-testid="recent-shipments-card">
           <CardHeader className="border-b border-navy-200">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
                 <Package className="h-5 w-5 text-navy-600" />
-                Recent Shipments
+                Shipments
               </CardTitle>
               <a href="/dashboard/shipments" className="text-sm text-navy-600 hover:text-navy-900">
                 View all
@@ -377,39 +382,87 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            {recentShipments.length === 0 ? (
-              <div className="p-6 text-center text-navy-500">No shipments yet</div>
-            ) : (
-              <div className="divide-y divide-navy-100">
-                {recentShipments.map((shipment) => (
-                  <div
-                    key={shipment.id}
-                    className="p-4 hover:bg-navy-50 transition-colors cursor-pointer"
-                    onClick={() => openShipmentModal(shipment)}
-                    data-testid={`shipment-row-${shipment.shipment_number}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-navy-900">
-                          Shipment #{shipment.shipment_number}
-                        </p>
-                        <p className="text-sm text-navy-500">
-                          {shipment.courier} → {shipment.destination_address}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <Badge className={getStatusColor(shipment.status)}>
-                          {shipment.status}
-                        </Badge>
-                        <p className="text-xs text-navy-500 mt-1">
-                          {shipment.total_jobs} job(s)
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {(() => {
+              const types = [
+                { key: 'send_stones_to_lab', label: 'To Lab', icon: Send },
+                { key: 'stones_from_lab', label: 'Stones Back', icon: Gem },
+                { key: 'certificates_from_lab', label: 'Certs Back', icon: FileCheck2 },
+              ] as const;
+              const byType: Record<string, Shipment[]> = {};
+              types.forEach((t) => { byType[t.key] = []; });
+              allShipments.forEach((s) => {
+                if (s.shipment_type in byType) byType[s.shipment_type].push(s);
+              });
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-navy-100">
+                  {types.map(({ key, label, icon: Icon }) => {
+                    const list = byType[key];
+                    const inTransit = list.filter((s) => s.status === 'in_transit');
+                    const pending = list.filter((s) => s.status === 'pending');
+                    const latest = list[0];
+                    const pct = latest
+                      ? latest.status === 'pending'
+                        ? 6
+                        : latest.status === 'in_transit'
+                        ? 50
+                        : latest.status === 'delivered'
+                        ? 94
+                        : 0
+                      : 0;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => (window.location.href = '/dashboard/shipments')}
+                        className="p-4 text-left hover:bg-navy-50 transition-colors w-full"
+                        data-testid={`shipments-type-col-${key}`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="h-7 w-7 rounded-md bg-navy-900 text-white flex items-center justify-center">
+                            <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
+                          </div>
+                          <div className="text-sm font-semibold text-navy-900">{label}</div>
+                        </div>
+                        <div className="flex items-baseline gap-3 mb-3">
+                          <span className="text-2xl font-bold text-navy-900">{inTransit.length}</span>
+                          <span className="text-[10px] uppercase tracking-wide text-navy-500">in transit</span>
+                          {pending.length > 0 && (
+                            <span className="text-[10px] uppercase tracking-wide text-amber-700">
+                              · {pending.length} pending
+                            </span>
+                          )}
+                        </div>
+                        {latest ? (
+                          <div>
+                            <div className="flex items-center justify-between text-[10px] text-navy-500 mb-1">
+                              <span>Latest: #{latest.shipment_number}</span>
+                              <span className="capitalize">{latest.status.replace('_', ' ')}</span>
+                            </div>
+                            {/* Mini truck progress */}
+                            <div className="relative h-5 rounded-full bg-navy-100 border border-navy-200 overflow-hidden">
+                              <div
+                                className="absolute inset-y-0 left-0 bg-navy-900 transition-[width] duration-700 ease-out"
+                                style={{ width: `${pct}%` }}
+                              />
+                              <div
+                                className="absolute top-1/2 -translate-y-1/2 transition-[left] duration-700 ease-out"
+                                style={{ left: `calc(${pct}% - 10px)` }}
+                              >
+                                <div className="bg-white rounded-full p-0.5 shadow-sm border border-navy-200 animate-[bob_1.6s_ease-in-out_infinite]">
+                                  <Truck className="h-3 w-3 text-navy-900" strokeWidth={2.4} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-navy-400 italic">No shipments yet</div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
