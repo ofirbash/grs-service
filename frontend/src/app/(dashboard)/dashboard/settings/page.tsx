@@ -615,8 +615,8 @@ export default function SettingsPage() {
             className="data-[state=active]:bg-white data-[state=active]:text-navy-900 text-xs sm:text-sm whitespace-nowrap"
             data-testid="tab-dropdowns"
           >
-            <ListFilter className="h-4 w-4 mr-2" />
-            Verbal Dropdowns
+            <Diamond className="h-4 w-4 mr-2" />
+            Stones Settings
           </TabsTrigger>
           <TabsTrigger
             value="branches"
@@ -632,15 +632,7 @@ export default function SettingsPage() {
             data-testid="tab-pricing"
           >
             <DollarSign className="h-4 w-4 mr-2" />
-            Pricing
-          </TabsTrigger>
-          <TabsTrigger
-            value="stone-options"
-            className="data-[state=active]:bg-white data-[state=active]:text-navy-900 text-xs sm:text-sm whitespace-nowrap"
-            data-testid="tab-stone-options"
-          >
-            <Diamond className="h-4 w-4 mr-2" />
-            Stone Types & Shapes
+            Payments
           </TabsTrigger>
           {isSuperAdmin && (
           <TabsTrigger
@@ -871,6 +863,158 @@ export default function SettingsPage() {
               </p>
             </CardContent>
           </Card>
+
+          {/* Stone Types & Shapes (moved from Stone Types & Shapes tab) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Stone Types */}
+            <Card className="border-navy-200">
+              <CardHeader>
+                <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+                  <Diamond className="h-5 w-5" />
+                  Stone Types
+                </CardTitle>
+                <CardDescription>Used when creating a stone on a job</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  {pricingForm.stone_types.map((type, idx) => (
+                    <div key={idx} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
+                      <span className="text-sm text-navy-900">{type}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPricingForm(prev => ({
+                          ...prev,
+                          stone_types: prev.stone_types.filter((_, i) => i !== idx),
+                        }))}
+                        className="h-6 w-6 p-0 hover:bg-red-50"
+                        data-testid={`delete-stone-type-${idx}`}
+                      >
+                        <X className="h-3 w-3 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={newStoneType}
+                    onChange={(e) => setNewStoneType(e.target.value)}
+                    placeholder="New stone type..."
+                    className="text-sm border-navy-200"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newStoneType.trim()) {
+                        setPricingForm(prev => ({
+                          ...prev,
+                          stone_types: [...prev.stone_types, newStoneType.trim()],
+                        }));
+                        setNewStoneType('');
+                      }
+                    }}
+                    data-testid="new-stone-type-input"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!newStoneType.trim()}
+                    onClick={() => {
+                      if (newStoneType.trim()) {
+                        setPricingForm(prev => ({
+                          ...prev,
+                          stone_types: [...prev.stone_types, newStoneType.trim()],
+                        }));
+                        setNewStoneType('');
+                      }
+                    }}
+                    data-testid="add-stone-type-button"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Shapes */}
+            <Card className="border-navy-200">
+              <CardHeader>
+                <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+                  <Diamond className="h-5 w-5" />
+                  Shapes
+                </CardTitle>
+                <CardDescription>Used when creating a stone on a job</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-1.5">
+                  {pricingForm.shapes.map((shape, idx) => (
+                    <div key={idx} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
+                      <span className="text-sm text-navy-900">{shape}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPricingForm(prev => ({
+                          ...prev,
+                          shapes: prev.shapes.filter((_, i) => i !== idx),
+                        }))}
+                        className="h-6 w-6 p-0 hover:bg-red-50"
+                        data-testid={`delete-shape-${idx}`}
+                      >
+                        <X className="h-3 w-3 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={newShape}
+                    onChange={(e) => setNewShape(e.target.value)}
+                    placeholder="New shape..."
+                    className="text-sm border-navy-200"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newShape.trim()) {
+                        setPricingForm(prev => ({
+                          ...prev,
+                          shapes: [...prev.shapes, newShape.trim()],
+                        }));
+                        setNewShape('');
+                      }
+                    }}
+                    data-testid="new-shape-input"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!newShape.trim()}
+                    onClick={() => {
+                      if (newShape.trim()) {
+                        setPricingForm(prev => ({
+                          ...prev,
+                          shapes: [...prev.shapes, newShape.trim()],
+                        }));
+                        setNewShape('');
+                      }
+                    }}
+                    data-testid="add-shape-button"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {isAdmin && (
+            <Button
+              onClick={handleSavePricing}
+              disabled={savingPricing}
+              className="bg-navy-900 hover:bg-navy-800"
+              data-testid="save-stone-options-button"
+            >
+              {savingPricing ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+              ) : (
+                <><Save className="h-4 w-4 mr-2" />Save Stone Types &amp; Shapes</>
+              )}
+            </Button>
+          )}
         </TabsContent>
 
         {/* ==================== BRANCHES TAB ==================== */}
@@ -1316,225 +1460,90 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Payment Destinations (moved from Stone Types & Shapes tab) */}
+          <Card className="border-navy-200">
+            <CardHeader>
+              <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Payment Destinations
+              </CardTitle>
+              <CardDescription>Options shown in the &quot;Record Manual Payment&quot; dialog</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                {(pricingForm.payment_destinations || []).map((dest, idx) => (
+                  <div key={idx} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
+                    <span className="text-sm text-navy-900">{dest}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPricingForm(prev => ({
+                        ...prev,
+                        payment_destinations: (prev.payment_destinations || []).filter((_, i) => i !== idx),
+                      }))}
+                      className="h-6 w-6 p-0 hover:bg-red-50"
+                      data-testid={`delete-payment-destination-${idx}`}
+                    >
+                      <X className="h-3 w-3 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newPaymentDestination}
+                  onChange={(e) => setNewPaymentDestination(e.target.value)}
+                  placeholder="e.g. Bank Wire – Discount"
+                  className="text-sm border-navy-200"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newPaymentDestination.trim()) {
+                      setPricingForm(prev => ({
+                        ...prev,
+                        payment_destinations: [...(prev.payment_destinations || []), newPaymentDestination.trim()],
+                      }));
+                      setNewPaymentDestination('');
+                    }
+                  }}
+                  data-testid="new-payment-destination-input"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!newPaymentDestination.trim()}
+                  onClick={() => {
+                    if (newPaymentDestination.trim()) {
+                      setPricingForm(prev => ({
+                        ...prev,
+                        payment_destinations: [...(prev.payment_destinations || []), newPaymentDestination.trim()],
+                      }));
+                      setNewPaymentDestination('');
+                    }
+                  }}
+                  data-testid="add-payment-destination-button"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {isAdmin && (
+                <Button
+                  onClick={handleSavePricing}
+                  disabled={savingPricing}
+                  className="bg-navy-900 hover:bg-navy-800 mt-2"
+                  data-testid="save-payment-destinations-button"
+                >
+                  {savingPricing ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                  ) : (
+                    <><Save className="h-4 w-4 mr-2" />Save Payment Destinations</>
+                  )}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
 
-        {/* ==================== STONE TYPES & SHAPES TAB ==================== */}
-        <TabsContent value="stone-options" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Stone Types */}
-            <Card className="border-navy-200">
-              <CardHeader>
-                <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
-                  <Diamond className="h-5 w-5" />
-                  Stone Types
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-1.5">
-                  {pricingForm.stone_types.map((type, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
-                      <span className="text-sm text-navy-900">{type}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPricingForm(prev => ({
-                          ...prev,
-                          stone_types: prev.stone_types.filter((_, i) => i !== idx),
-                        }))}
-                        className="h-6 w-6 p-0 hover:bg-red-50"
-                        data-testid={`delete-stone-type-${idx}`}
-                      >
-                        <X className="h-3 w-3 text-red-500" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={newStoneType}
-                    onChange={(e) => setNewStoneType(e.target.value)}
-                    placeholder="New stone type..."
-                    className="text-sm border-navy-200"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newStoneType.trim()) {
-                        setPricingForm(prev => ({
-                          ...prev,
-                          stone_types: [...prev.stone_types, newStoneType.trim()],
-                        }));
-                        setNewStoneType('');
-                      }
-                    }}
-                    data-testid="new-stone-type-input"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!newStoneType.trim()}
-                    onClick={() => {
-                      if (newStoneType.trim()) {
-                        setPricingForm(prev => ({
-                          ...prev,
-                          stone_types: [...prev.stone_types, newStoneType.trim()],
-                        }));
-                        setNewStoneType('');
-                      }
-                    }}
-                    data-testid="add-stone-type-button"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Shapes */}
-            <Card className="border-navy-200">
-              <CardHeader>
-                <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
-                  <Diamond className="h-5 w-5" />
-                  Shapes
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-1.5">
-                  {pricingForm.shapes.map((shape, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
-                      <span className="text-sm text-navy-900">{shape}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPricingForm(prev => ({
-                          ...prev,
-                          shapes: prev.shapes.filter((_, i) => i !== idx),
-                        }))}
-                        className="h-6 w-6 p-0 hover:bg-red-50"
-                        data-testid={`delete-shape-${idx}`}
-                      >
-                        <X className="h-3 w-3 text-red-500" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={newShape}
-                    onChange={(e) => setNewShape(e.target.value)}
-                    placeholder="New shape..."
-                    className="text-sm border-navy-200"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newShape.trim()) {
-                        setPricingForm(prev => ({
-                          ...prev,
-                          shapes: [...prev.shapes, newShape.trim()],
-                        }));
-                        setNewShape('');
-                      }
-                    }}
-                    data-testid="new-shape-input"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!newShape.trim()}
-                    onClick={() => {
-                      if (newShape.trim()) {
-                        setPricingForm(prev => ({
-                          ...prev,
-                          shapes: [...prev.shapes, newShape.trim()],
-                        }));
-                        setNewShape('');
-                      }
-                    }}
-                    data-testid="add-shape-button"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Payment Destinations */}
-            <Card className="border-navy-200">
-              <CardHeader>
-                <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Payment Destinations
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-[11px] text-navy-500">Options shown in the &quot;Record Manual Payment&quot; dialog.</p>
-                <div className="space-y-1.5">
-                  {(pricingForm.payment_destinations || []).map((dest, idx) => (
-                    <div key={idx} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
-                      <span className="text-sm text-navy-900">{dest}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPricingForm(prev => ({
-                          ...prev,
-                          payment_destinations: (prev.payment_destinations || []).filter((_, i) => i !== idx),
-                        }))}
-                        className="h-6 w-6 p-0 hover:bg-red-50"
-                        data-testid={`delete-payment-destination-${idx}`}
-                      >
-                        <X className="h-3 w-3 text-red-500" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={newPaymentDestination}
-                    onChange={(e) => setNewPaymentDestination(e.target.value)}
-                    placeholder="e.g. Bank Wire – Discount"
-                    className="text-sm border-navy-200"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newPaymentDestination.trim()) {
-                        setPricingForm(prev => ({
-                          ...prev,
-                          payment_destinations: [...(prev.payment_destinations || []), newPaymentDestination.trim()],
-                        }));
-                        setNewPaymentDestination('');
-                      }
-                    }}
-                    data-testid="new-payment-destination-input"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!newPaymentDestination.trim()}
-                    onClick={() => {
-                      if (newPaymentDestination.trim()) {
-                        setPricingForm(prev => ({
-                          ...prev,
-                          payment_destinations: [...(prev.payment_destinations || []), newPaymentDestination.trim()],
-                        }));
-                        setNewPaymentDestination('');
-                      }
-                    }}
-                    data-testid="add-payment-destination-button"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Button
-            onClick={handleSavePricing}
-            disabled={savingPricing}
-            className="bg-navy-900 hover:bg-navy-800"
-            data-testid="save-stone-options-button"
-          >
-            {savingPricing ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
-            ) : (
-              <><Save className="h-4 w-4 mr-2" />Save Changes</>
-            )}
-          </Button>
-        </TabsContent>
 
 
         {/* ==================== ADMIN USERS TAB ==================== */}
