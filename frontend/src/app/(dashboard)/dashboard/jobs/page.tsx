@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -51,13 +50,8 @@ import {
   Check,
   Eye,
   Lock,
-  Mail,
-  Clock,
   CheckCircle2,
   Receipt,
-  CreditCard,
-  ExternalLink,
-  MessageSquare,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
@@ -73,7 +67,6 @@ import type {
   Branch,
 } from './_types';
 import {
-  NOTIFICATION_LABELS,
   DEFAULT_STONE_TYPES,
   DEFAULT_SHAPES,
   COMPANY_INFO,
@@ -88,6 +81,9 @@ import { EmailPreviewDialog } from './_components/EmailPreviewDialog';
 import { UnsavedChangesDialog, BulkStatusDialog, ClientInvoiceDialog } from './_components/MiscDialogs';
 import { GroupStonesDialog, AddStoneDialog } from './_components/StoneDialogs';
 import { CreateJobDialog } from './_components/CreateJobDialog';
+import { JobSummaryGrid } from './_components/JobSummaryGrid';
+import { JobPaymentCard } from './_components/JobPaymentCard';
+import { JobNotificationsCard } from './_components/JobNotificationsCard';
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
@@ -1621,102 +1617,14 @@ export default function JobsPage() {
           <div className="px-6 pb-6">
           {selectedJob && (
             <div className="space-y-4 py-4">
-              {/* Job Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-                <div>
-                  <Label className="text-navy-500 text-xs">Client</Label>
-                  <p className="font-medium text-navy-900 text-sm">{selectedJob.client_name || 'N/A'}</p>
-                </div>
-                <div>
-                  <Label className="text-navy-500">Branch</Label>
-                  <p className="font-medium text-navy-900">{selectedJob.branch_name || 'N/A'}</p>
-                </div>
-                <div>
-                  <Label className="text-navy-500">Service Type</Label>
-                  <p className="font-medium text-navy-900">{selectedJob.service_type}</p>
-                </div>
-                <div>
-                  <Label className="text-navy-500">Status</Label>
-                  {editMode ? (
-                    <Select
-                      value={editFormData.status}
-                      onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}
-                    >
-                      <SelectTrigger className="mt-1" data-testid="edit-status-select">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="stones_accepted">Stones Accepted</SelectItem>
-                        <SelectItem value="sent_to_lab">Sent to Lab</SelectItem>
-                        <SelectItem value="verbal_uploaded">Verbal Uploaded</SelectItem>
-                        <SelectItem value="stones_returned">Stones Returned</SelectItem>
-                        <SelectItem value="cert_uploaded">Cert. Uploaded</SelectItem>
-                        <SelectItem value="cert_returned">Cert. Returned</SelectItem>
-                        <SelectItem value="done">Done</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="mt-1">{getStatusBadge(selectedJob.status)}</div>
-                  )}
-                </div>
-                <div>
-                  <Label className="text-navy-500">Total Value</Label>
-                  <p className="font-medium text-navy-900">${selectedJob.total_value.toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-navy-500">Total Est. Fees</Label>
-                  <p className="font-medium text-navy-900">${selectedJob.total_fee.toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-navy-500">Discount</Label>
-                  {editMode ? (
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-navy-600 text-sm">$</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={editFormData.discount}
-                        onChange={(e) => setEditFormData({ ...editFormData, discount: e.target.value })}
-                        className="h-7 w-24 border-navy-200 text-sm"
-                        placeholder="0"
-                        data-testid="job-discount-input"
-                      />
-                    </div>
-                  ) : (
-                    <p className="font-medium text-navy-900">
-                      {selectedJob.discount ? `-$${selectedJob.discount.toLocaleString()}` : '-'}
-                    </p>
-                  )}
-                </div>
-                {selectedJob.discount ? (
-                  <div>
-                    <Label className="text-navy-500 font-semibold">Net Total</Label>
-                    <p className="font-bold text-navy-900">
-                      ${Math.max(0, selectedJob.total_fee - (selectedJob.discount || 0)).toLocaleString()}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-
-              {/* Notes */}
-              {editMode ? (
-                <div>
-                  <Label className="text-navy-500">Notes</Label>
-                  <Textarea
-                    value={editFormData.notes}
-                    onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
-                    className="mt-1"
-                    rows={2}
-                  />
-                </div>
-              ) : selectedJob.notes ? (
-                <div>
-                  <Label className="text-navy-500">Notes</Label>
-                  <p className="font-medium text-navy-900">{selectedJob.notes}</p>
-                </div>
-              ) : null}
+              {/* Job Summary + Notes */}
+              <JobSummaryGrid
+                job={selectedJob}
+                editMode={editMode}
+                editFormData={editFormData}
+                setEditFormData={setEditFormData}
+                getStatusBadge={getStatusBadge}
+              />
 
               {/* Two-column layout: Stones (left) + Actions sidebar (right) */}
               <div className="space-y-4 border-t pt-4">
@@ -2070,188 +1978,18 @@ export default function JobsPage() {
 
                   {/* Payment */}
                   {isAdmin && (
-                    <div className="rounded-lg border border-navy-200 p-3 space-y-2">
-                      <Label className="text-sm font-semibold flex items-center gap-2">
-                        <CreditCard className="h-3.5 w-3.5" />
-                        Payment
-                        {selectedJob.payment_status === 'paid' ? (
-                          <Badge className="bg-navy-900 text-white text-[10px] px-1.5 py-0">Paid</Badge>
-                        ) : selectedJob.payment_status === 'partial' ? (
-                          <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] px-1.5 py-0">Partial</Badge>
-                        ) : selectedJob.payment_token ? (
-                          <Badge variant="outline" className="text-navy-600 border-navy-300 text-[10px] px-1.5 py-0">Pending</Badge>
-                        ) : null}
-                      </Label>
-
-                      {/* Balance summary + Record manual button */}
-                      {(() => {
-                        const net = Math.max(0, (selectedJob.total_fee || 0) - (selectedJob.discount || 0));
-                        const paid = (selectedJob.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
-                        const balance = Math.max(0, net - paid);
-                        const pct = net > 0 ? Math.min(100, Math.round((paid / net) * 100)) : 0;
-                        return (
-                          <div className="space-y-1" data-testid="payment-balance-strip">
-                            <div className="flex items-center justify-between text-[11px] text-navy-600">
-                              <span>${paid.toLocaleString()} of ${net.toLocaleString()} paid</span>
-                              {balance > 0 && <span className="text-amber-700 font-semibold">Balance ${balance.toLocaleString()}</span>}
-                            </div>
-                            <div className="h-1.5 rounded-full bg-navy-100 overflow-hidden">
-                              <div
-                                className={`h-full transition-[width] duration-500 ${balance === 0 ? 'bg-emerald-500' : 'bg-navy-900'}`}
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Manual payment button (only when balance remains) */}
-                      {Math.max(0, (selectedJob.total_fee || 0) - (selectedJob.discount || 0)) > (selectedJob.payments || []).reduce((s, p) => s + (p.amount || 0), 0) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={openManualPaymentDialog}
-                          className="w-full text-xs border-navy-300"
-                          data-testid="record-manual-payment-button"
-                        >
-                          <CreditCard className="h-3 w-3 mr-1" />
-                          Record Manual Payment (wire / cash)
-                        </Button>
-                      )}
-
-                      {/* Payment history */}
-                      {(selectedJob.payments || []).length > 0 && (
-                        <div className="pt-1">
-                          <div className="text-[10px] uppercase tracking-wide text-navy-500 mb-1">Payment history</div>
-                          <div className="space-y-1">
-                            {(selectedJob.payments || []).slice().reverse().map((p) => (
-                              <div key={p.id} className="flex items-center justify-between text-[11px] border border-navy-100 rounded-md px-2 py-1 bg-navy-50/40" data-testid={`payment-row-${p.id}`}>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-mono font-semibold text-navy-900 text-[10px]">{p.id}</span>
-                                    <span className="text-navy-900 font-semibold">${p.amount.toLocaleString()}</span>
-                                  </div>
-                                  <div className="text-[10px] text-navy-500 truncate">
-                                    {p.destination || '—'} · {new Date(p.recorded_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedJob.payment_status === 'paid' && !adjustmentMode ? (
-                        <div className="space-y-1.5">
-                          <p className="text-xs text-navy-900 flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" />Payment received
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setAdjustmentMode(true)}
-                            className="text-xs border-navy-300 w-full"
-                            data-testid="create-adjustment-button"
-                          >
-                            <CreditCard className="h-3 w-3 mr-1" />
-                            Create Adjustment Payment
-                          </Button>
-                        </div>
-                      ) : adjustmentMode ? (
-                        <div className="space-y-1.5">
-                          <p className="text-[10px] text-navy-500">Enter the adjustment amount to charge:</p>
-                          <div className="flex items-center gap-1">
-                            <span className="text-navy-600 text-xs">$</span>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={adjustmentAmount}
-                              onChange={(e) => setAdjustmentAmount(e.target.value)}
-                              className="text-xs h-7 border-navy-200"
-                              placeholder="0.00"
-                              data-testid="adjustment-amount-input"
-                            />
-                          </div>
-                          <div className="flex gap-1.5">
-                            <Button
-                              size="sm"
-                              onClick={() => handleGeneratePaymentLink(true)}
-                              disabled={generatingPaymentLink || !adjustmentAmount || parseFloat(adjustmentAmount) <= 0}
-                              className="text-xs flex-1 bg-navy-900 hover:bg-navy-800"
-                              data-testid="confirm-adjustment-button"
-                            >
-                              {generatingPaymentLink ? (
-                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Creating...</>
-                              ) : (
-                                'Create Link'
-                              )}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => { setAdjustmentMode(false); setAdjustmentAmount(''); }}
-                              className="text-xs border-navy-300"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {!selectedJob.payment_token ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleGeneratePaymentLink()}
-                              disabled={generatingPaymentLink}
-                              className="text-xs border-navy-300 w-full"
-                              data-testid="generate-payment-link-button"
-                            >
-                              {generatingPaymentLink ? (
-                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Generating...</>
-                              ) : (
-                                <><Link2 className="h-3 w-3 mr-1" />Generate Payment Link</>
-                              )}
-                            </Button>
-                          ) : (
-                            <div className="space-y-1.5">
-                              <Input
-                                value={selectedJob.payment_url || ''}
-                                readOnly
-                                className="text-[10px] font-mono bg-navy-50 border-navy-200 h-7"
-                                data-testid="payment-link-input"
-                              />
-                              <div className="flex gap-1.5">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={handleCopyPaymentLink}
-                                  className={`text-xs flex-1 ${copiedPaymentLink ? 'bg-navy-50 border-navy-300 text-navy-900' : 'border-navy-300'}`}
-                                  data-testid="copy-payment-link-button"
-                                >
-                                  {copiedPaymentLink ? (
-                                    <><Check className="h-3 w-3 mr-1" />Copied</>
-                                  ) : (
-                                    'Copy Link'
-                                  )}
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => window.open(selectedJob.payment_url, '_blank')}
-                                  className="text-xs flex-1 border-navy-300"
-                                  data-testid="open-payment-link-button"
-                                >
-                                  <ExternalLink className="h-3 w-3 mr-1" />
-                                  Open
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    <JobPaymentCard
+                      job={selectedJob}
+                      adjustmentMode={adjustmentMode}
+                      setAdjustmentMode={setAdjustmentMode}
+                      adjustmentAmount={adjustmentAmount}
+                      setAdjustmentAmount={setAdjustmentAmount}
+                      generatingPaymentLink={generatingPaymentLink}
+                      copiedPaymentLink={copiedPaymentLink}
+                      onOpenManualPayment={openManualPaymentDialog}
+                      onGeneratePaymentLink={handleGeneratePaymentLink}
+                      onCopyPaymentLink={handleCopyPaymentLink}
+                    />
                   )}
 
                   {/* Lab Invoice */}
@@ -2289,72 +2027,14 @@ export default function JobsPage() {
 
                   {/* Notifications */}
                   {isAdmin && (
-                    <div className="rounded-lg border border-navy-200 p-3 space-y-2">
-                      <Label className="text-sm font-semibold flex items-center gap-2">
-                        <Mail className="h-3.5 w-3.5" />
-                        Notifications
-                      </Label>
-                      {loadingNotifications ? (
-                        <div className="flex items-center gap-2 text-navy-500 py-1">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <span className="text-xs">Loading...</span>
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {notificationStatuses.filter(n => n.is_available).length === 0 ? (
-                            <p className="text-xs text-navy-400 italic">
-                              No notifications for &ldquo;{selectedJob.status.replace(/_/g, ' ')}&rdquo;
-                            </p>
-                          ) : (
-                            notificationStatuses.filter(n => n.is_available).map((notification) => (
-                              <div
-                                key={notification.type}
-                                className={`p-2 rounded border text-xs ${
-                                  notification.is_sent ? 'bg-navy-50 border-navy-200' : 'bg-white border-navy-200'
-                                }`}
-                              >
-                                <div className="flex items-center gap-1.5 mb-1.5">
-                                  {notification.is_sent ? (
-                                    <CheckCircle2 className="h-3 w-3 text-navy-600 shrink-0" />
-                                  ) : (
-                                    <Clock className="h-3 w-3 text-navy-400 shrink-0" />
-                                  )}
-                                  <span className="font-medium text-navy-900 truncate">
-                                    {NOTIFICATION_LABELS[notification.type] || notification.type}
-                                  </span>
-                                </div>
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant={notification.is_sent ? "outline" : "default"}
-                                    onClick={() => handlePreviewNotification(notification.type)}
-                                    className={`h-6 px-2 text-[10px] flex-1 ${notification.is_sent ? 'border-navy-300' : 'bg-brand-red hover:bg-brand-red-dark'}`}
-                                    data-testid={`preview-notification-${notification.type}`}
-                                  >
-                                    <Mail className="h-2.5 w-2.5 mr-0.5" />
-                                    {notification.is_sent ? 'Resend' : 'Email'}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleSendSms(notification.type)}
-                                    disabled={sendingSms === notification.type}
-                                    className="h-6 px-2 text-[10px] flex-1 border-navy-300"
-                                    data-testid={`send-sms-${notification.type}`}
-                                  >
-                                    {sendingSms === notification.type ? (
-                                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                                    ) : (
-                                      <><MessageSquare className="h-2.5 w-2.5 mr-0.5" />SMS</>
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    <JobNotificationsCard
+                      jobStatus={selectedJob.status}
+                      loading={loadingNotifications}
+                      statuses={notificationStatuses}
+                      sendingSmsType={sendingSms}
+                      onPreview={handlePreviewNotification}
+                      onSendSms={handleSendSms}
+                    />
                   )}
                 </div>
               </div>

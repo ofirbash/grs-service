@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 25 frontend-only regression verifying Phase-3 View-Job-Dialog decomposition (JobSummaryGrid, JobPaymentCard, JobNotificationsCard). All three newly-extracted sub-components behave identically to pre-refactor. View Job dialog opens with complete summary grid + stones + all 5 Actions sidebar cards. Edit mode in JobSummaryGrid (status/discount/notes) fully functional. JobPaymentCard balance strip, manual payment, adjustment flow, and payment-link copy/open all work. JobNotificationsCard correctly filters by is_available and opens Email Preview dialog. Shipments (11 cards) + Settings (4 tabs) regression pass. Zero runtime errors (only benign Next.js RSC prefetch warnings carried over from iter 23/24).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dialog accessibility (carryover iter 23/24)", "issues": ["Radix 'Missing Description or aria-describedby={undefined}' warning still fires on View Job / Manual Payment / Email Preview DialogContent. Non-functional polish — add <DialogDescription> to each extracted dialog."]}
+    ]
+  },
+  "passed_tests": [
+    "Admin login (admin@bashari.com / admin123) → /dashboard",
+    "/dashboard/jobs: 24 job rows render (data-testid=job-row-<n>)",
+    "Job #24 row click → View Job dialog opens; summary grid shows all labels (Client, Branch, Service Type, Status, Total Value, Total Est. Fees, Discount)",
+    "All 5 Actions sidebar cards render inside dialog: Signed Memo, Client Invoice, Payment, Lab Invoice, Notifications",
+    "JobPaymentCard (Job #23 partial): payment-balance-strip text = '$1 of $510 paid ... Balance $509' — correct paid/total/balance math",
+    "JobPaymentCard: record-manual-payment-button opens ManualPaymentDialog with pre-filled amount 509.00",
+    "JobPaymentCard (Job #23 has payment_token): copy-payment-link-button + open-payment-link-button visible; generate-payment-link-button hidden (correct conditional)",
+    "JobPaymentCard (Job #21 paid): create-adjustment-button visible → click enters adjustment mode → adjustment-amount-input + confirm-adjustment-button render → entering $5 enables confirm button → Cancel returns to non-adjustment state",
+    "JobSummaryGrid edit mode: edit-status-select renders 8 status options, job-discount-input accepts numeric input, notes textarea editable",
+    "JobNotificationsCard (Job #21 stones_accepted): 1 available notification renders with testid preview-notification-stones_accepted + send-sms-stones_accepted",
+    "JobNotificationsCard: clicking Email on preview-notification-stones_accepted opens Email Preview dialog (text 'Email Preview' visible)",
+    "JobNotificationsCard (Job #23 sent_to_lab): correctly shows 0 available notifications (is_available filter works; non-regression)",
+    "/dashboard/shipments: 11 shipment cards render without errors",
+    "/dashboard/settings: all 4 tabs (Stones Settings, Branches, Payments, Admin Users) visible",
+    "Console: 0 real errors (only benign Next.js RSC prefetch 'Failed to fetch' warnings on /dashboard/* — production-mode Link prefetch artifact, not a regression)"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "(Optional, carryover) Add <DialogDescription> inside DialogContent for the extracted dialogs to silence the persistent Radix aria-describedby warning.",
+    "(Informational) Main agent plans to extract JobStonesSection + JobActionsRow next — this iter only decomposed 3 of 5 planned sub-components; jobs/page.tsx is now 2,544 lines (from 2,864)."
+  ],
+  "critical_code_review_comments": [
+    "JobSummaryGrid.tsx (126 lines) — clean props interface, edit-mode renders match pre-refactor exactly. No business logic leakage; purely presentational.",
+    "JobPaymentCard.tsx (250 lines) — computes net/paid/balance/pct internally from props.job (correct; no duplicated state). Correctly branches on payment_status (paid/partial/token/adjustmentMode). All 7 testids present and working: payment-balance-strip, record-manual-payment-button, create-adjustment-button, adjustment-amount-input, confirm-adjustment-button, generate-payment-link-button, copy-payment-link-button, open-payment-link-button.",
+    "JobNotificationsCard.tsx (97 lines) — filters statuses by is_available, maps to preview-notification-<type> + send-sms-<type> testids. Matches pre-refactor naming exactly (no test regression).",
+    "jobs/page.tsx — still 2,544 lines. Pending extractions (JobStonesSection, JobActionsRow) remain the last big chunk. Imports at lines 84-86 confirm clean integration.",
+    "None of the three new files exceed 700-line ceiling; all <=250 lines. Good granularity.",
+    "All three components properly typed against ../_types (Job, NotificationStatus); no `any` leaks observed."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (not requested)", "frontend": "100% (15/15 regression checks passed)" },
+  "test_credentials": { "admin": "admin@bashari.com / admin123", "customer": "customer@test.com / customer123" },
+  "seed_data_creation": "None. No POSTs committed (manual payment + edit mode + adjustment mode all opened and cancelled; notes textarea fill was cancelled).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "iter-25 extracted JobSummaryGrid / JobPaymentCard / JobNotificationsCard. Relevant testids for next regression: payment-balance-strip, record-manual-payment-button, generate-payment-link-button, copy-payment-link-button, open-payment-link-button, create-adjustment-button, adjustment-amount-input, confirm-adjustment-button, edit-status-select, job-discount-input, preview-notification-<type>, send-sms-<type>. Job #23 = partial (balance $509, has payment_token); Job #21 = stones_accepted+paid (1 available notification 'stones_accepted', good for adjustment flow). Job #24 = sent_to_lab+paid (no notifications, 11 stones with certificate groupings — good for stones section). Iter 26 will extract JobStonesSection + JobActionsRow (currently deferred)."
+}
