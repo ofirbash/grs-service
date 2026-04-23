@@ -28,6 +28,34 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
+### Session: Feb 23, 2026 - Code Quality Phase 2 + Security + Print (Iter 23)
+
+**Phase 2 frontend splitting** — extracted 7 self-contained dialog components from the jobs page:
+- `_components/ManualPaymentDialog.tsx` — manual wire/cash payment recording flow
+- `_components/DocumentViewerDialog.tsx` — unified PDF/image viewer (replaces 3 near-identical dialogs: certificate scan, signed memo, lab invoice)
+- `_components/SmsPreviewDialog.tsx` — SMS preview & send
+- `_components/EmailPreviewDialog.tsx` — sandboxed-iframe email preview & send
+- `_components/MiscDialogs.tsx` — UnsavedChangesDialog, BulkStatusDialog, ClientInvoiceDialog
+- `jobs/page.tsx`: 3,547 → 3,156 lines (−391 this iter; cumulative 3,845 → 3,156, −689 lines / −17.9%)
+
+**Printable shipment document (P1)** — `shipments/_print/shipment-memo.ts`:
+- New `printShipmentMemo({ shipment, jobs })` helper replaces the old generic `handleGeneratePdf` inline code
+- Memo-style design matching the job memo: charcoal/red palette, square logo + company header, route card with arrow, jobs-in-shipment table, unified stones manifest, totals panel, and 3-signature block (Sender / Courier / Receiver)
+- Proper HTML escaping via local `esc()`, status badges, branded footer with VAT info
+
+**localStorage auth-token security (P1)** — `lib/tokenStorage.ts`:
+- New helper wraps all token I/O via sessionStorage (cleared on tab close → smaller XSS blast radius)
+- One-time migration reads a legacy `localStorage.token` once and promotes it to sessionStorage
+- `store.ts` Zustand `auth-storage` persistence moved from localStorage → `createJSONStorage(() => sessionStorage)`
+- `api.ts` interceptor, `NotificationPanel.tsx` (3 sites), `profile/page.tsx` (1 site) all updated to use `getToken()` / `clearToken()`
+- Verified in Playwright: after login, `sessionStorage['token']` set (len=215), `localStorage['token']` and `localStorage['auth-storage']` both null; logout clears everything
+
+**Production build + restart** — prior frontend was running `next start` with a stale bundle; rebuilt (fixed 4 unused-import ESLint errors) and restarted so the new code is live.
+
+**Testing (Iter 23)** — testing agent (frontend only) reports zero failures across: auth sessionStorage migration, jobs dialog regressions, shipment memo print popup. Backend regression (48 pytest tests) still passes.
+
+
+
 ### Session: Feb 23, 2026 - Code Quality Report Remediation (Iter 22)
 - ✅ **Backend complexity refactor** — split three hot-spot functions into small, single-responsibility helpers with no behaviour change:
   - `routes/dashboard.py::get_dashboard_stats` → `_build_jobs_query`, `_aggregate_job_totals`, `_aggregate_status_breakdown`, `_count_clients`
