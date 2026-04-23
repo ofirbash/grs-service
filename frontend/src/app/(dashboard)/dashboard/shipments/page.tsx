@@ -54,6 +54,7 @@ import {
   ArrowRight,
   FileCheck2,
   Send,
+  Trash2,
 } from 'lucide-react';
 
 interface Shipment {
@@ -141,6 +142,7 @@ export default function ShipmentsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'send_stones_to_lab' | 'stones_from_lab' | 'certificates_from_lab'>('all');
   const { user } = useAuthStore();
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'branch_admin';
   const [userBranchName, setUserBranchName] = useState('');
   
   // Create shipment dialog
@@ -561,6 +563,24 @@ export default function ShipmentsPage() {
       console.error('Failed to add jobs to shipment:', error);
     } finally {
       setAddingJobs(false);
+    }
+  };
+
+  const handleRemoveJobFromShipment = async (jobId: string, jobNumber: number) => {
+    if (!selectedShipment) return;
+    if (!confirm(`Remove Job #${jobNumber} from this shipment?`)) return;
+    try {
+      const remaining = (selectedShipment.job_ids || []).filter((id) => id !== jobId);
+      await shipmentsApi.updateJobs(selectedShipment.id, remaining);
+      // Refresh list + detail
+      await fetchData();
+      const updated = await shipmentsApi.getById(selectedShipment.id);
+      setSelectedShipment(updated);
+      setShipmentJobs((prev) => prev.filter((j) => j.id !== jobId));
+      setSelectedShipmentJobs((prev) => prev.filter((id) => id !== jobId));
+    } catch (error) {
+      const err = error as { response?: { data?: { detail?: string } } };
+      alert(err?.response?.data?.detail || 'Failed to remove job from shipment');
     }
   };
 
@@ -1504,10 +1524,22 @@ export default function ShipmentsPage() {
                   {/* Mobile Cards */}
                   <div className="md:hidden space-y-2">
                     {shipmentJobs.map((job) => (
-                      <div key={job.id} className="border border-navy-200 rounded-lg p-2.5 active:bg-navy-50" onClick={() => { setSelectedJob(job); setJobDialogOpen(true); }}>
+                      <div key={job.id} className="border border-navy-200 rounded-lg p-2.5 active:bg-navy-50 relative" onClick={() => { setSelectedJob(job); setJobDialogOpen(true); }}>
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-navy-900 text-sm">#{job.job_number}</span>
-                          {getStatusBadge(job.status)}
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(job.status)}
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleRemoveJobFromShipment(job.id, job.job_number); }}
+                                className="text-red-500 p-1 -mr-1 rounded active:bg-red-50"
+                                title="Remove job from shipment"
+                                data-testid={`remove-job-from-shipment-mobile-${job.job_number}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="text-xs text-navy-500 mt-0.5">{job.client_name || '-'} &middot; {job.total_stones} stones &middot; ${job.total_value.toLocaleString()}</div>
                       </div>
@@ -1532,6 +1564,7 @@ export default function ShipmentsPage() {
                           <TableHead className="text-navy-700">Stones</TableHead>
                           <TableHead className="text-navy-700">Value</TableHead>
                           <TableHead className="text-navy-700">Status</TableHead>
+                          {isAdmin && <TableHead className="text-navy-700 w-10"></TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1591,6 +1624,18 @@ export default function ShipmentsPage() {
                             >
                               <Badge variant="secondary">{job.status.replace(/_/g, ' ')}</Badge>
                             </TableCell>
+                            {isAdmin && (
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={() => handleRemoveJobFromShipment(job.id, job.job_number)}
+                                  className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                                  title="Remove job from shipment"
+                                  data-testid={`remove-job-from-shipment-${job.job_number}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       </TableBody>

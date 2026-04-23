@@ -201,6 +201,10 @@ export const jobsApi = {
     const response = await api.post(`/jobs/${id}/stones`, stone);
     return response.data;
   },
+  deleteStone: async (jobId: string, stoneId: string) => {
+    const response = await api.delete(`/jobs/${jobId}/stones/${stoneId}`);
+    return response.data;
+  },
 };
 
 // Stones API

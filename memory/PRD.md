@@ -751,3 +751,39 @@ User asked for a nicer way to display shipments in the shipments page, the dashb
   - Dashboard: 3-column shipments panel shows `0 in transit · 5 pending` for "To Lab" with latest=#11 delivered mini-bar
   - Jobs page: all jobs with shipments now show the typed chip with `#N` + `Delivered`/`Pending` pill + `Israel → HK Lab`
 - Backend regression: `/api/shipments` returns 11 shipments, `/api/jobs` returns shipment_info with source/destination populated
+
+---
+
+## Session: Apr 23, 2026 (later) — Compact Jobs Table + Stone/Job Removal
+
+User asks:
+1. Jobs page is too wide
+2. Allow removing a stone from a job
+3. Allow removing a job from a shipment
+
+### 1. Jobs table compacted (jobs/page.tsx)
+- Added `table-fixed` width control: Job#=16px, Stones=16px, Value/Fee=28px, Status=32px, Payment=20px, Shipment=24px; `Client` column now has name + branch subtitle on two lines (saved a whole column)
+- Merged `Value` + `Fee` columns into a single `Value / Fee` stacked cell (value small on top, fee bold, net-after-discount tiny green row if applicable)
+- Dropped separate `Branch` column (now shown inline under client name)
+- **New** `ShipmentChip` has a `compact` prop for table use: icon + `#N` + tiny coloured status dot (no wrapped badge, no source/dest line). Full tooltip (`title=`) preserves all details. The non-compact chip still used elsewhere.
+- Jobs page now fits at 1280px with no horizontal scroll
+
+### 2. Remove stone from job
+- **Backend**: `DELETE /api/jobs/{job_id}/stones/{stone_id}` (routes/jobs.py)
+  - Removes the stone from the job's `stones` array
+  - Reassigns contiguous positions (1..N)
+  - Recalculates `total_stones` / `total_value` / `total_fee`
+  - Admin-only (`require_admin`)
+- **Frontend**: `jobsApi.deleteStone(jobId, stoneId)` + `handleDeleteStone(stoneId, sku)` with confirm()
+- **UI**: red trash icon in the stones table (new last column for admins only), both ungrouped rows AND grouped rows; mobile card also has trash icon next to fee. `colSpan` of group header adjusted (isAdmin ? 9 : 8)
+
+### 3. Remove job from shipment
+- **Backend**: reused existing `PUT /api/shipments/{id}/jobs` — send the job_ids list without the removed job
+- **Frontend**: `handleRemoveJobFromShipment(jobId, jobNumber)` filters out of `job_ids` list, calls update, refreshes both `shipments` + `selectedShipment` + local `shipmentJobs` state
+- **UI**: trash icon in the shipment detail dialog's jobs table (new admin-only column) + mobile card (next to status badge)
+
+### Smoke test (admin @1280)
+- Jobs table: compact, no horizontal scroll, `doc==win==1280`
+- Job #24 modal: 11 stones rendered with trash icons visible (2 ungrouped + 3 certificate groups with stones); works for certs 1 (pair), 2 (pair), 3 (layout)
+- Shipment #11 modal: 3 jobs each with trash icon in a new action column
+- Backend regression: `/api/jobs`, `/api/shipments`, `/api/shipments/{id}/jobs` all healthy; DELETE non-existent returns 404

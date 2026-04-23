@@ -292,6 +292,7 @@ const ShipmentTypeIcon = ({ type, className = 'h-3.5 w-3.5' }: { type: string; c
 
 const ShipmentChip = ({
   info,
+  compact = false,
 }: {
   info: {
     shipment_number: number;
@@ -302,6 +303,7 @@ const ShipmentChip = ({
     source_address?: string;
     destination_address?: string;
   };
+  compact?: boolean;
 }) => {
   const statusStyles: Record<string, string> = {
     pending: 'bg-navy-100 text-navy-800 border-navy-200',
@@ -309,21 +311,47 @@ const ShipmentChip = ({
     delivered: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     cancelled: 'bg-red-50 text-red-700 border-red-200',
   };
-  const pillClass =
-    'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ' +
-    (statusStyles[info.status] || statusStyles.pending);
+  const statusDotColor: Record<string, string> = {
+    pending: 'bg-navy-400',
+    in_transit: 'bg-navy-900',
+    delivered: 'bg-emerald-500',
+    cancelled: 'bg-red-500',
+  };
+  const typeLabel = SHIPMENT_TYPE_LABELS[info.shipment_type] || info.shipment_type;
+  const statusLabel = SHIPMENT_STATUS_LABELS[info.status] || info.status;
+  const tooltip = [
+    typeLabel,
+    `#${info.shipment_number}`,
+    statusLabel,
+    info.source_address && info.destination_address ? `${info.source_address} → ${info.destination_address}` : '',
+  ].filter(Boolean).join(' · ');
+
+  if (compact) {
+    // Table-friendly: icon + #N + tiny coloured dot
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-md border border-navy-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-navy-900 whitespace-nowrap"
+        title={tooltip}
+      >
+        <ShipmentTypeIcon type={info.shipment_type} className="h-3 w-3" />
+        #{info.shipment_number}
+        <span className={`h-1.5 w-1.5 rounded-full ${statusDotColor[info.status] || 'bg-navy-300'}`} />
+      </span>
+    );
+  }
+
   return (
     <div
       className="relative group inline-flex flex-col gap-1"
-      title={`${SHIPMENT_TYPE_LABELS[info.shipment_type] || info.shipment_type} · ${SHIPMENT_STATUS_LABELS[info.status] || info.status}`}
+      title={tooltip}
     >
       <div className="inline-flex items-center gap-1.5">
         <span className="inline-flex items-center gap-1 rounded-md border border-navy-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-navy-900">
           <ShipmentTypeIcon type={info.shipment_type} />
           #{info.shipment_number}
         </span>
-        <span className={pillClass}>
-          {SHIPMENT_STATUS_LABELS[info.status] || info.status}
+        <span className={'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ' + (statusStyles[info.status] || statusStyles.pending)}>
+          {statusLabel}
         </span>
       </div>
       {(info.source_address || info.destination_address) && (
@@ -616,6 +644,22 @@ export default function JobsPage() {
   };
 
   // Helper to open stone dialog with proper initialization
+  const handleDeleteStone = async (stoneId: string, sku: string) => {
+    if (!selectedJob) return;
+    if (!confirm(`Remove stone ${sku} from this job? This cannot be undone.`)) return;
+    try {
+      await jobsApi.deleteStone(selectedJob.id, stoneId);
+      // Refresh job detail
+      const updated = await jobsApi.getById(selectedJob.id);
+      setSelectedJob(updated);
+      // Refresh the list
+      await fetchData();
+    } catch (e) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      alert(err?.response?.data?.detail || 'Failed to remove stone');
+    }
+  };
+
   const openStoneDialog = (stone: Stone) => {
     setViewingStone(stone);
     
@@ -1620,7 +1664,7 @@ export default function JobsPage() {
                 <TableHeader>
                   <TableRow className="bg-navy-50">
                     {isAdmin && (
-                      <TableHead className="font-semibold text-navy-700 w-12">
+                      <TableHead className="font-semibold text-navy-700 w-10 px-2">
                         <input
                           type="checkbox"
                           checked={filteredJobs.length > 0 && selectedJobIds.length === filteredJobs.length}
@@ -1630,16 +1674,14 @@ export default function JobsPage() {
                         />
                       </TableHead>
                     )}
-                    <TableHead className="font-semibold text-navy-700">Job #</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-16">Job #</TableHead>
                     <TableHead className="font-semibold text-navy-700">Client</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Branch</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Service</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Stones</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Value</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Fee</TableHead>
-                    <TableHead className="font-semibold text-navy-700">Status</TableHead>
-                    {isAdmin && <TableHead className="font-semibold text-navy-700">Payment</TableHead>}
-                    <TableHead className="font-semibold text-navy-700">Shipment</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-24">Service</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-16 text-center">Stones</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-28">Value / Fee</TableHead>
+                    <TableHead className="font-semibold text-navy-700 w-32">Status</TableHead>
+                    {isAdmin && <TableHead className="font-semibold text-navy-700 w-20">Payment</TableHead>}
+                    <TableHead className="font-semibold text-navy-700 w-24">Shipment</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1650,7 +1692,7 @@ export default function JobsPage() {
                       data-testid={`job-row-${job.job_number}`}
                     >
                       {isAdmin && (
-                        <TableCell onClick={(e) => e.stopPropagation()}>
+                        <TableCell onClick={(e) => e.stopPropagation()} className="px-2">
                           <input
                             type="checkbox"
                             checked={selectedJobIds.includes(job.id)}
@@ -1660,32 +1702,28 @@ export default function JobsPage() {
                           />
                         </TableCell>
                       )}
-                      <TableCell 
-                        className="font-medium text-navy-900"
+                      <TableCell
+                        className="font-semibold text-navy-900"
                         onClick={() => openJobDetails(job)}
                       >
                         #{job.job_number}
                       </TableCell>
-                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
-                        {job.client_name || 'N/A'}
+                      <TableCell className="text-navy-600 truncate" onClick={() => openJobDetails(job)}>
+                        <div className="truncate font-medium text-navy-900">{job.client_name || 'N/A'}</div>
+                        <div className="truncate text-[11px] text-navy-500">{job.branch_name || '—'}</div>
                       </TableCell>
-                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
-                        {job.branch_name || 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
+                      <TableCell className="text-navy-600 truncate" onClick={() => openJobDetails(job)}>
                         {job.service_type}
                       </TableCell>
-                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
+                      <TableCell className="text-navy-600 text-center" onClick={() => openJobDetails(job)}>
                         {job.total_stones}
                       </TableCell>
-                      <TableCell className="text-navy-600 font-medium" onClick={() => openJobDetails(job)}>
-                        ${job.total_value.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-navy-600 font-medium" onClick={() => openJobDetails(job)}>
-                        <div>
-                          <span>${job.total_fee.toLocaleString()}</span>
+                      <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
+                        <div className="leading-tight">
+                          <div className="text-[11px] text-navy-500">${job.total_value.toLocaleString()}</div>
+                          <div className="font-semibold text-navy-900">${job.total_fee.toLocaleString()}</div>
                           {job.discount ? (
-                            <p className="text-xs text-emerald-600 font-medium">${Math.max(0, job.total_fee - job.discount).toLocaleString()}</p>
+                            <div className="text-[10px] text-emerald-600 font-medium">net ${Math.max(0, job.total_fee - job.discount).toLocaleString()}</div>
                           ) : null}
                         </div>
                       </TableCell>
@@ -1705,9 +1743,9 @@ export default function JobsPage() {
                       )}
                       <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
                         {job.shipment_info ? (
-                          <ShipmentChip info={job.shipment_info} />
+                          <ShipmentChip info={job.shipment_info} compact />
                         ) : (
-                          '-'
+                          <span className="text-navy-300">-</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -2137,12 +2175,24 @@ export default function JobsPage() {
                   {selectedJob.stones.map((stone) => (
                     <div
                       key={stone.id}
-                      className="border border-navy-200 rounded-lg p-2.5 active:bg-navy-50"
+                      className="border border-navy-200 rounded-lg p-2.5 active:bg-navy-50 relative"
                       onClick={() => openStoneDialog(stone)}
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-xs font-semibold text-navy-900">{stone.sku}</span>
-                        <span className="text-xs font-medium text-navy-900">${stone.fee.toLocaleString()}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-navy-900">${stone.fee.toLocaleString()}</span>
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteStone(stone.id, stone.sku); }}
+                              className="text-red-500 p-1 -mr-1 rounded active:bg-red-50"
+                              title="Remove stone"
+                              data-testid={`delete-stone-mobile-${stone.id}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="text-xs text-navy-500 mt-0.5">{stone.stone_type} &middot; {stone.weight} ct &middot; {stone.shape}</div>
                       {stone.certificate_group && <Badge variant="outline" className="text-[10px] mt-1">Cert {stone.certificate_group}</Badge>}
@@ -2165,6 +2215,7 @@ export default function JobsPage() {
                         <TableHead className="text-navy-700">Value</TableHead>
                         <TableHead className="text-navy-700">Fee</TableHead>
                         <TableHead className="text-navy-700 w-24">Certificate</TableHead>
+                        {isAdmin && <TableHead className="text-navy-700 w-10"></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -2211,6 +2262,18 @@ export default function JobsPage() {
                                 <span className="text-navy-400">-</span>
                               )}
                             </TableCell>
+                            {isAdmin && (
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={() => handleDeleteStone(stone.id, stone.sku)}
+                                  className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                                  title="Remove stone from job"
+                                  data-testid={`delete-stone-${stone.id}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </TableCell>
+                            )}
                           </TableRow>
                         ))}
                       
@@ -2230,7 +2293,7 @@ export default function JobsPage() {
                             <React.Fragment key={groupNum}>
                               {/* Group header row - no hover effect */}
                               <TableRow className="bg-navy-800 hover:bg-navy-800">
-                                <TableCell colSpan={8} className="py-2">
+                                <TableCell colSpan={isAdmin ? 9 : 8} className="py-2">
                                   <div className="flex items-center justify-between text-white">
                                     <span className="font-medium flex items-center gap-2">
                                       <Link2 className="h-4 w-4" />
@@ -2284,6 +2347,18 @@ export default function JobsPage() {
                                       )}
                                     </div>
                                   </TableCell>
+                                  {isAdmin && (
+                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        onClick={() => handleDeleteStone(stone.id, stone.sku)}
+                                        className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                                        title="Remove stone from job"
+                                        data-testid={`delete-stone-${stone.id}`}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </TableCell>
+                                  )}
                                 </TableRow>
                               ))}
                             </React.Fragment>

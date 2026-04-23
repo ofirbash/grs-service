@@ -356,6 +356,51 @@ async def add_stone_to_job(job_id: str, stone: AddStoneRequest, user: dict = Dep
     return {"message": "Stone added successfully", "stone": new_stone}
 
 
+@router.delete("/jobs/{job_id}/stones/{stone_id}")
+async def delete_stone_from_job(job_id: str, stone_id: str, user: dict = Depends(require_admin)):
+    """Remove a stone from a job (by stone.id). Recalculates totals and
+    keeps stones ordered by position (contiguous 1..N).
+    """
+    job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    stones = job.get("stones", []) or []
+    target = next((s for s in stones if s.get("id") == stone_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Stone not found on this job")
+
+    remaining = [s for s in stones if s.get("id") != stone_id]
+    # Reassign contiguous positions, preserving original order
+    for idx, s in enumerate(sorted(remaining, key=lambda x: x.get("position", 0)), start=1):
+        s["position"] = idx
+
+    new_total_stones = len(remaining)
+    new_total_value = sum(s.get("value", 0) for s in remaining)
+    new_total_fee = sum(s.get("fee", 0) for s in remaining)
+
+    await db.jobs.update_one(
+        {"_id": ObjectId(job_id)},
+        {
+            "$set": {
+                "stones": remaining,
+                "total_stones": new_total_stones,
+                "total_value": new_total_value,
+                "total_fee": new_total_fee,
+                "updated_at": datetime.utcnow(),
+            }
+        },
+    )
+
+    return {
+        "message": "Stone removed",
+        "stone_id": stone_id,
+        "total_stones": new_total_stones,
+        "total_value": new_total_value,
+        "total_fee": new_total_fee,
+    }
+
+
 @router.put("/jobs/{job_id}", response_model=JobResponse)
 async def update_job(job_id: str, job_update: JobUpdate, user: dict = Depends(require_admin)):
     """Update job details"""
