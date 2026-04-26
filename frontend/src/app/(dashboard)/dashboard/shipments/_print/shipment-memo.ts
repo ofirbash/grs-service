@@ -43,8 +43,6 @@ const formatDate = (d: string | Date | undefined): string => {
   }
 };
 
-const statusLabel = (s: string): string => s.replace(/_/g, ' ').toUpperCase();
-
 interface PrintShipmentOptions {
   shipment: Shipment;
   jobs: Job[];
@@ -84,27 +82,7 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
     );
   });
   const totalValue = allStones.reduce((sum, s) => sum + (s.value || 0), 0);
-  const totalFee = allStones.reduce((sum, s) => sum + (s.fee || 0), 0);
-
-  const jobsTableRows = jobs
-    .map((j) => {
-      const client = j.client_name || '—';
-      const branch = j.branch_name || '—';
-      const stonesCount = j.total_stones ?? (j.stones?.length ?? 0);
-      const valueText = typeof j.total_value === 'number' ? `$${j.total_value.toLocaleString()}` : '—';
-      const feeText = typeof j.total_fee === 'number' ? `$${j.total_fee.toLocaleString()}` : '—';
-      return `
-        <tr>
-          <td><strong>#${j.job_number}</strong></td>
-          <td>${esc(client)}</td>
-          <td>${esc(branch)}</td>
-          <td>${esc(j.service_type || '—')}</td>
-          <td style="text-align:center;">${stonesCount}</td>
-          <td style="text-align:right;">${valueText}</td>
-          <td style="text-align:right;">${feeText}</td>
-        </tr>`;
-    })
-    .join('');
+  const totalWeight = allStones.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
 
   const stonesTableRows = allStones
     .map(
@@ -117,7 +95,6 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
         <td>${esc(String(s.weight))} ct</td>
         <td>${esc(s.shape)}</td>
         <td style="text-align:right;">$${(s.value || 0).toLocaleString()}</td>
-        <td style="text-align:right;">$${(s.fee || 0).toLocaleString()}</td>
       </tr>`,
     )
     .join('');
@@ -133,15 +110,15 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
             <th>Weight</th>
             <th>Shape</th>
             <th style="text-align:right;">Value</th>
-            <th style="text-align:right;">Fee</th>
           </tr>
         </thead>
         <tbody>${stonesTableRows}</tbody>
         <tfoot>
           <tr class="totals-row">
-            <td colspan="6" style="text-align:right;"><strong>Total (${allStones.length} stones)</strong></td>
+            <td colspan="4" style="text-align:right;"><strong>Total — ${allStones.length} stone${allStones.length === 1 ? '' : 's'}</strong></td>
+            <td><strong>${totalWeight.toFixed(2)} ct</strong></td>
+            <td></td>
             <td style="text-align:right;"><strong>$${totalValue.toLocaleString()}</strong></td>
-            <td style="text-align:right;"><strong>$${totalFee.toLocaleString()}</strong></td>
           </tr>
         </tfoot>
       </table>`
@@ -186,6 +163,8 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
     .field .label { font-weight: 600; color: #71717a; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
     .field .value { color: #141417; font-size: 13px; font-weight: 600; }
     .field .value.accent { color: #E30613; }
+    .field-wide { grid-column: 1 / -1; }
+    .field-wide .addr-value { font-weight: 500; line-height: 1.45; white-space: pre-wrap; }
     .route-card { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; background: #f5f5f5; border: 1px solid #e5e5e5; padding: 16px; border-radius: 8px; }
     .route-card .endpoint { padding: 8px 12px; background: #ffffff; border: 1px solid #e5e5e5; border-radius: 6px; }
     .route-card .endpoint .label { font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -243,10 +222,6 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
         <div class="value">${esc(typeLabel)}</div>
       </div>
       <div class="field">
-        <div class="label">Status</div>
-        <div class="value"><span class="status-badge status-${esc(shipment.status)}">${esc(statusLabel(shipment.status))}</span></div>
-      </div>
-      <div class="field">
         <div class="label">Courier</div>
         <div class="value">${esc(shipment.courier)}</div>
       </div>
@@ -254,68 +229,24 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
         <div class="label">Tracking #</div>
         <div class="value">${esc(shipment.tracking_number || '—')}</div>
       </div>
-    </div>
-  </div>
-
-  <div class="section">
-    <h3>Route</h3>
-    <div class="route-card">
-      <div class="endpoint">
+      <div class="field">
+        <div class="label">Date Sent</div>
+        <div class="value">${esc(dateSent)}</div>
+      </div>
+      <div class="field field-wide">
         <div class="label">From</div>
-        <div class="addr">${esc(shipment.source_address)}</div>
+        <div class="value addr-value">${esc(shipment.source_address)}</div>
       </div>
-      <div class="arrow">→</div>
-      <div class="endpoint">
+      <div class="field field-wide">
         <div class="label">To</div>
-        <div class="addr">${esc(shipment.destination_address)}</div>
+        <div class="value addr-value">${esc(shipment.destination_address)}</div>
       </div>
     </div>
-  </div>
-
-  <div class="section">
-    <h3>Jobs in this Shipment (${jobs.length})</h3>
-    ${
-      jobs.length
-        ? `<table>
-            <thead>
-              <tr>
-                <th>Job</th>
-                <th>Client</th>
-                <th>Branch</th>
-                <th>Service</th>
-                <th style="text-align:center;">Stones</th>
-                <th style="text-align:right;">Value</th>
-                <th style="text-align:right;">Fee</th>
-              </tr>
-            </thead>
-            <tbody>${jobsTableRows}</tbody>
-          </table>`
-        : '<p style="color:#71717a;font-size:12px;">No jobs attached to this shipment.</p>'
-    }
   </div>
 
   <div class="section">
     <h3>Stones Manifest</h3>
     ${stonesTableHtml}
-
-    <div class="summary">
-      <div class="summary-item">
-        <div class="summary-label">Total Jobs</div>
-        <div class="summary-value">${jobs.length}</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-label">Total Stones</div>
-        <div class="summary-value">${allStones.length}</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-label">Total Value</div>
-        <div class="summary-value">$${totalValue.toLocaleString()}</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-label">Total Fee</div>
-        <div class="summary-value">$${totalFee.toLocaleString()}</div>
-      </div>
-    </div>
   </div>
 
   ${
