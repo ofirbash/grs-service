@@ -28,6 +28,19 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
+### Session: Apr 26, 2026 - Bug fixes verification + SMS sender unblock
+
+**Verified fixes** (from prior session, now confirmed working):
+- Job modal **sticky footer** (`Close` / `Save Changes` always anchored as the body scrolls)
+- Manual Payment button trimmed to **"Record Payment"** (was previously too long)
+- **`stones_accepted`** notification now shown as Available when a job's status is `sent_to_lab` (backend `status_to_notifications` map already includes it; verified via `GET /api/jobs/{id}/notifications/status`)
+- Bonus fix: deep-link `?jobId=` now also fetches notification statuses (parity with click-to-open flow in `openViewDialog()`)
+
+**SMS sender unblock**:
+- `SMS4FREE_SENDER` switched from `BASHARI` (rejected with status `-2`) to phone `0542909005`
+- Direct probe now returns `-6 Sender verification required` — i.e., SMS4Free accepts the sender format but the **owner of `0542909005` must complete OTP verification in their SMS4Free dashboard** before SMS will deliver
+- Action item handed back to user: complete sender verification in SMS4Free dashboard
+
 ### Session: Feb 23, 2026 - Create Job UX + Verbal Email polish (Iter 27)
 
 **Create Job dialog**:

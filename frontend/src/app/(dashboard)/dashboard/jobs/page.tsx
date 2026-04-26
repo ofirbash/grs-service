@@ -283,9 +283,14 @@ export default function JobsPage() {
         setSelectedJob(job);
         setEditFormData({ notes: job.notes || '', status: job.status, discount: job.discount != null ? String(job.discount) : '' });
         setViewDialogOpen(true);
+        // Fetch notification statuses for admin users (parity with openViewDialog)
+        if (user?.role === 'super_admin' || user?.role === 'branch_admin') {
+          fetchNotificationStatuses(job.id);
+        }
       }
     }
-  }, [searchParams, jobs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, jobs, user]);
 
   const fetchData = async () => {
     try {
