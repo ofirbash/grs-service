@@ -50,8 +50,6 @@ import {
   Check,
   Eye,
   Lock,
-  CheckCircle2,
-  Receipt,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
@@ -85,6 +83,7 @@ import { JobSummaryGrid } from './_components/JobSummaryGrid';
 import { JobPaymentCard } from './_components/JobPaymentCard';
 import { JobNotificationsCard } from './_components/JobNotificationsCard';
 import { StoneStatusBadges } from './_components/StoneStatusBadges';
+import { JobDocumentsRow } from './_components/JobDocumentsRow';
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
@@ -1898,85 +1897,22 @@ export default function JobsPage() {
                 <div className="border-t border-navy-200 pt-4 mt-4">
                   <Label className="text-sm font-semibold text-navy-700 mb-3 block">Actions</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {/* Signed Memo - hide for clients when no memo uploaded */}
-                  {(isAdmin || selectedJob.signed_memo_url) && (
-                  <div className="rounded-lg border border-navy-200 p-3 space-y-2">
-                    <Label className="text-sm font-semibold flex items-center gap-2">
-                      <Upload className="h-3.5 w-3.5" />
-                      Signed Memo
-                    </Label>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {isAdmin && (
-                        <>
-                          <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleMemoUpload}
-                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                            className="hidden"
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={uploading}
-                            className="text-xs"
-                            data-testid="upload-memo-button"
-                          >
-                            {uploading ? (
-                              <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Uploading...</>
-                            ) : (
-                              <><Upload className="h-3 w-3 mr-1" />{selectedJob.signed_memo_url ? 'Replace' : 'Upload'}</>
-                            )}
-                          </Button>
-                        </>
-                      )}
-                      {selectedJob.signed_memo_url && (
-                        <Button variant="outline" size="sm" onClick={() => setViewMemoOpen(true)} className="text-xs" data-testid="view-memo-button">
-                          <Eye className="h-3 w-3 mr-1" />View
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  )}
-
-                  {/* Client Invoice */}
-                  {isAdmin && (
-                    <div className="rounded-lg border border-navy-200 p-3 space-y-2">
-                      <Label className="text-sm font-semibold flex items-center gap-2">
-                        <Receipt className="h-3.5 w-3.5" />
-                        Client Invoice
-                        <Badge variant="secondary" className="bg-navy-900 text-white text-[10px] px-1.5 py-0">Email</Badge>
-                      </Label>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleGenerateInvoice}
-                          disabled={generatingInvoice}
-                          className="text-xs border-navy-300"
-                          data-testid="generate-invoice-button"
-                        >
-                          {generatingInvoice ? (
-                            <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Generating...</>
-                          ) : (
-                            <><Receipt className="h-3 w-3 mr-1" />{selectedJob.invoice_url ? 'Regenerate' : 'Generate'}</>
-                          )}
-                        </Button>
-                        {selectedJob.invoice_url && (
-                          <Button variant="outline" size="sm" onClick={() => setViewInvoiceOpen(true)} className="text-xs" data-testid="view-invoice-button">
-                            <Eye className="h-3 w-3 mr-1" />View
-                          </Button>
-                        )}
-                      </div>
-                      {selectedJob.invoice_url && (
-                        <p className="text-[10px] text-navy-500">
-                          <CheckCircle2 className="h-2.5 w-2.5 inline mr-0.5" />
-                          Attached to &quot;Stones Returned&quot; email
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  {/* Signed Memo + Client Invoice + Lab Invoice */}
+                  <JobDocumentsRow
+                    job={selectedJob}
+                    isAdmin={isAdmin}
+                    memoInputRef={fileInputRef}
+                    uploadingMemo={uploading}
+                    onMemoChange={handleMemoUpload}
+                    onViewMemo={() => setViewMemoOpen(true)}
+                    generatingInvoice={generatingInvoice}
+                    onGenerateInvoice={handleGenerateInvoice}
+                    onViewInvoice={() => setViewInvoiceOpen(true)}
+                    labInvoiceInputRef={labInvoiceInputRef}
+                    uploadingLabInvoice={uploadingLabInvoice}
+                    onLabInvoiceChange={handleLabInvoiceUpload}
+                    onViewLabInvoice={() => setViewLabInvoiceOpen(true)}
+                  />
 
                   {/* Payment */}
                   {isAdmin && (
@@ -1994,38 +1930,7 @@ export default function JobsPage() {
                     />
                   )}
 
-                  {/* Lab Invoice */}
-                  {isAdmin && (
-                    <div className="rounded-lg border border-navy-200 p-3 space-y-2">
-                      <Label className="text-sm font-semibold flex items-center gap-2">
-                        <FileText className="h-3.5 w-3.5" />
-                        Lab Invoice
-                        <Badge variant="secondary" className="bg-navy-200 text-navy-700 text-[10px] px-1.5 py-0">Admin</Badge>
-                      </Label>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input ref={labInvoiceInputRef} type="file" onChange={handleLabInvoiceUpload} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => labInvoiceInputRef.current?.click()}
-                          disabled={uploadingLabInvoice}
-                          className="text-xs"
-                          data-testid="upload-lab-invoice-button"
-                        >
-                          {uploadingLabInvoice ? (
-                            <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Uploading...</>
-                          ) : (
-                            <><Upload className="h-3 w-3 mr-1" />{selectedJob.lab_invoice_url ? 'Replace' : 'Upload'}</>
-                          )}
-                        </Button>
-                        {selectedJob.lab_invoice_url && (
-                          <Button variant="outline" size="sm" onClick={() => setViewLabInvoiceOpen(true)} className="text-xs" data-testid="view-lab-invoice-button">
-                            <Eye className="h-3 w-3 mr-1" />View
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  {/* Lab Invoice — moved into JobDocumentsRow above */}
 
                   {/* Notifications */}
                   {isAdmin && (
