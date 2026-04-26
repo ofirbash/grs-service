@@ -245,6 +245,7 @@ async def get_notification_status(job_id: str, user: dict = Depends(get_current_
 
     status_to_notifications = {
         "stones_accepted": ["stones_accepted"],
+        "sent_to_lab": ["stones_accepted"],
         "verbal_uploaded": ["stones_accepted", "verbal_uploaded"],
         "stones_returned": ["stones_accepted", "verbal_uploaded", "stones_returned"],
         "cert_uploaded": ["stones_accepted", "verbal_uploaded", "stones_returned", "cert_uploaded"],

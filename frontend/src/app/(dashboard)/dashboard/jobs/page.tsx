@@ -1583,8 +1583,8 @@ export default function JobsPage() {
           setSelectedStones([]);
         }
       }}>
-        <DialogContent className="sm:max-w-5xl max-h-[90vh] p-0 !overflow-x-hidden">
-          <DialogHeader className="sticky top-0 z-10 bg-white border-b px-6 py-4 shrink-0">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] p-0 !overflow-x-hidden flex flex-col">
+          <DialogHeader className="bg-white border-b px-6 py-4 shrink-0">
             <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
               <span>Job #{selectedJob?.job_number}</span>
               {selectedJob && (
@@ -1614,7 +1614,7 @@ export default function JobsPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="px-6 pb-6">
+          <div className="px-6 pb-6 flex-1 overflow-y-auto">
           {selectedJob && (
             <div className="space-y-4 py-4">
               {/* Job Summary + Notes */}
@@ -1950,7 +1950,7 @@ export default function JobsPage() {
           )}
           </div>
 
-          <DialogFooter className="sticky bottom-0 bg-white border-t px-6 py-3 shrink-0 gap-2">
+          <DialogFooter className="bg-white border-t px-6 py-3 shrink-0 gap-2">
             {editMode && (
               <Button
                 onClick={handleUpdateJob}

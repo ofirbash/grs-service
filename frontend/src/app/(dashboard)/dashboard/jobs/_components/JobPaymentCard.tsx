@@ -87,8 +87,8 @@ export const JobPaymentCard: React.FC<JobPaymentCardProps> = ({
           className="w-full text-xs border-navy-300"
           data-testid="record-manual-payment-button"
         >
-          <CreditCard className="h-3 w-3 mr-1" />
-          Record Manual Payment (wire / cash)
+          <CreditCard className="h-3 w-3 mr-1.5" />
+          Record Payment
         </Button>
       )}
 

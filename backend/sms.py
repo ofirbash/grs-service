@@ -18,12 +18,22 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 SMS4FREE_ERRORS = {
     0: "General error",
     -1: "Invalid key, username or password",
-    -2: "Invalid sender name or number",
+    -2: "Invalid sender name or number — the sender must be pre-registered with SMS4Free (see your SMS4Free dashboard)",
     -3: "No recipients found",
     -4: "Insufficient SMS balance",
     -5: "Invalid message",
     -6: "Sender verification required",
 }
+
+
+def _normalise_sender(raw: str) -> str:
+    """SMS4Free Israel rules: max 11 alphanumeric chars OR a phone number.
+    Strip any hyphens / spaces / underscores defensively, then truncate.
+    """
+    if not raw:
+        return ""
+    cleaned = "".join(ch for ch in raw if ch.isalnum())
+    return cleaned[:11]
 
 
 async def send_sms(phone: str, message: str) -> dict:
@@ -36,7 +46,7 @@ async def send_sms(phone: str, message: str) -> dict:
         "key": SMS4FREE_KEY,
         "user": SMS4FREE_USER,
         "pass": SMS4FREE_PASS,
-        "sender": SMS4FREE_SENDER,
+        "sender": _normalise_sender(SMS4FREE_SENDER),
         "recipient": phone,
         "msg": message,
     }
