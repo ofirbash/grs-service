@@ -684,7 +684,8 @@ export default function JobsPage() {
     // Total Certificates = number of groups + each ungrouped stone (one cert each)
     const totalCertificates = groupedStonesMap.size + ungroupedStones.length;
 
-    // Build stone rows with CS + Mounted flags
+    // Build stone rows with CS + Mounted flags (with 2-decimal value/fee for clarity)
+    const fmt = (n: number): string => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const stoneRow = (index: number, stone: Stone, isGrouped: boolean) => {
       const flags: string[] = [];
       if (stone.color_stability_test) flags.push('CS');
@@ -698,8 +699,8 @@ export default function JobsPage() {
           <td>${esc(String(stone.weight))} ct</td>
           <td>${esc(stone.shape)}</td>
           <td class="flags">${flagsStr}</td>
-          <td>$${stone.value.toLocaleString()}</td>
-          <td>$${stone.fee.toLocaleString()}</td>
+          <td>$${fmt(stone.value || 0)}</td>
+          <td>$${fmt(stone.fee || 0)}</td>
         </tr>
       `;
     };
@@ -729,6 +730,12 @@ export default function JobsPage() {
     const subtotal = (job.total_fee || 0) + (job.discount || 0);
     const hasDiscount = (job.discount || 0) > 0;
 
+    // Totals for the table footer row (no black bg, per spec).
+    const totalWeight = job.stones.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
+    const totalValueAll = job.stones.reduce((sum, s) => sum + (s.value || 0), 0);
+    const totalFeeAll = job.stones.reduce((sum, s) => sum + (s.fee || 0), 0);
+    const totalStonesCount = job.stones.length;
+
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const absoluteLogo = COMPANY_INFO.logoUrl.startsWith('http')
       ? COMPANY_INFO.logoUrl
@@ -755,54 +762,47 @@ export default function JobsPage() {
         <title>Job #${job.job_number} — ${COMPANY_INFO.displayName}</title>
         <style>
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 32px 40px; max-width: 900px; margin: 0 auto; color: #141417; line-height: 1.45; }
-          .company-header { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 2px solid #141417; }
-          .company-brand { display: flex; gap: 14px; align-items: center; }
-          .company-brand img { width: 54px; height: 54px; object-fit: contain; border: 1px solid #e5e5e5; border-radius: 6px; padding: 2px; background: #ffffff; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 22px 32px; max-width: 900px; margin: 0 auto; color: #141417; line-height: 1.4; }
+          .company-header { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #141417; }
+          .company-brand { display: flex; gap: 12px; align-items: center; }
+          .company-brand img { width: 44px; height: 44px; object-fit: contain; border: 1px solid #e5e5e5; border-radius: 6px; padding: 2px; background: #ffffff; }
           .company-brand .name-block { display: flex; flex-direction: column; }
-          .company-brand .display-name { font-size: 20px; font-weight: 700; color: #141417; }
-          .company-brand .legal-name { font-size: 11px; color: #71717a; }
-          .doc-title-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 24px; }
-          .doc-title-bar h1 { margin: 0; font-size: 22px; color: #141417; letter-spacing: 0.5px; }
-          .doc-title-bar .job-number { font-size: 16px; font-weight: 600; color: #3f3f46; }
-          .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px; }
-          .party-card { padding: 14px 16px; background: #f5f5f5; border-radius: 8px; border: 1px solid #e5e5e5; }
-          .party-card h3 { margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #71717a; }
-          .party-card .name { font-size: 14px; font-weight: 700; color: #141417; margin-bottom: 4px; }
-          .party-card .line { font-size: 11px; color: #3f3f46; line-height: 1.55; }
-          .section { margin: 20px 0; }
-          .section h3 { margin: 0 0 10px 0; color: #141417; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #e5e5e5; padding-bottom: 6px; }
-          .meta-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; background: #f5f5f5; border: 1px solid #e5e5e5; padding: 14px 16px; border-radius: 8px; }
-          .field .label { font-weight: 600; color: #71717a; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-          .field .value { color: #141417; font-size: 13px; font-weight: 600; }
-          .field .value.accent { color: #E30613; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th, td { border: 1px solid #e5e5e5; padding: 7px 8px; text-align: left; font-size: 11px; }
-          th { background: #141417; color: #ffffff; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; }
-          tr:nth-child(even):not(.group-separator):not(.grouped-row) { background: #fafafa; }
+          .company-brand .display-name { font-size: 18px; font-weight: 700; color: #141417; }
+          .company-brand .legal-name { font-size: 10px; color: #71717a; }
+          .doc-title-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+          .doc-title-bar h1 { margin: 0; font-size: 18px; color: #141417; letter-spacing: 0.5px; }
+          .doc-title-bar .job-number { font-size: 13px; font-weight: 600; color: #3f3f46; }
+          .job-meta-row { display: flex; flex-wrap: wrap; gap: 18px; padding: 10px 14px; background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 6px; margin-bottom: 14px; }
+          .job-meta-row .cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+          .job-meta-row .cell.flex1 { flex: 1; }
+          .job-meta-row .meta-label { font-size: 9px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.6px; }
+          .job-meta-row .meta-value { font-size: 12px; font-weight: 600; color: #141417; line-height: 1.4; }
+          .job-meta-row .meta-value .sub { font-weight: 400; color: #3f3f46; font-size: 11px; }
+          .section { margin: 12px 0; }
+          .section h3 { margin: 0 0 6px 0; color: #141417; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #e5e5e5; padding-bottom: 4px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+          th, td { border: 1px solid #e5e5e5; padding: 5px 7px; text-align: left; font-size: 10.5px; }
+          th { background: #ffffff; color: #141417; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; font-size: 9.5px; border-bottom: 2px solid #141417; }
+          tr:nth-child(even):not(.group-separator):not(.grouped-row):not(.totals-row) { background: #fafafa; }
           .group-separator { background: #1e1e22 !important; color: #ffffff; }
-          .group-separator td { padding: 5px 8px; border-color: #1e1e22; font-size: 11px; text-transform: lowercase; letter-spacing: 0.3px; }
+          .group-separator td { padding: 4px 7px; border-color: #1e1e22; font-size: 10.5px; text-transform: lowercase; letter-spacing: 0.3px; }
           .group-separator strong { color: #ffffff; font-weight: 700; text-transform: lowercase; }
           .grouped-row { background: #fafafa; }
           .flags { font-weight: 600; color: #141417; font-size: 10px; text-align: center; }
-          .fee-summary { margin-top: 18px; width: 320px; margin-left: auto; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; }
-          .fee-summary .row { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 12px; color: #3f3f46; border-bottom: 1px solid #e5e5e5; }
-          .fee-summary .row:last-child { border-bottom: 0; }
-          .fee-summary .row.discount { color: #c2410c; }
-          .fee-summary .row.total { background: #141417; color: #ffffff; font-weight: 700; font-size: 14px; border-bottom: 0; }
-          .terms { margin: 28px 0 16px; padding: 14px 16px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafafa; }
-          .terms h3 { margin: 0 0 8px 0; color: #141417; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-          .terms p { color: #3f3f46; font-size: 10.5px; line-height: 1.65; margin: 3px 0; }
-          .terms-hebrew { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #d4d4d8; direction: rtl; text-align: right; }
-          .terms-hebrew p { font-size: 10.5px; }
-          .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin: 30px 0 12px; }
-          .sig-block p { margin: 0 0 22px 0; color: #141417; font-size: 12px; font-weight: 600; }
-          .sig-line { border-bottom: 1px solid #141417; height: 40px; }
-          .sig-caption { margin-top: 4px; font-size: 10px; color: #a1a1aa; }
-          .footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid #e5e5e5; text-align: center; color: #71717a; font-size: 10px; line-height: 1.6; }
+          .totals-row td { background: #f5f5f5; border-top: 2px solid #141417; font-weight: 700; color: #141417; }
+          .terms { margin: 14px 0 10px; padding: 10px 14px; border: 1px solid #e5e5e5; border-radius: 6px; background: #fafafa; }
+          .terms h3 { margin: 0 0 5px 0; color: #141417; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+          .terms p { color: #3f3f46; font-size: 9.5px; line-height: 1.5; margin: 2px 0; }
+          .terms-hebrew { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #d4d4d8; direction: rtl; text-align: right; }
+          .terms-hebrew p { font-size: 9.5px; }
+          .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 18px 0 8px; }
+          .sig-block p { margin: 0 0 18px 0; color: #141417; font-size: 11px; font-weight: 600; }
+          .sig-line { border-bottom: 1px solid #141417; height: 30px; }
+          .sig-caption { margin-top: 3px; font-size: 9.5px; color: #a1a1aa; }
+          .footer { margin-top: 16px; padding-top: 10px; border-top: 1px solid #e5e5e5; text-align: center; color: #71717a; font-size: 9.5px; line-height: 1.5; }
           .footer strong { color: #3f3f46; }
           @media print {
-            body { padding: 18px 22px; }
+            body { padding: 14px 20px; }
             .page-break { page-break-before: always; }
             .no-print { display: none; }
           }
@@ -824,47 +824,18 @@ export default function JobsPage() {
           <div class="job-number">Job #${job.job_number} · ${formattedDate}</div>
         </div>
 
-        <div class="parties">
-          <div class="party-card">
-            <h3>Client</h3>
-            <div class="name">${esc(clientFull?.name || job.client_name || 'N/A')}</div>
-            ${clientFull?.company ? `<div class="line">${esc(clientFull.company)}</div>` : ''}
-            ${clientFull?.address ? `<div class="line">${esc(clientFull.address)}</div>` : ''}
-            ${clientFull?.phone ? `<div class="line">Tel: ${esc(clientFull.phone)}</div>` : ''}
-            ${clientFull?.email ? `<div class="line">${esc(clientFull.email)}</div>` : ''}
+        <div class="job-meta-row">
+          <div class="cell flex1">
+            <span class="meta-label">Client</span>
+            <span class="meta-value">
+              ${esc(clientFull?.name || job.client_name || 'N/A')}
+              ${clientFull?.email ? `<span class="sub"> · ${esc(clientFull.email)}</span>` : ''}
+              ${clientFull?.phone ? `<span class="sub"> · ${esc(clientFull.phone)}</span>` : ''}
+            </span>
           </div>
-          <div class="party-card">
-            <h3>Lab Branch</h3>
-            <div class="name">${esc(branchFull?.name || job.branch_name || 'N/A')}</div>
-            ${branchFull?.address ? `<div class="line">${esc(branchFull.address)}</div>` : ''}
-            ${branchFull?.phone ? `<div class="line">Tel: ${esc(branchFull.phone)}</div>` : ''}
-            ${branchFull?.email ? `<div class="line">${esc(branchFull.email)}</div>` : ''}
-          </div>
-        </div>
-
-        <div class="section">
-          <h3>Job Summary</h3>
-          <div class="meta-grid">
-            <div class="field">
-              <div class="label">Service Type</div>
-              <div class="value">${esc(job.service_type)}</div>
-            </div>
-            <div class="field">
-              <div class="label">Status</div>
-              <div class="value">${esc(job.status.replace(/_/g, ' '))}</div>
-            </div>
-            <div class="field">
-              <div class="label">Total Stones</div>
-              <div class="value">${job.total_stones}</div>
-            </div>
-            <div class="field">
-              <div class="label">Total Certificates</div>
-              <div class="value">${totalCertificates}</div>
-            </div>
-            <div class="field">
-              <div class="label">Declared Value</div>
-              <div class="value">$${(job.total_value || 0).toLocaleString()}</div>
-            </div>
+          <div class="cell">
+            <span class="meta-label">Service Type</span>
+            <span class="meta-value">${esc(job.service_type)}</span>
           </div>
         </div>
 
@@ -887,18 +858,25 @@ export default function JobsPage() {
               ${ungroupedRows}
               ${groupedRows}
             </tbody>
+            <tfoot>
+              <tr class="totals-row">
+                <td colspan="3"><strong>Total — ${totalStonesCount} stone${totalStonesCount === 1 ? '' : 's'} · ${totalCertificates} certificate${totalCertificates === 1 ? '' : 's'}</strong></td>
+                <td><strong>${totalWeight.toFixed(2)} ct</strong></td>
+                <td></td>
+                <td></td>
+                <td><strong>$${fmt(totalValueAll)}</strong></td>
+                <td><strong>$${fmt(totalFeeAll)}</strong></td>
+              </tr>
+            </tfoot>
           </table>
-          <div style="font-size: 10px; color: #a1a1aa; margin-top: 6px;">Flags: CS = Color Stability Test · Mtd = Mounted in jewellery</div>
-
-          <div class="fee-summary">
-            ${
-              hasDiscount
-                ? `<div class="row"><span>Subtotal</span><span>$${subtotal.toLocaleString()}</span></div>
-                   <div class="row discount"><span>Discount</span><span>-$${(job.discount || 0).toLocaleString()}</span></div>`
-                : ''
-            }
-            <div class="row total"><span>Total Fee (USD)</span><span>$${(job.total_fee || 0).toLocaleString()}</span></div>
-          </div>
+          <div style="font-size: 9.5px; color: #a1a1aa; margin-top: 4px;">Flags: CS = Color Stability Test · Mtd = Mounted in jewellery</div>
+          ${
+            hasDiscount
+              ? `<div style="margin-top:8px;font-size:11px;color:#3f3f46;text-align:right;">
+                  Subtotal $${fmt(subtotal)} · <span style="color:#c2410c;">Discount &minus;$${fmt(job.discount || 0)}</span> · <strong style="color:#141417;">Total Fee $${fmt(job.total_fee || 0)}</strong>
+                </div>`
+              : ''
+          }
         </div>
 
         ${

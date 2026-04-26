@@ -30,6 +30,17 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ### Session: Apr 26, 2026 (evening) — Cancel jobs, branch removal, data wipe, client delete, couriers manager, shipment-memo polish v3
 
+**Job-memo print v3** (file: `jobs/page.tsx → handlePrintJob`):
+- 🎨 Stones table headers changed from black/white to white background + black bottom border (matches the shipment-memo style)
+- ➕ Added a totals row inside `<tfoot>`: `Total — N stones · N certs` · total weight (XX.XX ct) · total value · total fees, no black background
+- 🗑️ Removed the Lab Branch card entirely
+- 🗑️ Removed the entire `Job Summary` meta-grid (5-cell row with Service/Status/Total Stones/Total Certs/Declared Value)
+- ➕ Replaced both with a single slim `.job-meta-row` showing **only Client (name · email · phone)** and **Service Type**
+- 🗑️ Removed the standalone `.fee-summary` box (fee total now lives in the new tfoot row); when discount > 0, a one-line inline summary still shows Subtotal · Discount · Total Fee
+- 💲 Per-stone value/fee + all totals now use 2-decimal formatting (`$1,500.55` / `$12,101.54`)
+- 📐 Compressed body padding, header gap, section margins, terms padding and signature block height
+- ✅ **Verified**: a 5-stone job memo now renders in 807 px total height (A4 = ~1100 px), comfortably fitting on a single page
+
 **Shipment-memo print v3** (file: `_print/shipment-memo.ts`):
 - 🗑️ Removed `Date Sent` field from the Shipment Details meta-grid (date stayed in the title bar — was duplicated)
 - 💲 All stone values now formatted with 2 decimal places (`$1,500.55`, `$79,000.00`)
