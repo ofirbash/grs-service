@@ -283,6 +283,10 @@ export const clientsApi = {
     const response = await api.put(`/clients/${id}`, data);
     return response.data;
   },
+  remove: async (id: string) => {
+    const response = await api.delete(`/clients/${id}`);
+    return response.data;
+  },
 };
 
 // Branches API

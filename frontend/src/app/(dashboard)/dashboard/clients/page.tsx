@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, Plus, Search, Loader2, Pencil, FileText, KeyRound, Mail, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { Users, Plus, Search, Loader2, Pencil, FileText, KeyRound, Mail, CheckCircle2, XCircle, AlertCircle, Trash2 } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -298,6 +298,24 @@ export default function ClientsPage() {
     }
   };
 
+  const handleDeleteClient = async (client: Client) => {
+    const ok = window.confirm(
+      `Delete client "${client.name}"?\n\n` +
+      `This is permanent and only allowed if no jobs are attached. ` +
+      `Any linked customer login will also be removed.`,
+    );
+    if (!ok) return;
+    try {
+      await clientsApi.remove(client.id);
+      fetchData();
+    } catch (error: unknown) {
+      const err = error as { response?: { status?: number; data?: { detail?: string } } };
+      const detail = err?.response?.data?.detail || 'Failed to delete client';
+      alert(detail);
+      console.error('Failed to delete client:', error);
+    }
+  };
+
   const filteredClients = clients.filter((client) => {
     const matchesSearch =
       client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -439,9 +457,20 @@ export default function ClientsPage() {
                       )}
                       <div className="font-semibold text-navy-900 text-sm truncate">{client.name}</div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(client)} className="h-7 w-7 p-0">
-                      <Pencil className="h-3 w-3 text-navy-600" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(client)} className="h-7 w-7 p-0" data-testid={`mobile-edit-client-${client.id}`}>
+                        <Pencil className="h-3 w-3 text-navy-600" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteClient(client)}
+                        className="h-7 w-7 p-0 hover:bg-red-50"
+                        data-testid={`mobile-delete-client-${client.id}`}
+                      >
+                        <Trash2 className="h-3 w-3 text-red-600" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="text-xs text-navy-500 mt-0.5">{client.email}</div>
                   {client.company && <div className="text-xs text-navy-500">{client.company}</div>}
@@ -523,15 +552,26 @@ export default function ClientsPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(client)}
-                          className="h-8 w-8 p-0 hover:bg-navy-100"
-                          data-testid={`edit-client-${client.id}`}
-                        >
-                          <Pencil className="h-4 w-4 text-navy-600" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(client)}
+                            className="h-8 w-8 p-0 hover:bg-navy-100"
+                            data-testid={`edit-client-${client.id}`}
+                          >
+                            <Pencil className="h-4 w-4 text-navy-600" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClient(client)}
+                            className="h-8 w-8 p-0 hover:bg-red-50"
+                            data-testid={`delete-client-${client.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

@@ -163,3 +163,38 @@ async def update_client(client_id: str, client_update: ClientUpdate, user: dict 
 
     updated = await db.clients.find_one({"_id": ObjectId(client_id)})
     return ClientResponse(id=str(updated["_id"]), **{k: v for k, v in updated.items() if k != "_id"})
+
+
+@router.delete("/clients/{client_id}")
+async def delete_client(client_id: str, user: dict = Depends(require_admin)):
+    """Hard-delete a client.
+
+    Allowed only when no jobs reference this client (stones live embedded inside
+    jobs, so no separate stones check is needed). If a customer login user is
+    linked to this client we delete that too — there's no longer a client for
+    them to see, so the orphan login would only confuse things.
+    """
+    client = await db.clients.find_one({"_id": ObjectId(client_id)})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    job_count = await db.jobs.count_documents({"client_id": client_id})
+    if job_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Cannot delete client: {job_count} job(s) are still attached. "
+                "Delete or reassign those jobs first."
+            ),
+        )
+
+    # Cascade: drop any linked customer login user
+    user_delete = await db.users.delete_many({"client_id": client_id})
+
+    await db.clients.delete_one({"_id": ObjectId(client_id)})
+
+    return {
+        "success": True,
+        "client_id": client_id,
+        "deleted_user_count": user_delete.deleted_count,
+    }
