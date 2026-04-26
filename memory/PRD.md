@@ -28,7 +28,16 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
-### Session: Apr 26, 2026 (evening) — Cancel jobs, branch removal, data wipe, client delete, couriers manager
+### Session: Apr 26, 2026 (evening) — Cancel jobs, branch removal, data wipe, client delete, couriers manager, shipment-memo polish v3
+
+**Shipment-memo print v3** (file: `_print/shipment-memo.ts`):
+- 🗑️ Removed `Date Sent` field from the Shipment Details meta-grid (date stayed in the title bar — was duplicated)
+- 💲 All stone values now formatted with 2 decimal places (`$1,500.55`, `$79,000.00`)
+- 🏠 **Full addresses now resolve in the print**: shipments page builds a `name -> "Name\nFull street address"` lookup from `branchesApi.getAll()` + `addressesApi.getAll()` and passes it as `addressBook` to `printShipmentMemo`. The print resolves `source_address`/`destination_address` through this lookup, falling back to the raw stored value if no entry is found.
+- 🎨 Stones table headers changed from black/white to white/black with a black bottom border (cleaner, easier to print)
+- 📅 **Editable `date_sent`**: model already supported it; added a `<input type="date">` field to both the Create Shipment and Edit Shipment dialogs (next to Tracking Number). Empty field → backend defaults to `datetime.utcnow()`. Frontend api wrapper signatures updated; `Shipment` type extended with `date_sent?: string`.
+
+**Curl + Playwright verified end-to-end** — created a shipment with `date_sent="2026-04-20"`, full-address memo rendered correctly with `$79,000.00` total and the picked date in the header.
 
 **Features**:
 - **Couriers manager (admin)**: new "Couriers" card in Settings → Payments tab, identical UX to the existing Payment Destinations card (add via input + Enter / Plus, delete via red X, dedicated Save button). Backend: `pricing_config.couriers` array, exposed via `GET /api/pricing` and persisted via `PUT /api/pricing` (`couriers` is now an `Optional[List[str]]` field on `PricingUpdateRequest`). The shipments-options endpoint (`GET /api/shipments/config/options`) now reads couriers from `pricing_config` (with `DEFAULT_COURIERS` fallback) so the Create Shipment dialog instantly reflects admin changes. End-to-end curl-verified: GET → defaults; PUT → custom list persisted; subsequent GET on shipments/config/options returns the same custom list.

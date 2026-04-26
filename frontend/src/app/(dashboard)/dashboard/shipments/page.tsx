@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesApi } from '@/lib/api';
+import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesApi, addressesApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { escapeHtml as esc, openPrintWindow } from '@/lib/sanitize';
 import { Button } from '@/components/ui/button';
@@ -91,6 +91,7 @@ export default function ShipmentsPage() {
     source_address: '',
     destination_address: '',
     tracking_number: '',
+    date_sent: '',
     notes: '',
   });
 
@@ -102,6 +103,7 @@ export default function ShipmentsPage() {
     source_address: '',
     destination_address: '',
     tracking_number: '',
+    date_sent: '',
     notes: '',
   });
   const [savingEdit, setSavingEdit] = useState(false);
@@ -162,6 +164,10 @@ export default function ShipmentsPage() {
 
   // PDF generation
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  // Lookup table: short address label (e.g. "Israel Office") -> full readable address.
+  // Built from the branches + standalone addresses tables; passed to the print
+  // function so the shipment memo shows complete street/city info.
+  const [addressBook, setAddressBook] = useState<Record<string, string>>({});
   const { selectedBranchId } = useBranchFilterStore();
 
   useEffect(() => {
@@ -171,17 +177,30 @@ export default function ShipmentsPage() {
   const fetchData = async () => {
     try {
       const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
-      const [shipmentsData, jobsData, optionsData, dropdownData, branchesData] = await Promise.all([
+      const [shipmentsData, jobsData, optionsData, dropdownData, branchesData, addressesData] = await Promise.all([
         shipmentsApi.getAll(branchParam),
         jobsApi.getAll(branchParam),
         shipmentsApi.getOptions(),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
         branchesApi.getAll(),
+        addressesApi.getAll().catch(() => [] as Array<{ name: string; address?: string }>),
       ]);
       setShipments(shipmentsData);
       setAvailableJobs(jobsData.filter((j: Job) => j.status !== 'done'));
       setOptions(optionsData);
       setDropdownSettings(dropdownData);
+
+      // Build the name -> "Name\nFull street address" lookup for shipment memos.
+      // Branches contribute their `address` field; custom addresses do the same.
+      // Falls back to just the name if no street info is on file.
+      const book: Record<string, string> = {};
+      for (const b of branchesData as Array<{ name: string; address?: string }>) {
+        if (b?.name) book[b.name] = b.address ? `${b.name}\n${b.address}` : b.name;
+      }
+      for (const a of addressesData as Array<{ name: string; address?: string }>) {
+        if (a?.name) book[a.name] = a.address ? `${a.name}\n${a.address}` : a.name;
+      }
+      setAddressBook(book);
       
       // Set user's branch name for default source address
       if (user?.branch_id) {
@@ -264,6 +283,8 @@ export default function ShipmentsPage() {
     try {
       await shipmentsApi.create({
         ...formData,
+        // Empty string => let backend default to "now"; otherwise convert YYYY-MM-DD to ISO
+        date_sent: formData.date_sent ? new Date(formData.date_sent).toISOString() : undefined,
         job_ids: selectedJobs,
         stone_ids: selectedStoneIds,
       });
@@ -274,6 +295,7 @@ export default function ShipmentsPage() {
         source_address: '',
         destination_address: '',
         tracking_number: '',
+        date_sent: '',
         notes: '',
       });
       setSelectedJobs([]);
@@ -295,6 +317,8 @@ export default function ShipmentsPage() {
       source_address: selectedShipment.source_address,
       destination_address: selectedShipment.destination_address,
       tracking_number: selectedShipment.tracking_number || '',
+      // ISO date -> YYYY-MM-DD for the <input type="date">
+      date_sent: selectedShipment.date_sent ? String(selectedShipment.date_sent).slice(0, 10) : '',
       notes: selectedShipment.notes || '',
     });
     setEditingShipment(true);
@@ -304,7 +328,10 @@ export default function ShipmentsPage() {
     if (!selectedShipment) return;
     setSavingEdit(true);
     try {
-      await shipmentsApi.update(selectedShipment.id, editFormData);
+      await shipmentsApi.update(selectedShipment.id, {
+        ...editFormData,
+        date_sent: editFormData.date_sent ? new Date(editFormData.date_sent).toISOString() : undefined,
+      });
       setEditingShipment(false);
       fetchData();
       // Refresh selected shipment
@@ -571,7 +598,7 @@ export default function ShipmentsPage() {
   const handleGeneratePdf = async (shipment: Shipment, jobs: Job[]) => {
     setGeneratingPdf(true);
     try {
-      printShipmentMemo({ shipment, jobs });
+      printShipmentMemo({ shipment, jobs, addressBook });
     } catch (error) {
       console.error('Failed to generate shipment memo:', error);
     } finally {
@@ -999,7 +1026,7 @@ export default function ShipmentsPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2 col-span-2">
+              <div className="space-y-2 col-span-2 sm:col-span-1">
                 <Label htmlFor="tracking_number">Tracking Number</Label>
                 <Input
                   id="tracking_number"
@@ -1009,6 +1036,19 @@ export default function ShipmentsPage() {
                   className="border-navy-200"
                   data-testid="tracking-number-input"
                 />
+              </div>
+
+              <div className="space-y-2 col-span-2 sm:col-span-1">
+                <Label htmlFor="date_sent">Date Sent</Label>
+                <Input
+                  id="date_sent"
+                  type="date"
+                  value={formData.date_sent}
+                  onChange={(e) => setFormData({ ...formData, date_sent: e.target.value })}
+                  className="border-navy-200"
+                  data-testid="date-sent-input"
+                />
+                <p className="text-xs text-navy-500">Defaults to today if left empty</p>
               </div>
 
               <div className="space-y-2 col-span-2">
@@ -1215,6 +1255,16 @@ export default function ShipmentsPage() {
                     <div className="space-y-1">
                       <Label className="text-navy-500">Tracking Number</Label>
                       <Input value={editFormData.tracking_number} onChange={(e) => setEditFormData({...editFormData, tracking_number: e.target.value})} className="border-navy-200" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-navy-500">Date Sent</Label>
+                      <Input
+                        type="date"
+                        value={editFormData.date_sent}
+                        onChange={(e) => setEditFormData({...editFormData, date_sent: e.target.value})}
+                        className="border-navy-200"
+                        data-testid="edit-date-sent-input"
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-navy-500">Notes</Label>

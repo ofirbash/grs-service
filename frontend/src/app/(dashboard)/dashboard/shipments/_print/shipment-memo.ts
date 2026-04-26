@@ -46,14 +46,26 @@ const formatDate = (d: string | Date | undefined): string => {
 interface PrintShipmentOptions {
   shipment: Shipment;
   jobs: Job[];
+  /** Optional name -> full-address lookup. Used to expand the stored short
+   * label (e.g. "Israel Office") into a full street address on the print. */
+  addressBook?: Record<string, string>;
 }
 
 /**
  * Opens a new window with a polished memo-style Shipment document matching
  * the Bashari brand. Used for printing/signing off on a shipment.
  */
-export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): void {
+export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipmentOptions): void {
   const typeLabel = SHIPMENT_TYPE_LABELS[shipment.shipment_type] || shipment.shipment_type;
+
+  /** Resolve a stored short address label (e.g. "Israel Office") to its full
+   * postal address using the supplied lookup. Falls back to the raw value
+   * if no entry is found, or if the value already looks like a full address. */
+  const resolveAddress = (raw: string): string => {
+    if (!raw) return '';
+    const full = addressBook?.[raw];
+    return full && full.trim() ? full : raw;
+  };
 
   // Aggregate stones with parent job reference for a single unified table
   type StoneRow = {
@@ -84,6 +96,8 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
   const totalValue = allStones.reduce((sum, s) => sum + (s.value || 0), 0);
   const totalWeight = allStones.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
 
+  const fmt = (n: number): string => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const stonesTableRows = allStones
     .map(
       (s, idx) => `
@@ -94,7 +108,7 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
         <td>${esc(s.stone_type)}</td>
         <td>${esc(String(s.weight))} ct</td>
         <td>${esc(s.shape)}</td>
-        <td style="text-align:right;">$${(s.value || 0).toLocaleString()}</td>
+        <td style="text-align:right;">$${fmt(s.value || 0)}</td>
       </tr>`,
     )
     .join('');
@@ -118,7 +132,7 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
             <td colspan="4" style="text-align:right;"><strong>Total — ${allStones.length} stone${allStones.length === 1 ? '' : 's'}</strong></td>
             <td><strong>${totalWeight.toFixed(2)} ct</strong></td>
             <td></td>
-            <td style="text-align:right;"><strong>$${totalValue.toLocaleString()}</strong></td>
+            <td style="text-align:right;"><strong>$${fmt(totalValue)}</strong></td>
           </tr>
         </tfoot>
       </table>`
@@ -177,7 +191,7 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
     .status-cancelled { background: #fee2e2; color: #991b1b; }
     table { width: 100%; border-collapse: collapse; margin-top: 8px; }
     th, td { border: 1px solid #e5e5e5; padding: 7px 8px; text-align: left; font-size: 11px; }
-    th { background: #141417; color: #ffffff; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; }
+    th { background: #ffffff; color: #141417; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; border-bottom: 2px solid #141417; }
     tr:nth-child(even):not(.totals-row) { background: #fafafa; }
     .totals-row td { background: #f5f5f5; border-top: 2px solid #141417; font-weight: 700; color: #141417; }
     .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; background: #141417; color: #ffffff; padding: 16px; border-radius: 8px; margin-top: 14px; }
@@ -225,21 +239,17 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
         <div class="label">Courier</div>
         <div class="value">${esc(shipment.courier)}</div>
       </div>
-      <div class="field">
+      <div class="field" style="grid-column: span 2;">
         <div class="label">Tracking #</div>
         <div class="value">${esc(shipment.tracking_number || '—')}</div>
       </div>
-      <div class="field">
-        <div class="label">Date Sent</div>
-        <div class="value">${esc(dateSent)}</div>
-      </div>
       <div class="field field-wide">
         <div class="label">From</div>
-        <div class="value addr-value">${esc(shipment.source_address)}</div>
+        <div class="value addr-value">${esc(resolveAddress(shipment.source_address))}</div>
       </div>
       <div class="field field-wide">
         <div class="label">To</div>
-        <div class="value addr-value">${esc(shipment.destination_address)}</div>
+        <div class="value addr-value">${esc(resolveAddress(shipment.destination_address))}</div>
       </div>
     </div>
   </div>

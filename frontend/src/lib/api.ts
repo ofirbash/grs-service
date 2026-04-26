@@ -101,6 +101,7 @@ export const shipmentsApi = {
     source_address: string;
     destination_address: string;
     tracking_number?: string;
+    date_sent?: string;
     job_ids?: string[];
     stone_ids?: string[];
     notes?: string;
@@ -114,6 +115,7 @@ export const shipmentsApi = {
     source_address: string;
     destination_address: string;
     tracking_number: string;
+    date_sent: string;
     status: string;
     notes: string;
   }>) => {

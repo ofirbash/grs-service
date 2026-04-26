@@ -8,6 +8,7 @@ export interface Shipment {
   source_address: string;
   destination_address: string;
   tracking_number?: string;
+  date_sent?: string;
   status: string;
   job_ids: string[];
   total_jobs: number;
