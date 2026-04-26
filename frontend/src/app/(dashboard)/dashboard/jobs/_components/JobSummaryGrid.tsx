@@ -58,6 +58,7 @@ export const JobSummaryGrid: React.FC<JobSummaryGridProps> = ({
               <SelectItem value="cert_uploaded">Cert. Uploaded</SelectItem>
               <SelectItem value="cert_returned">Cert. Returned</SelectItem>
               <SelectItem value="done">Done</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
         ) : (

@@ -315,6 +315,10 @@ export const branchesApi = {
     const response = await api.put(`/branches/${id}`, data);
     return response.data;
   },
+  remove: async (id: string) => {
+    const response = await api.delete(`/branches/${id}`);
+    return response.data;
+  },
 };
 
 // Settings API

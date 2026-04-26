@@ -153,6 +153,7 @@ export default function DashboardPage() {
       cert_uploaded: 'bg-[#305a78] text-white',
       cert_returned: 'bg-[#1d3f57] text-white',
       done: 'bg-[#c53030] text-white',
+      cancelled: 'bg-[#52525b] text-white line-through',
       pending: 'bg-brand-red text-white',
       in_transit: 'bg-navy-700 text-white',
       delivered: 'bg-navy-900 text-white',
@@ -170,6 +171,7 @@ export default function DashboardPage() {
       cert_uploaded: 'Cert. Uploaded',
       cert_returned: 'Cert. Returned',
       done: 'Done',
+      cancelled: 'Cancelled',
     };
     return labels[status] || status.replace('_', ' ');
   };

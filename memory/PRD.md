@@ -28,6 +28,26 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
+### Session: Apr 26, 2026 (evening) — Cancel jobs, branch removal, data wipe
+
+**Features**:
+- **Cancel job status**: New `cancelled` status added to `valid_statuses` in `routes/jobs.py` (both `POST status` and `PUT job` endpoints accept it). Selectable in the Job-edit `JobSummaryGrid` and the bulk-status `MiscDialogs`. Renders with a grey strike-through badge.
+- **Default-hide DONE & CANCELLED on the Jobs page**: filter dropdown's new default is `Active (hide Done & Cancelled)`. Other options unchanged + a new `Cancelled` filter chip.
+- **Branch removal (super_admin only)**: new `DELETE /api/branches/{id}` endpoint performs a *soft delete* (`is_active=False`, `deactivated_at=now`). Branch disappears from `GET /api/branches` (already filtered by `is_active: True`) and from all dropdowns. Existing clients/jobs/users keep their `branch_id` references intact so historical records stay readable. UI: red trash button next to the pencil in `dashboard/settings → Branches` (mobile + desktop) with a confirm dialog explaining the soft-delete behaviour.
+- **Frontend API**: added `branchesApi.remove(id)` in `lib/api.ts`.
+
+**Data wipe (one-time, executed)**:
+- Deleted **44 jobs** (with embedded stones + payments) and **45 shipments**.
+- Dropped now-empty `manual_payments` / `payments` / `payment_tokens` collections (will be re-created lazily by the routes that use them).
+- Untouched: clients (95), branches (6), users (11), pricing_config, dropdown_settings, addresses.
+- Cloudinary files for those jobs left orphaned per agreed scope.
+
+**Verification** (curl + UI screenshots):
+- `GET /api/jobs` → `count=0`, `GET /api/shipments` → `count=0` ✅
+- `DELETE /api/branches/{id}` → 200 + `is_active: False` in DB; branches list count drops by one ✅
+- `PUT /api/jobs/{id}` with `status=cancelled` → 200, persisted ✅
+- Jobs page default view: `All Jobs (0)`, the cancelled test job is hidden; flipping filter to `All Statuses` reveals the strike-through `Cancelled` badge ✅
+
 ### Session: Apr 26, 2026 (afternoon) — Code-review batch (security + correctness)
 
 **Security/correctness fixes applied** (per code-review report):

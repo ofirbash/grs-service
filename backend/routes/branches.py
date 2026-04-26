@@ -45,3 +45,19 @@ async def update_branch(branch_id: str, branch: BranchCreate, user: dict = Depen
         raise HTTPException(status_code=404, detail="Branch not found")
     updated = await db.branches.find_one({"_id": ObjectId(branch_id)})
     return BranchResponse(id=str(updated["_id"]), **{k: v for k, v in updated.items() if k != "_id"})
+
+
+@router.delete("/branches/{branch_id}")
+async def delete_branch(branch_id: str, user: dict = Depends(require_super_admin)):
+    """Soft-delete a branch: marks `is_active=False`, hides it from dropdowns and lists.
+    Existing clients/jobs/users keep their `branch_id` references intact, so historical
+    records remain readable. The branch can be restored by flipping the flag in Mongo
+    if ever needed.
+    """
+    result = await db.branches.update_one(
+        {"_id": ObjectId(branch_id)},
+        {"$set": {"is_active": False, "deactivated_at": datetime.utcnow()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Branch not found")
+    return {"success": True, "branch_id": branch_id}

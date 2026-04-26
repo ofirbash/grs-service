@@ -103,7 +103,7 @@ export default function JobsPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active');
 
   // Read status filter from URL params
   useEffect(() => {
@@ -572,7 +572,17 @@ export default function JobsPage() {
       const matchesSearch =
         job.job_number.toString().includes(searchTerm) ||
         job.client_name?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
+      // 'active' = everything except done + cancelled (default view)
+      // 'all'    = everything including done + cancelled
+      // any other value = exact status match
+      let matchesStatus: boolean;
+      if (statusFilter === 'active') {
+        matchesStatus = job.status !== 'done' && job.status !== 'cancelled';
+      } else if (statusFilter === 'all') {
+        matchesStatus = true;
+      } else {
+        matchesStatus = job.status === statusFilter;
+      }
       return matchesSearch && matchesStatus;
     }),
     [jobs, searchTerm, statusFilter],
@@ -1323,6 +1333,7 @@ export default function JobsPage() {
       cert_uploaded: 'bg-[#305a78] text-white',
       cert_returned: 'bg-[#1d3f57] text-white',
       done: 'bg-[#c53030] text-white',
+      cancelled: 'bg-[#52525b] text-white line-through',
       received: 'bg-[#d4dbe4] text-[#486581]',
       certificates_scanned: 'bg-[#305a78] text-white',
       certificates_sent: 'bg-[#1d3f57] text-white',
@@ -1336,6 +1347,7 @@ export default function JobsPage() {
       cert_uploaded: 'Cert. Uploaded',
       cert_returned: 'Cert. Returned',
       done: 'Done',
+      cancelled: 'Cancelled',
       received: 'Draft',
       certificates_scanned: 'Cert. Uploaded',
       certificates_sent: 'Cert. Returned',
@@ -1392,6 +1404,7 @@ export default function JobsPage() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="active">Active (hide Done & Cancelled)</SelectItem>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="stones_accepted">Stones Accepted</SelectItem>
@@ -1401,6 +1414,7 @@ export default function JobsPage() {
                 <SelectItem value="cert_uploaded">Cert. Uploaded</SelectItem>
                 <SelectItem value="cert_returned">Cert. Returned</SelectItem>
                 <SelectItem value="done">Done</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </div>

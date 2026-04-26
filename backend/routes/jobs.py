@@ -257,7 +257,7 @@ async def get_job(job_id: str, user: dict = Depends(get_current_user)):
 
 @router.put("/jobs/{job_id}/status", response_model=JobResponse)
 async def update_job_status(job_id: str, status_update: JobStatusUpdate, user: dict = Depends(require_admin)):
-    valid_statuses = ["draft", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "cert_uploaded", "cert_returned", "done"]
+    valid_statuses = ["draft", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "cert_uploaded", "cert_returned", "done", "cancelled"]
     if status_update.status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
 
@@ -458,7 +458,7 @@ async def update_job(job_id: str, job_update: JobUpdate, user: dict = Depends(re
         update_data["notes"] = job_update.notes
 
     if job_update.status is not None:
-        valid_statuses = ["draft", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "cert_uploaded", "cert_returned", "done"]
+        valid_statuses = ["draft", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "cert_uploaded", "cert_returned", "done", "cancelled"]
         if job_update.status not in valid_statuses:
             raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
         update_data["status"] = job_update.status

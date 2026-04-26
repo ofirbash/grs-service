@@ -332,6 +332,23 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDeleteBranch = async (branch: Branch) => {
+    const ok = window.confirm(
+      `Remove branch "${branch.name}" (${branch.code})?\n\n` +
+      `It will be hidden from dropdowns and lists. Existing clients, jobs and users that ` +
+      `reference this branch keep their links so historical records stay readable. ` +
+      `This action can be reversed by a developer in the database.`,
+    );
+    if (!ok) return;
+    try {
+      await branchesApi.remove(branch.id);
+      fetchAllData();
+    } catch (error) {
+      console.error('Failed to delete branch:', error);
+      alert('Failed to delete branch');
+    }
+  };
+
   // ============== PRICING HANDLERS ==============
   const handleStartEditPricing = () => {
     setPricingForm({ ...pricing });
@@ -1015,7 +1032,22 @@ export default function SettingsPage() {
                       <span className="font-semibold text-navy-900 text-sm">{branch.name}</span>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="bg-navy-50 text-xs">{branch.code}</Badge>
-                        {isSuperAdmin && <Button variant="ghost" size="sm" onClick={() => openBranchDialog(branch)} className="h-7 w-7 p-0"><Pencil className="h-3 w-3 text-navy-600" /></Button>}
+                        {isSuperAdmin && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => openBranchDialog(branch)} className="h-7 w-7 p-0" data-testid={`mobile-edit-branch-${branch.id}`}>
+                              <Pencil className="h-3 w-3 text-navy-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteBranch(branch)}
+                              className="h-7 w-7 p-0 hover:bg-red-50"
+                              data-testid={`mobile-delete-branch-${branch.id}`}
+                            >
+                              <Trash2 className="h-3 w-3 text-red-600" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="text-xs text-navy-500 mt-1">{branch.address}</div>
@@ -1065,15 +1097,26 @@ export default function SettingsPage() {
                           </TableCell>
                           {isSuperAdmin && (
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openBranchDialog(branch)}
-                                className="h-8 w-8 p-0 hover:bg-navy-100"
-                                data-testid={`edit-branch-${branch.id}`}
-                              >
-                                <Pencil className="h-4 w-4 text-navy-600" />
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openBranchDialog(branch)}
+                                  className="h-8 w-8 p-0 hover:bg-navy-100"
+                                  data-testid={`edit-branch-${branch.id}`}
+                                >
+                                  <Pencil className="h-4 w-4 text-navy-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteBranch(branch)}
+                                  className="h-8 w-8 p-0 hover:bg-red-50"
+                                  data-testid={`delete-branch-${branch.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </div>
                             </TableCell>
                           )}
                         </TableRow>
