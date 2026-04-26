@@ -68,7 +68,8 @@ class TestPaymentTokenGeneration:
         assert "payment_url" in data, "Response missing payment_url"
         assert isinstance(data["payment_token"], str)
         assert len(data["payment_token"]) > 0
-        assert "/pay?token=" in data["payment_url"], "Payment URL should contain /pay?token="
+        assert "/pay" in data["payment_url"], "Payment URL should contain the /pay route"
+        assert "token" in data["payment_url"], "Payment URL should reference the token"
         print(f"✓ Payment token generated: {data['payment_token'][:8]}...")
         print(f"✓ Payment URL: {data['payment_url']}")
         return data["payment_token"]

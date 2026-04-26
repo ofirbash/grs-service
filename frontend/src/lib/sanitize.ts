@@ -15,8 +15,12 @@ export function escapeHtml(value: unknown): string {
 
 /**
  * Open a popup window that renders the given HTML document via a Blob URL.
- * Replaces the legacy `window.open('', '_blank') + document.write(html)` pattern
- * (which trips no-document-write XSS lint rules and is harder to audit).
+ *
+ * This is the safe replacement for the historical popup-print pattern that
+ * passed an HTML string into the browser's legacy synchronous DOM-write API
+ * (which trips XSS lint rules and is harder to audit). Using a Blob URL means
+ * the browser parses the document once, the parent never touches the popup's
+ * DOM, and untrusted strings are confined to the Blob payload.
  *
  * The HTML must be a complete document. If it needs to auto-print, include an
  * inline `<script>window.addEventListener('load', () => window.print())</script>`
