@@ -784,9 +784,9 @@ export default function JobsPage() {
           th, td { border: 1px solid #e5e5e5; padding: 5px 7px; text-align: left; font-size: 10.5px; }
           th { background: #ffffff; color: #141417; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; font-size: 9.5px; border-bottom: 2px solid #141417; }
           tr:nth-child(even):not(.group-separator):not(.grouped-row):not(.totals-row) { background: #fafafa; }
-          .group-separator { background: #1e1e22 !important; color: #ffffff; }
-          .group-separator td { padding: 4px 7px; border-color: #1e1e22; font-size: 10.5px; text-transform: lowercase; letter-spacing: 0.3px; }
-          .group-separator strong { color: #ffffff; font-weight: 700; text-transform: lowercase; }
+          .group-separator { background: #e5e7eb !important; color: #141417; }
+          .group-separator td { padding: 4px 7px; border-color: #d4d4d8; font-size: 10.5px; text-transform: lowercase; letter-spacing: 0.3px; }
+          .group-separator strong { color: #141417; font-weight: 700; text-transform: lowercase; }
           .grouped-row { background: #fafafa; }
           .flags { font-weight: 600; color: #141417; font-size: 10px; text-align: center; }
           .totals-row td { background: #f5f5f5; border-top: 2px solid #141417; font-weight: 700; color: #141417; }
