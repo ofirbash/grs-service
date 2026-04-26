@@ -1,5 +1,6 @@
 // Memo-style printable shipment document (matches Bashari job memo design).
 import type { Shipment, Job, Stone } from '../_types';
+import { openPrintWindow } from '@/lib/sanitize';
 
 const COMPANY = {
   displayName: 'Bashari Lab-Direct',
@@ -54,12 +55,6 @@ interface PrintShipmentOptions {
  * the Bashari brand. Used for printing/signing off on a shipment.
  */
 export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): void {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    alert('Please allow popups to print');
-    return;
-  }
-
   const typeLabel = SHIPMENT_TYPE_LABELS[shipment.shipment_type] || shipment.shipment_type;
 
   // Aggregate stones with parent job reference for a single unified table
@@ -167,7 +162,7 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
     minute: '2-digit',
   });
 
-  printWindow.document.write(`
+  const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -363,6 +358,9 @@ export function printShipmentMemo({ shipment, jobs }: PrintShipmentOptions): voi
   </script>
 </body>
 </html>
-  `);
-  printWindow.document.close();
+  `;
+  const printWindow = openPrintWindow(html);
+  if (!printWindow) {
+    alert('Please allow popups to print');
+  }
 }

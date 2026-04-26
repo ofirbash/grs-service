@@ -20,6 +20,7 @@ export interface JobFormData {
 }
 
 export interface StoneInput {
+  _uid: string;
   stone_type: string;
   weight: string;
   shape: string;
@@ -171,7 +172,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
 
             {stones.map((stone, index) => (
               <div
-                key={index}
+                key={stone._uid}
                 className="border-t border-navy-200 first:border-t-0 sm:first:border-t"
               >
                 {/* Desktop row */}

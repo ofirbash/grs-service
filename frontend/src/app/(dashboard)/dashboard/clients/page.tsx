@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { clientsApi, branchesApi, authApi, notificationsApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
@@ -125,6 +125,12 @@ export default function ClientsPage() {
   const [welcomeSending, setWelcomeSending] = useState(false);
   const [welcomeResults, setWelcomeResults] = useState<Array<{ client_id: string; name?: string; email?: string; status: string; error?: string }> | null>(null);
   const [welcomeSummary, setWelcomeSummary] = useState<{ sent: number; mocked: number; failed: number; skipped: number } | null>(null);
+
+  // Memoised recipient names string for the Welcome email preview header.
+  const welcomeRecipientNames = useMemo(
+    () => clients.filter((c) => selectedClientIds.has(c.id)).map((c) => c.name).join(', '),
+    [clients, selectedClientIds],
+  );
 
   const toggleClientSelected = (clientId: string) => {
     setSelectedClientIds((prev) => {
@@ -1033,7 +1039,7 @@ export default function ClientsPage() {
             ) : (
               <>
                 <div className="rounded-md border border-navy-200 bg-navy-50 p-3 text-sm text-navy-700">
-                  Recipients ({selectedClientIds.size}): {clients.filter(c => selectedClientIds.has(c.id)).map(c => c.name).join(', ')}
+                  Recipients ({selectedClientIds.size}): {welcomeRecipientNames}
                 </div>
                 <div className="border border-navy-200 rounded-md overflow-hidden bg-white" style={{ height: 420 }}>
                   <iframe

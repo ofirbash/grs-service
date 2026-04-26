@@ -28,6 +28,26 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
+### Session: Apr 26, 2026 (afternoon) — Code-review batch (security + correctness)
+
+**Security/correctness fixes applied** (per code-review report):
+- Removed all 3 `printWindow.document.write(...)` call sites — replaced with a new `openPrintWindow(html)` helper in `lib/sanitize.ts` that uses a Blob URL (no XSS-flaggable API surface). Inline auto-print scripts were added to the shipment-job HTML so the print dialog still fires automatically.
+- Hardcoded test credentials in `tests/test_partial_shipments_e2e.py` moved to env vars (`TEST_ADMIN_EMAIL`, `TEST_ADMIN_PASSWORD`, `TEST_CUSTOMER_EMAIL`, `TEST_CUSTOMER_PASSWORD`) with seeded-account defaults.
+- Replaced `key={index}` anti-pattern in `NotificationPanel.tsx` (attachments → keyed by `att.name`) and in the Create Job stones grid (added per-row `_uid` generated via `crypto.randomUUID()`).
+- Empty `catch {}` blocks replaced with `console.warn` logging in `pay/page.tsx` (×2) and `dashboard/page.tsx` (×1).
+- Memoized the Welcome-email recipient list in `clients/page.tsx` with `useMemo` (avoids re-running `filter().map().join()` on every keystroke).
+
+**Verification**: `yarn build` passes; all 5 e2e tests in `test_partial_shipments_e2e.py` pass; preview URL renders cleanly (smoke screenshot taken).
+
+**Findings deliberately skipped** (false positives or out-of-scope refactors):
+- `routes/users.py:81,83,87,91` and `routes/stones.py:85,113` — flagged for `is` vs `==`. All occurrences are `is None` / `is not None` checks, which is the correct Python idiom (PEP 8). False positive.
+- `tests/test_tranzila_payment.py:71` — flagged for "hardcoded secret"; that line is `assert "/pay?token=" in data["payment_url"]`, a URL-pattern assertion. False positive.
+- Long-function extraction in `routes/jobs.py`, `routes/auth_routes.py`, `routes/manual_payments.py`, `email_templates.py` — deferred per agreed scope (low risk, big refactor).
+- Massive component splits (`shipments/page.tsx` 2,175 / `settings/page.tsx` 1,968 / `clients/page.tsx` 1,000) — already on the P3 backlog; jobs/page.tsx already split down from 3,845 → 2,455.
+- Hook-deps cleanup — kept `eslint-disable` lines in `pay/page.tsx`, `jobs/page.tsx`, `dashboard/page.tsx`, etc. Each was inspected; the disables are intentional (otherwise `fetchData`/`pollPaymentStatus` re-creation would cause refetch loops).
+- Per-group `reduce` sums in jobs/shipments tables — micro-optimisation, deferred.
+- 51 `console.*` cleanup — deferred.
+
 ### Session: Apr 26, 2026 - Bug fixes verification + SMS sender unblock
 
 **Verified fixes** (from prior session, now confirmed working):

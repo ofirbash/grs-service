@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
-import { escapeHtml as esc } from '@/lib/sanitize';
+import { escapeHtml as esc, openPrintWindow } from '@/lib/sanitize';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -347,12 +347,6 @@ export default function ShipmentsPage() {
 
   // Print job from nested dialog
   const handlePrintJobInShipment = (job: Job) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Please allow popups to print');
-      return;
-    }
-
     // Generate stones table HTML
     const stonesTableHtml = job.stones && job.stones.length > 0 
       ? `
@@ -387,7 +381,7 @@ export default function ShipmentsPage() {
       `
       : '<p>No stones in this job</p>';
 
-    printWindow.document.write(`
+    const html = `
       <!DOCTYPE html>
       <html>
       <head>
@@ -467,11 +461,18 @@ export default function ShipmentsPage() {
           <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
           <p>Bashari Lab-Direct</p>
         </div>
+        <script>
+          window.addEventListener('load', function() {
+            setTimeout(function() { window.print(); }, 200);
+          });
+        </script>
       </body>
       </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    `;
+    const printWindow = openPrintWindow(html);
+    if (!printWindow) {
+      alert('Please allow popups to print');
+    }
   };
 
   const handleUpdateStatus = async (shipmentId: string, newStatus: string) => {

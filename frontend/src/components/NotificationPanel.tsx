@@ -311,8 +311,8 @@ export function NotificationPanel({ jobId, currentStatus, onNotificationSent }: 
                 <div>
                   <Label className="text-navy-500">Attachments</Label>
                   <div className="flex gap-2 mt-1">
-                    {preview.attachments.map((att, idx) => (
-                      <Badge key={idx} variant="outline" className="flex items-center gap-1">
+                    {preview.attachments.map((att) => (
+                      <Badge key={att.name} variant="outline" className="flex items-center gap-1">
                         <Paperclip className="h-3 w-3" />
                         {att.name}
                       </Badge>

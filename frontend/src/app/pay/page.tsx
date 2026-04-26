@@ -113,8 +113,9 @@ function PaymentForm() {
         setShowIframe(false);
         if (pollRef.current) clearInterval(pollRef.current);
       }
-    } catch {
-      // silent
+    } catch (err) {
+      // Network blip during polling — log for diagnostics but keep retrying on the next tick.
+      console.warn('payment status poll failed:', err);
     }
   };
 
@@ -137,8 +138,9 @@ function PaymentForm() {
     try {
       const resp = await axios.get(`${API_URL}/exchange-rate`);
       setExchangeRate(resp.data.usd_to_ils);
-    } catch {
-      // fallback
+    } catch (err) {
+      // Exchange rate is optional; UI falls back to USD-only if this fails.
+      console.warn('exchange rate fetch failed:', err);
     } finally {
       setLoadingRate(false);
     }

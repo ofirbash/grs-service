@@ -282,7 +282,9 @@ export default function DashboardPage() {
                   selectedBranchId ? { branch_id: selectedBranchId } : undefined
                 );
                 setActiveClients(data);
-              } catch { /* ignore */ }
+              } catch (err) {
+                console.warn('failed to load active clients:', err);
+              }
             }
             setClientsPanelOpen(!clientsPanelOpen);
           }}

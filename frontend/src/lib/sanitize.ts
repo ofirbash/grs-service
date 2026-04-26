@@ -12,3 +12,27 @@ export function escapeHtml(value: unknown): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+/**
+ * Open a popup window that renders the given HTML document via a Blob URL.
+ * Replaces the legacy `window.open('', '_blank') + document.write(html)` pattern
+ * (which trips no-document-write XSS lint rules and is harder to audit).
+ *
+ * The HTML must be a complete document. If it needs to auto-print, include an
+ * inline `<script>window.addEventListener('load', () => window.print())</script>`
+ * — the parent window cannot drive the popup once we're using a Blob URL.
+ *
+ * Returns the popup Window handle, or null if blocked.
+ */
+export function openPrintWindow(html: string): Window | null {
+  const blob = new Blob([html], { type: 'text/html' });
+  const blobUrl = URL.createObjectURL(blob);
+  const win = window.open(blobUrl, '_blank');
+  if (win) {
+    // Give the popup ample time to load + print, then release the Blob.
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  } else {
+    URL.revokeObjectURL(blobUrl);
+  }
+  return win;
+}

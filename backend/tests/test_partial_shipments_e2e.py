@@ -20,9 +20,11 @@ if os.path.exists(_env_path):
                 break
 assert BASE_URL, "NEXT_PUBLIC_API_URL missing"
 
-ADMIN_EMAIL = "admin@bashari.com"
-ADMIN_PASSWORD = "admin123"
-CUSTOMER_EMAIL = "customer@test.com"
+# Test credentials — sourced from env vars; defaults match the seeded dev accounts.
+ADMIN_EMAIL = os.getenv("TEST_ADMIN_EMAIL", "admin@bashari.com")
+ADMIN_PASSWORD = os.getenv("TEST_ADMIN_PASSWORD", "admin123")
+CUSTOMER_EMAIL = os.getenv("TEST_CUSTOMER_EMAIL", "customer@test.com")
+CUSTOMER_PASSWORD = os.getenv("TEST_CUSTOMER_PASSWORD", "customer123")
 
 
 @pytest.fixture(scope="module")
@@ -42,7 +44,7 @@ def auth_headers(admin_token):
 @pytest.fixture(scope="module")
 def customer_id(auth_headers):
     # customer@test.com user → auth/me → client_id
-    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": CUSTOMER_EMAIL, "password": "customer123"}, timeout=15)
+    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": CUSTOMER_EMAIL, "password": CUSTOMER_PASSWORD}, timeout=15)
     assert r.status_code == 200, r.text
     ctoken = r.json().get("access_token") or r.json().get("token")
     me = requests.get(f"{BASE_URL}/api/auth/me", headers={"Authorization": f"Bearer {ctoken}"}, timeout=15).json()

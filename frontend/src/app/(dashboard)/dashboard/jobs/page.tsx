@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi, cloudinaryApi, notificationsApi, manualPaymentsApi } from '@/lib/api';
-import { escapeHtml as esc } from '@/lib/sanitize';
+import { escapeHtml as esc, openPrintWindow } from '@/lib/sanitize';
 import { useAuthStore, useBranchFilterStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -85,6 +85,14 @@ import { JobNotificationsCard } from './_components/JobNotificationsCard';
 import { StoneStatusBadges } from './_components/StoneStatusBadges';
 import { JobDocumentsRow } from './_components/JobDocumentsRow';
 
+/** Stable per-row UID for newly-created stone rows in the Create Job form.
+ * Avoids using the array index as a React `key`, which loses focus + state when rows are removed. */
+let _stoneUidCounter = 0;
+const makeStoneUid = (): string =>
+  (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? crypto.randomUUID()
+    : `stone-${Date.now()}-${++_stoneUidCounter}`;
+
 export default function JobsPage() {
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
@@ -139,12 +147,13 @@ export default function JobsPage() {
     notes: '',
   });
   const [stones, setStones] = useState<Array<{
+    _uid: string;
     stone_type: string;
     weight: string;
     shape: string;
     value: string;
     color_stability_test: boolean;
-  }>>([{ stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
+  }>>([{ _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // Check if form has any data (for unsaved changes warning)
@@ -172,7 +181,7 @@ export default function JobsPage() {
       // Reset form when closing
       setValidationErrors([]);
       setFormData({ client_id: '', branch_id: '', service_type: '', notes: '' });
-      setStones([{ stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
+      setStones([{ _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
     }
   };
 
@@ -366,7 +375,7 @@ export default function JobsPage() {
   };
 
   const handleAddStone = () => {
-    setStones([...stones, { stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
+    setStones([...stones, { _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
   };
 
   const handleRemoveStone = (index: number) => {
@@ -547,7 +556,7 @@ export default function JobsPage() {
       // Close dialog and reset form (handleCreateDialogClose handles cleanup)
       setCreateDialogOpen(false);
       setFormData({ client_id: '', branch_id: '', service_type: '', notes: '' });
-      setStones([{ stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
+      setStones([{ _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
       setValidationErrors([]);
       fetchData();
     } catch (error) {
@@ -623,12 +632,6 @@ export default function JobsPage() {
   };
 
   const handlePrintJob = (job: Job) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Please allow popups to print');
-      return;
-    }
-
     // Lookup full client & branch details from loaded state
     const clientFull = clients.find((c) => c.id === job.client_id);
     const branchFull = branches.find((b) => b.id === job.branch_id);
@@ -734,7 +737,7 @@ export default function JobsPage() {
       minute: '2-digit',
     });
 
-    printWindow.document.write(`
+    const html = `
       <!DOCTYPE html>
       <html>
       <head>
@@ -938,8 +941,11 @@ export default function JobsPage() {
         </script>
       </body>
       </html>
-    `);
-    printWindow.document.close();
+    `;
+    const printWindow = openPrintWindow(html);
+    if (!printWindow) {
+      alert('Please allow popups to print');
+    }
   };
 
   const handleGroupStones = async () => {
