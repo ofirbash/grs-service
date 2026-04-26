@@ -5,6 +5,7 @@ Tests: Jobs CRUD, Edit (status/notes), Stone Grouping, Memo Upload
 import pytest
 import requests
 import os
+from datetime import datetime
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://bashari-lab-direct.preview.emergentagent.com')
 if BASE_URL.endswith('/'):
@@ -93,7 +94,7 @@ class TestJobsAPI:
         
         # Update to a new status
         new_status = "sent_to_lab" if original_status != "sent_to_lab" else "stones_accepted"
-        new_notes = f"Test notes updated at {__import__('datetime').datetime.now()}"
+        new_notes = f"Test notes updated at {datetime.now()}"
         
         response = requests.put(
             f"{BASE_URL}/api/jobs/{job_id}",
