@@ -251,16 +251,23 @@ async def get_shipments(
 
 @router.get("/shipments/config/options")
 async def get_shipment_options(user: dict = Depends(get_current_user)):
-    """Get available options for shipment creation (types, couriers, addresses)"""
+    """Get available options for shipment creation (types, couriers, addresses).
+
+    Couriers come from the admin-managed list in `pricing_config.couriers`,
+    falling back to the hardcoded default if the admin has never customised it.
+    """
     branches = await db.branches.find({"is_active": True}).to_list(100)
     addresses = await db.addresses.find().to_list(1000)
 
     address_options = [b["name"] for b in branches]
     address_options.extend([a["name"] for a in addresses])
 
+    pricing = await db.pricing_config.find_one({"type": "pricing"}) or {}
+    couriers = pricing.get("couriers") or COURIERS
+
     return {
         "shipment_types": SHIPMENT_TYPES,
-        "couriers": COURIERS,
+        "couriers": couriers,
         "statuses": SHIPMENT_STATUSES,
         "job_statuses": JOB_STATUSES,
         "address_options": sorted(list(set(address_options)))

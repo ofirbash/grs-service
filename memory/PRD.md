@@ -28,9 +28,10 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
-### Session: Apr 26, 2026 (evening) — Cancel jobs, branch removal, data wipe, client delete
+### Session: Apr 26, 2026 (evening) — Cancel jobs, branch removal, data wipe, client delete, couriers manager
 
 **Features**:
+- **Couriers manager (admin)**: new "Couriers" card in Settings → Payments tab, identical UX to the existing Payment Destinations card (add via input + Enter / Plus, delete via red X, dedicated Save button). Backend: `pricing_config.couriers` array, exposed via `GET /api/pricing` and persisted via `PUT /api/pricing` (`couriers` is now an `Optional[List[str]]` field on `PricingUpdateRequest`). The shipments-options endpoint (`GET /api/shipments/config/options`) now reads couriers from `pricing_config` (with `DEFAULT_COURIERS` fallback) so the Create Shipment dialog instantly reflects admin changes. End-to-end curl-verified: GET → defaults; PUT → custom list persisted; subsequent GET on shipments/config/options returns the same custom list.
 - **Delete client (admin)**: new `DELETE /api/clients/{id}` endpoint, hard-delete only when `db.jobs.count_documents({client_id})` is 0 (stones live embedded in jobs so the same check covers them). Otherwise returns 409 with the blocking job count. Cascades and removes any linked customer login user. UI: red trash next to pencil on every clients row (mobile + desktop) with a confirm dialog. Curl-verified: 200 when no jobs, 409 with helpful message when blocked.
 - **Cancel job status**: New `cancelled` status added to `valid_statuses` in `routes/jobs.py` (both `POST status` and `PUT job` endpoints accept it). Selectable in the Job-edit `JobSummaryGrid` and the bulk-status `MiscDialogs`. Renders with a grey strike-through badge.
 - **Default-hide DONE & CANCELLED on the Jobs page**: filter dropdown's new default is `Active (hide Done & Cancelled)`. Other options unchanged + a new `Cancelled` filter chip.

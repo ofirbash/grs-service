@@ -48,6 +48,7 @@ import {
   Shield,
   Diamond,
   CreditCard,
+  Truck,
 } from 'lucide-react';
 
 import type {
@@ -104,6 +105,7 @@ export default function SettingsPage() {
     stone_types: [],
     shapes: [],
     payment_destinations: [],
+    couriers: [],
   });
   const [editingPricing, setEditingPricing] = useState(false);
   const [savingPricing, setSavingPricing] = useState(false);
@@ -115,11 +117,13 @@ export default function SettingsPage() {
     stone_types: [],
     shapes: [],
     payment_destinations: [],
+    couriers: [],
   });
   const [newServiceType, setNewServiceType] = useState('');
   const [newStoneType, setNewStoneType] = useState('');
   const [newShape, setNewShape] = useState('');
   const [newPaymentDestination, setNewPaymentDestination] = useState('');
+  const [newCourier, setNewCourier] = useState('');
   const [usedServiceTypes, setUsedServiceTypes] = useState<Set<string>>(new Set());
 
   // Admin Users State
@@ -1468,6 +1472,87 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Couriers (admin-managed list shown in the Create Shipment dialog) */}
+          <Card className="border-navy-200">
+            <CardHeader>
+              <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                Couriers
+              </CardTitle>
+              <CardDescription>Options shown in the &quot;Create Shipment&quot; dialog</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                {(pricingForm.couriers || []).map((c, idx) => (
+                  <div key={`${c}-${idx}`} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
+                    <span className="text-sm text-navy-900">{c}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPricingForm(prev => ({
+                        ...prev,
+                        couriers: (prev.couriers || []).filter((_, i) => i !== idx),
+                      }))}
+                      className="h-6 w-6 p-0 hover:bg-red-50"
+                      data-testid={`delete-courier-${idx}`}
+                    >
+                      <X className="h-3 w-3 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newCourier}
+                  onChange={(e) => setNewCourier(e.target.value)}
+                  placeholder="e.g. EMS, Royal Mail"
+                  className="text-sm border-navy-200"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newCourier.trim()) {
+                      setPricingForm(prev => ({
+                        ...prev,
+                        couriers: [...(prev.couriers || []), newCourier.trim()],
+                      }));
+                      setNewCourier('');
+                    }
+                  }}
+                  data-testid="new-courier-input"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!newCourier.trim()}
+                  onClick={() => {
+                    if (newCourier.trim()) {
+                      setPricingForm(prev => ({
+                        ...prev,
+                        couriers: [...(prev.couriers || []), newCourier.trim()],
+                      }));
+                      setNewCourier('');
+                    }
+                  }}
+                  data-testid="add-courier-button"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {isAdmin && (
+                <Button
+                  onClick={handleSavePricing}
+                  disabled={savingPricing}
+                  className="bg-navy-900 hover:bg-navy-800 mt-2"
+                  data-testid="save-couriers-button"
+                >
+                  {savingPricing ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                  ) : (
+                    <><Save className="h-4 w-4 mr-2" />Save Couriers</>
+                  )}
+                </Button>
+              )}
             </CardContent>
           </Card>
 

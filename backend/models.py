@@ -343,6 +343,7 @@ class PricingUpdateRequest(BaseModel):
     stone_types: Optional[List[str]] = None
     shapes: Optional[List[str]] = None
     payment_destinations: Optional[List[str]] = None
+    couriers: Optional[List[str]] = None
 
 
 # Dropdown Settings

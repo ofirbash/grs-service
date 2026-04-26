@@ -19,6 +19,19 @@ DEFAULT_PAYMENT_DESTINATIONS = [
     "Cash – HK Office",
 ]
 
+# Initial courier list. Stored in pricing_config.couriers once the admin saves
+# any change in Settings → Couriers; until then, the API serves these defaults.
+DEFAULT_COURIERS = [
+    "UPS",
+    "FedEx",
+    "DHL",
+    "TNT",
+    "Aramex",
+    "Local Courier",
+    "Hand Carry",
+    "Other",
+]
+
 
 @router.get("/pricing")
 async def get_pricing_config(user: dict = Depends(get_current_user)):
@@ -36,6 +49,7 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
             "stone_types": pricing.get("stone_types", DEFAULT_STONE_TYPES),
             "shapes": pricing.get("shapes", DEFAULT_SHAPES),
             "payment_destinations": pricing.get("payment_destinations", DEFAULT_PAYMENT_DESTINATIONS),
+            "couriers": pricing.get("couriers", DEFAULT_COURIERS),
         }
 
     brackets = [normalize_bracket(b) for b in PRICING_BRACKETS]
@@ -47,6 +61,7 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
         "stone_types": DEFAULT_STONE_TYPES,
         "shapes": DEFAULT_SHAPES,
         "payment_destinations": DEFAULT_PAYMENT_DESTINATIONS,
+        "couriers": DEFAULT_COURIERS,
     }
 
 
@@ -66,6 +81,8 @@ async def update_pricing_config(data: PricingUpdateRequest, user: dict = Depends
         update_data["shapes"] = data.shapes
     if data.payment_destinations is not None:
         update_data["payment_destinations"] = data.payment_destinations
+    if data.couriers is not None:
+        update_data["couriers"] = data.couriers
 
     await db.pricing_config.update_one(
         {"type": "pricing"},

@@ -36,6 +36,7 @@ export interface PricingConfig {
   stone_types: string[];
   shapes: string[];
   payment_destinations: string[];
+  couriers: string[];
 }
 
 export const STONE_TYPES = [
