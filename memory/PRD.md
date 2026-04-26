@@ -28,6 +28,28 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ## What's Been Implemented
 
+### Session: Apr 26, 2026 (deployment fix) — Static export migration
+
+**Problem**: First production deploy attempt failed with:
+```
+DETECTED: nginx default page on HTTP 200 - template mismatch
+```
+The Emergent native deployment template is CRA-style — it auto-injects `REACT_APP_BACKEND_URL` and serves a static `frontend/build/` directory via nginx. Our app was a Next.js 14 SSR build, so nginx had nothing to serve.
+
+**Fix** (code only, no docker changes):
+1. **`frontend/next.config.mjs`** — added `output: 'export'`, `trailingSlash: true`, `images: { unoptimized: true }`, and `eslint.ignoreDuringBuilds: true`. App is fully client-rendered (zero `app/api/`, zero server actions, zero `next/headers`), so static export is safe.
+2. **`frontend/package.json`** — `build` now runs `next build && rm -rf build && mv out build` so output lives at `frontend/build/` (CRA convention). `start` switched from `next start -p 3000` to `serve -s build -l 3000` so the local supervisor still has a server to run on port 3000.
+3. **`frontend/package.json`** — added `serve@^14` as devDep.
+4. **`(dashboard)/dashboard/jobs/page.tsx`** — wrapped the page (which uses `useSearchParams()`) in `<Suspense>`, required by Next.js 14 for static export. The other two `useSearchParams` callers (`/pay`, `/setup-password`) already had Suspense.
+5. **`backend/server.py`** — added a top-level `@app.get("/health")` route (in addition to the existing `/api/health`) so the deployment health check at `/health` succeeds under any probe convention.
+
+**Verified locally**:
+- `yarn build` → all 11 routes prerendered as static, output in `frontend/build/index.html`, `/dashboard/jobs/index.html`, etc.
+- `supervisorctl restart frontend` → `serve` running on port 3000.
+- `/login` → 200 (HTML), `/api/health` → 200, `/health` → 200, login + dashboard load + render data.
+
+**Deployment-readiness ground truth**: `frontend/build/` now contains a self-contained static SPA the deployment template can pick up directly.
+
 ### Session: Apr 26, 2026 (evening) — Cancel jobs, branch removal, data wipe, client delete, couriers manager, shipment-memo polish v3
 
 **Job-memo print v3** (file: `jobs/page.tsx → handlePrintJob`):

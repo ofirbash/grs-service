@@ -88,6 +88,14 @@ async def health_check():
 # Include the router in the main app
 app.include_router(api_router)
 
+
+# Top-level (non-/api) health endpoint for the Emergent deployment health check.
+# The deployment template probes `/health` at the root, not under `/api`.
+@app.get("/health")
+async def root_health_check():
+    from datetime import datetime
+    return {"status": "healthy", "timestamp": datetime.utcnow()}
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

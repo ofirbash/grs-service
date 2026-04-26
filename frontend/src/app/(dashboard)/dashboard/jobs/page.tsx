@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi, cloudinaryApi, notificationsApi, manualPaymentsApi } from '@/lib/api';
 import { escapeHtml as esc, openPrintWindow } from '@/lib/sanitize';
@@ -94,6 +94,16 @@ const makeStoneUid = (): string =>
     : `stone-${Date.now()}-${++_stoneUidCounter}`;
 
 export default function JobsPage() {
+  // Wrap the actual page in <Suspense> so `useSearchParams()` is allowed during
+  // static export. This is required by Next.js 14 when `output: 'export'` is set.
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-navy-500">Loading...</div>}>
+      <JobsPageContent />
+    </Suspense>
+  );
+}
+
+function JobsPageContent() {
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const { selectedBranchId } = useBranchFilterStore();
