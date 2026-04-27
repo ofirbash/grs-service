@@ -8,20 +8,30 @@ router = APIRouter()
 
 
 async def _build_jobs_query(user: dict, branch_id: Optional[str]) -> dict:
-    """Return a Mongo query dict scoped to the user's role."""
+    """Return a Mongo query dict scoped to the user's role.
+
+    Cancelled jobs are excluded from all dashboard stats — they don't
+    represent real revenue, stones, or pipeline volume.
+    """
+    base: dict = {"status": {"$ne": "cancelled"}}
     role = user["role"]
     if role == "branch_admin":
-        return {"branch_id": user.get("branch_id")}
+        base["branch_id"] = user.get("branch_id")
+        return base
     if role == "super_admin" and branch_id:
-        return {"branch_id": branch_id}
+        base["branch_id"] = branch_id
+        return base
     if role == "customer":
         client_id = user.get("client_id")
         if not client_id:
             client = await db.clients.find_one({"email": user["email"]})
             if client:
                 client_id = str(client["_id"])
-        return {"client_id": client_id} if client_id else {}
-    return {}
+        if client_id:
+            base["client_id"] = client_id
+            return base
+        return base
+    return base
 
 
 async def _aggregate_job_totals(query: dict) -> dict:
@@ -63,7 +73,9 @@ async def get_dashboard_stats(branch_id: Optional[str] = None, user: dict = Depe
     query = await _build_jobs_query(user, branch_id)
 
     total_jobs = await db.jobs.count_documents(query)
-    active_jobs = await db.jobs.count_documents({**query, "status": {"$nin": ["delivered"]}})
+    # Active jobs = total minus delivered. Cancelled is already excluded by `query`.
+    active_query = {**query, "status": {"$nin": ["delivered", "cancelled"]}}
+    active_jobs = await db.jobs.count_documents(active_query)
     totals = await _aggregate_job_totals(query)
     status_breakdown = await _aggregate_status_breakdown(query)
     total_clients = await _count_clients(user, branch_id)
@@ -85,7 +97,7 @@ async def get_clients_with_active_jobs(branch_id: Optional[str] = None, user: di
     if user["role"] not in ["super_admin", "branch_admin"]:
         return []
 
-    match_query: dict = {"status": {"$ne": "done"}}
+    match_query: dict = {"status": {"$nin": ["done", "cancelled"]}}
     if user["role"] == "branch_admin":
         match_query["branch_id"] = user.get("branch_id")
     elif branch_id:

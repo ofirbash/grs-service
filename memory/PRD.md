@@ -26,6 +26,17 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: Apr 27, 2026 — Cancelled jobs excluded from dashboard summary
+
+**Change**: Cancelled jobs no longer skew dashboard cards or panels. Backend `_build_jobs_query` now adds `status != cancelled` for every dashboard scope (super_admin/branch_admin/customer/global), and the active-jobs count + clients-with-active-jobs both exclude cancelled. Frontend Recent Jobs panel filters cancelled out before slicing.
+
+**Files**:
+- `backend/routes/dashboard.py` — base query excludes cancelled; `active_jobs` uses `$nin: [delivered, cancelled]`; clients-with-active-jobs uses `$nin: [done, cancelled]`.
+- `frontend/src/app/dashboard/page.tsx` — `recentJobs`/`allJobs` filter out cancelled before render.
+
+**Verified**: Inserted a test cancelled job with $100k value; before-fix `active_jobs=2`, after-fix `active_jobs=1`. Totals (value/fee/stones) and `jobs_by_status` confirmed to exclude cancelled. Test record cleaned up.
+
+
 ### Session: Apr 27, 2026 — Verbal Findings dynamic stone types
 
 **Change**: Removed the hardcoded `STONE_TYPES` constant (`Emerald/Sapphire/Ruby/Diamond/Spinel/Tanzanite/Other`) from `settings/_types.ts`. The "Stone Type Filter" badges in the Verbal Findings Dropdown Options (both Add and Edit modes) now derive from `pricing_config.stone_types` so admins manage one list in **Stones Settings** and see it everywhere. Added a memoized `stoneTypeOptions = ['all', ...pricing.stone_types]` in `settings/page.tsx` and replaced both `STONE_TYPES.map(...)` usages.

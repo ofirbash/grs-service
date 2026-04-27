@@ -131,8 +131,10 @@ export default function DashboardPage() {
         ]);
         setStats(statsData);
         setAllShipments(shipmentsData);
-        setRecentJobs(jobsData.slice(0, 5));
-        setAllJobs(jobsData);
+        // Exclude cancelled jobs from dashboard summaries (Recent Jobs panel).
+        const visibleJobs = (jobsData as Job[]).filter((j) => j.status !== 'cancelled');
+        setRecentJobs(visibleJobs.slice(0, 5));
+        setAllJobs(visibleJobs);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
