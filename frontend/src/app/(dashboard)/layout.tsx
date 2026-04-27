@@ -83,9 +83,10 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (mounted && !isAuthenticated) {
-      router.push('/login');
+      // Hard redirect to avoid soft-nav loops on static export.
+      window.location.replace('/login');
     }
-  }, [mounted, isAuthenticated, router]);
+  }, [mounted, isAuthenticated]);
 
   const handleLogout = () => {
     logout();

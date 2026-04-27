@@ -10,7 +10,6 @@
 //   package.json `build` script renames `out/` → `build/` after the build.
 const nextConfig = {
   output: 'export',
-  trailingSlash: true,
   images: { unoptimized: true },
   // Skip ESLint inside `next build` — we lint as a separate step locally and
   // don't want a stray warning to break a deploy.
