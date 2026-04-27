@@ -1,31 +1,104 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+/**
+ * SPA-fallback router (deploy-environment workaround).
+ *
+ * Production's static-file server serves THIS root `index.html` for every
+ * non-asset URL. That means hitting /login, /dashboard, /dashboard/jobs etc.
+ * all load the same HTML and same root chunk. Without the routing logic
+ * below, the home page would just blindly redirect to /login on every load,
+ * the server would respond with this same HTML again, and the browser would
+ * be stuck in a hard-reload loop.
+ *
+ * This component reads the actual URL the user is on and dynamically loads
+ * the right route component for it. Once the user is authenticated and
+ * inside the dashboard layout, Next.js's own router handles in-app
+ * navigation normally (it doesn't need to round-trip to the server).
+ */
+
+import { useEffect, useState, lazy, Suspense, ComponentType } from 'react';
 import { useAuthStore } from '@/lib/store';
+
+const LoginPage = lazy(() => import('./login/page'));
+const SetupPasswordPage = lazy(() => import('./setup-password/page'));
+const PayPage = lazy(() => import('./pay/page'));
+const DashboardLayout = lazy(() => import('./dashboard/layout'));
+const DashboardHome = lazy(() => import('./dashboard/page'));
+const JobsPage = lazy(() => import('./dashboard/jobs/page'));
+const StonesPage = lazy(() => import('./dashboard/stones/page'));
+const ClientsPage = lazy(() => import('./dashboard/clients/page'));
+const ShipmentsPage = lazy(() => import('./dashboard/shipments/page'));
+const SettingsPage = lazy(() => import('./dashboard/settings/page'));
+
+const LoadingScreen = () => (
+  <div className="min-h-screen flex items-center justify-center bg-navy-900">
+    <div className="animate-pulse text-white text-xl">Loading...</div>
+  </div>
+);
+
+/** Resolve which dashboard page to show for the given pathname. */
+function pickDashboardPage(pathname: string): ComponentType {
+  if (pathname.startsWith('/dashboard/jobs')) return JobsPage;
+  if (pathname.startsWith('/dashboard/stones')) return StonesPage;
+  if (pathname.startsWith('/dashboard/clients')) return ClientsPage;
+  if (pathname.startsWith('/dashboard/shipments')) return ShipmentsPage;
+  if (pathname.startsWith('/dashboard/settings')) return SettingsPage;
+  return DashboardHome;
+}
 
 export default function Home() {
   const { isAuthenticated } = useAuthStore();
-  const [mounted, setMounted] = useState(false);
+  const [pathname, setPathname] = useState<string | null>(null);
 
-  // Wait for client-side mount + Zustand-persist hydration before redirecting.
-  // Without this gate, the redirect fires on the server-rendered initial pass
-  // (or before sessionStorage rehydrates), then again after hydration — which
-  // looks like a refresh loop on static export.
+  // Read the URL on the client and re-render whenever it changes.
+  // Includes a monkey-patch on history.pushState/replaceState so we re-sync
+  // when Next.js's router does a soft navigation (e.g. router.push after a
+  // successful login). popstate covers back/forward buttons.
   useEffect(() => {
-    setMounted(true);
+    const sync = () => setPathname(window.location.pathname);
+    sync();
+    window.addEventListener('popstate', sync);
+    const origPush = window.history.pushState.bind(window.history);
+    const origReplace = window.history.replaceState.bind(window.history);
+    window.history.pushState = (...args: Parameters<typeof origPush>) => {
+      origPush(...args);
+      sync();
+    };
+    window.history.replaceState = (...args: Parameters<typeof origReplace>) => {
+      origReplace(...args);
+      sync();
+    };
+    return () => {
+      window.removeEventListener('popstate', sync);
+      window.history.pushState = origPush;
+      window.history.replaceState = origReplace;
+    };
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-    // Use window.location.replace to do a clean hard navigation. router.push
-    // from next/navigation is unreliable in static export when the source
-    // route has a redirect-only useEffect — it can trigger soft-nav loops.
-    window.location.replace(isAuthenticated ? '/dashboard' : '/login');
-  }, [mounted, isAuthenticated]);
+  if (pathname === null) return <LoadingScreen />;
 
+  // Public-only routes: render regardless of auth state.
+  if (pathname.startsWith('/setup-password')) {
+    return <Suspense fallback={<LoadingScreen />}><SetupPasswordPage /></Suspense>;
+  }
+  if (pathname.startsWith('/pay')) {
+    return <Suspense fallback={<LoadingScreen />}><PayPage /></Suspense>;
+  }
+
+  // Anyone not signed in lands on the login page (regardless of URL).
+  // No redirect — server keeps returning this same HTML, so a redirect would
+  // just bounce us back to here on next paint.
+  if (!isAuthenticated) {
+    return <Suspense fallback={<LoadingScreen />}><LoginPage /></Suspense>;
+  }
+
+  // Authenticated dashboard routes are wrapped in the dashboard layout.
+  const DashboardPage = pickDashboardPage(pathname);
   return (
-    <div className="min-h-screen flex items-center justify-center bg-navy-900">
-      <div className="animate-pulse text-white text-xl">Loading...</div>
-    </div>
+    <Suspense fallback={<LoadingScreen />}>
+      <DashboardLayout>
+        <DashboardPage />
+      </DashboardLayout>
+    </Suspense>
   );
 }

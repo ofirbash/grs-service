@@ -81,11 +81,12 @@ export default function DashboardLayout({
     }
   }, [mounted, isAuthenticated, isSuperAdmin]);
 
+  // No auth-gate redirect here — the root SPA router (`app/page.tsx`) handles
+  // unauthenticated users by rendering the LoginPage instead of mounting this
+  // layout. Re-adding a redirect here would compete with that gate and could
+  // cause loops on static-export deployments.
   useEffect(() => {
-    if (mounted && !isAuthenticated) {
-      // Hard redirect to avoid soft-nav loops on static export.
-      window.location.replace('/login');
-    }
+    // intentionally empty — kept as a marker for future auth-touchups
   }, [mounted, isAuthenticated]);
 
   const handleLogout = () => {
