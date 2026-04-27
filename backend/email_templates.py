@@ -30,8 +30,14 @@ COMPANY_EMAIL = "grs-il@bashds.com"
 COMPANY_VAT = "513180083"
 LOGO_URL = "https://customer-assets.emergentagent.com/job_777624e9-9d3b-43c3-b65b-05602d9f9f7d/artifacts/cpw6x0ub_bashari%20logo-square%20copy.jpg"
 
-# Portal URL resolved from env when available so CTA links point to the live app
-PORTAL_URL = os.getenv("PORTAL_URL", "https://bashari-lab-direct.preview.emergentagent.com")
+# Portal URL resolved from env when available so CTA links point to the live app.
+# Prefer FRONTEND_URL (already used elsewhere in the backend); fall back to the
+# legacy PORTAL_URL var if it's the only one set, else the production domain.
+PORTAL_URL = (
+    os.getenv("FRONTEND_URL")
+    or os.getenv("PORTAL_URL")
+    or "https://lab.bashari.co"
+)
 
 
 # ---------------------------------------------------------------------------

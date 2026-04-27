@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build && rm -rf build && mv out build",
-    "start": "serve -s build -l 3000",
+    "start": "serve build -l 3000",
     "lint": "next lint"
   },
   "dependencies": {
