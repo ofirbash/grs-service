@@ -10,6 +10,14 @@
 //   package.json `build` script renames `out/` → `build/` after the build.
 const nextConfig = {
   output: 'export',
+  // CRITICAL: emit each route as `<route>/index.html` (e.g. `login/index.html`)
+  // instead of `login.html`. Production's nginx does CRA-style static lookup
+  // (`try_files $uri $uri/ /index.html`) which checks for a directory with an
+  // index.html inside, NOT for `.html` extensions. Without this flag every
+  // route falls back to root `/index.html` (the home page) — which then runs
+  // its `window.location.replace('/login')` redirect and enters a hard reload
+  // loop. With this flag, `/login` → `/login/index.html` is found directly.
+  trailingSlash: true,
   images: { unoptimized: true },
   // Skip ESLint inside `next build` — we lint as a separate step locally and
   // don't want a stray warning to break a deploy.
