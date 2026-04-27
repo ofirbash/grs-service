@@ -19,12 +19,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor to handle auth errors
+// Response interceptor to handle auth errors.
+// On a 401 we kick the user back to /login — but ONLY when the failure
+// represents an expired/invalid session, never when the login attempt itself
+// is what failed. Without this guard, a wrong-password attempt would trigger
+// a full page reload that wipes the "Invalid email or password" error message
+// before the user can read it.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      if (typeof window !== 'undefined') {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      const requestUrl: string = error.config?.url || '';
+      const isAuthEndpoint =
+        requestUrl.includes('/auth/login') ||
+        requestUrl.includes('/auth/forgot-password') ||
+        requestUrl.includes('/auth/setup-password');
+      const onLoginPage = window.location.pathname.startsWith('/login');
+
+      if (!isAuthEndpoint && !onLoginPage) {
         clearToken();
         window.location.href = '/login';
       }
