@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { settingsApi, branchesApi, jobsApi, usersApi, addressesApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,7 @@ import type {
   PricingBracket,
   PricingConfig,
 } from './_types';
-import { STONE_TYPES, DROPDOWN_FIELDS } from './_types';
+import { DROPDOWN_FIELDS } from './_types';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -173,6 +173,14 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchAllData();
   }, []);
+
+  // Dynamic stone type options for "Stone Type Filter" badges in Verbal Findings
+  // dropdown options. Pulled from pricing_config.stone_types (managed by admin
+  // in the Stones Settings tab) so it stays in sync with the rest of the app.
+  const stoneTypeOptions = useMemo(
+    () => ['all', ...pricing.stone_types],
+    [pricing.stone_types]
+  );
 
   const fetchAllData = async () => {
     setLoading(true);
@@ -756,7 +764,7 @@ export default function SettingsPage() {
                           <TableCell>
                             {editingOption?.value === option.value ? (
                               <div className="flex flex-wrap gap-1">
-                                {STONE_TYPES.map((type) => (
+                                {stoneTypeOptions.map((type) => (
                                   <Badge
                                     key={type}
                                     variant={editingOption.stone_types.includes(type) ? 'default' : 'outline'}
@@ -1935,7 +1943,7 @@ export default function SettingsPage() {
                 Select which stone types this option applies to
               </p>
               <div className="flex flex-wrap gap-2">
-                {STONE_TYPES.map((type) => (
+                {stoneTypeOptions.map((type) => (
                   <Badge
                     key={type}
                     variant={newOptionStoneTypes.includes(type) ? 'default' : 'outline'}

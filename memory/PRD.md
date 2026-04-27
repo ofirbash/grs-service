@@ -26,6 +26,17 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: Apr 27, 2026 — Verbal Findings dynamic stone types
+
+**Change**: Removed the hardcoded `STONE_TYPES` constant (`Emerald/Sapphire/Ruby/Diamond/Spinel/Tanzanite/Other`) from `settings/_types.ts`. The "Stone Type Filter" badges in the Verbal Findings Dropdown Options (both Add and Edit modes) now derive from `pricing_config.stone_types` so admins manage one list in **Stones Settings** and see it everywhere. Added a memoized `stoneTypeOptions = ['all', ...pricing.stone_types]` in `settings/page.tsx` and replaced both `STONE_TYPES.map(...)` usages.
+
+**Files**:
+- `frontend/src/app/dashboard/settings/_types.ts` — removed `STONE_TYPES` export
+- `frontend/src/app/dashboard/settings/page.tsx` — added `useMemo` import + `stoneTypeOptions` derived from pricing.stone_types, replaced both badge renders.
+
+**Verified**: Production build passes, screenshot confirms dialog shows dynamic list (Ruby/Sapphire/Emerald/Alexandrite/Spinel/Padparadscha/Paraiba/Tanzanite/Other).
+
+
 ## What's Been Implemented
 
 ### Session: Apr 26, 2026 (deployment fix) — Static export migration

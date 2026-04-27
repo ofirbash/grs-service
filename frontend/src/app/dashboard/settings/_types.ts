@@ -39,9 +39,4 @@ export interface PricingConfig {
   couriers: string[];
 }
 
-export const STONE_TYPES = [
-  'all', 'Emerald', 'Sapphire', 'Ruby', 'Diamond',
-  'Spinel', 'Tanzanite', 'Other',
-];
-
 export const DROPDOWN_FIELDS = ['identification', 'color', 'origin', 'comment'] as const;
