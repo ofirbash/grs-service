@@ -660,7 +660,18 @@ def _render_manual_payment_receipt(ctx: dict) -> tuple:
 
 def _render_welcome(ctx: dict) -> tuple:
     contact = ctx["client"].get("email", "")
-    subject = f"Welcome to {COMPANY_DISPLAY_NAME}"
+    setup_url = ctx.get("setup_url") or ""
+    cta_label = "Set Up Your Account" if setup_url else "Open Client Portal"
+    cta_url = setup_url or PORTAL_URL
+
+    helper_text = (
+        "Click the button to set your password and confirm your contact details. "
+        "This secure link is valid for 30 days."
+        if setup_url
+        else "If this is your first time logging in, click <strong>Forgot password?</strong> "
+             "on the login screen to set a password."
+    )
+
     body = (
         _heading(f"Welcome to {COMPANY_DISPLAY_NAME}")
         + ctx["greeting"]
@@ -677,11 +688,10 @@ def _render_welcome(ctx: dict) -> tuple:
           "</ul>"
         + f'<p style="color: {TEXT_BODY}; font-size: 13px; margin: 14px 0 0;">'
           f'Sign in using your registered email: <strong style="color: {BRAND_NAVY};">{contact}</strong></p>'
-        + _cta_button("Open Client Portal", PORTAL_URL)
-        + f'<p style="color: {TEXT_MUTED}; font-size: 12px; margin-top: 16px;">'
-          "If this is your first time logging in, click <strong>Forgot password?</strong> "
-          "on the login screen to set a password.</p>"
+        + _cta_button(cta_label, cta_url)
+        + f'<p style="color: {TEXT_MUTED}; font-size: 12px; margin-top: 16px;">{helper_text}</p>'
     )
+    subject = f"Welcome to {COMPANY_DISPLAY_NAME} — Set up your account"
     return subject, body
 
 
@@ -745,7 +755,7 @@ def _wrap_email(subject: str, body_inner: str) -> str:
 
 
 def build_notification_email_html(
-    notification_type: str, job: dict, client: dict, payment_url: str = ""
+    notification_type: str, job: dict, client: dict, payment_url: str = "", setup_url: str = ""
 ) -> tuple:
     """Build HTML email content for the given notification type.
 
@@ -764,6 +774,7 @@ def build_notification_email_html(
         "verbal_findings": job.get("verbal_findings", []),
         "portal_link": f"{PORTAL_URL}/dashboard/jobs",
         "payment_url": payment_url,
+        "setup_url": setup_url,
         "greeting": _greeting(client_name),
     }
 

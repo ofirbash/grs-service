@@ -410,7 +410,10 @@ async def preview_welcome_email(client_id: str = "", user: dict = Depends(requir
             }
 
     subject, html_body = build_notification_email_html(
-        "welcome", job={"job_number": "—", "stones": []}, client=client
+        "welcome",
+        job={"job_number": "—", "stones": []},
+        client=client,
+        setup_url=f"{FRONTEND_URL}/setup-password?token=PREVIEW_TOKEN" if FRONTEND_URL else "",
     )
     return {
         "subject": subject,
@@ -452,10 +455,46 @@ async def send_welcome_emails_bulk(payload: WelcomeBulkRequest, user: dict = Dep
             })
             continue
 
+        # Ensure a customer user record exists and has a fresh setup_token.
+        # This lets the welcome email link directly to /setup-password where the
+        # user can confirm their details and set a password in one step.
+        setup_url = ""
+        if FRONTEND_URL:
+            email_lower = recipient.lower()
+            setup_token = str(uuid.uuid4())
+            user_record = await db.users.find_one({"email": email_lower})
+            if user_record:
+                await db.users.update_one(
+                    {"_id": user_record["_id"]},
+                    {"$set": {
+                        "setup_token": setup_token,
+                        "setup_token_created_at": datetime.utcnow(),
+                        "updated_at": datetime.utcnow(),
+                    }}
+                )
+            else:
+                await db.users.insert_one({
+                    "email": email_lower,
+                    "password_hash": "",
+                    "full_name": client.get("name", ""),
+                    "role": "customer",
+                    "branch_id": client.get("branch_id"),
+                    "client_id": raw_id,
+                    "phone": client.get("phone"),
+                    "email_verified": False,
+                    "two_factor_enabled": False,
+                    "setup_token": setup_token,
+                    "setup_token_created_at": datetime.utcnow(),
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                })
+            setup_url = f"{FRONTEND_URL}/setup-password?token={setup_token}"
+
         subject, html_body = build_notification_email_html(
             "welcome",
             job={"job_number": "—", "stones": []},
             client={"name": client.get("name"), "email": recipient},
+            setup_url=setup_url,
         )
 
         log_entry = {

@@ -26,6 +26,35 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: Apr 28, 2026 — Account setup flow + login bot protection + admin 2FA
+
+**1. Welcome email → guided setup page**
+- Welcome email CTA now deep-links to `/setup-password?token=...`. New `setup_token` is issued per client when the bulk welcome is sent.
+- `/setup-password` page enhanced: shows locked Name + Email (admin-entered identity), editable Phone/Company/Address prefilled from the client record, plus password fields. One submit saves everything and signs the user in.
+- New `GET /api/auth/setup-info` endpoint returns profile prefill for a valid token.
+- `POST /api/auth/setup-password` now accepts `phone`, `company`, `address` and mirrors them into the linked client record.
+- Files: `backend/email_templates.py`, `backend/routes/notifications.py`, `backend/routes/auth_routes.py`, `backend/models.py`, `frontend/src/app/setup-password/page.tsx`, `frontend/src/lib/api.ts`.
+
+**2. Login bot protection — 3 layers**
+- **Honeypot**: hidden `website` input on the login form; any non-empty value → 400 "Invalid request".
+- **Rate limit**: 10 failed logins per IP per 15 minutes (stored in `login_attempts` collection); success resets the counter. 11th attempt → HTTP 429 with retry window.
+- **Cloudflare Turnstile**: server-side siteverify using `TURNSTILE_SECRET_KEY`. Widget on login page via `@marsidev/react-turnstile`. If secret env is blank, verification is skipped (local dev). `NEXT_PUBLIC_TURNSTILE_SITE_KEY` baked into the frontend build.
+- Files: `backend/login_security.py` (new), `backend/routes/auth_routes.py`, `backend/models.py`, `frontend/src/app/login/page.tsx`.
+
+**3. TOTP 2FA for admins**
+- Admin-only gate added on existing `/auth/setup-2fa` + `/auth/enable-2fa` endpoints (customers get 403).
+- Login step 2 rendered when `requires_2fa: true` — 6-digit code box; login re-submits with `totp_code`.
+- Profile page now has a "Two-Factor Authentication" card (enable shows QR + manual secret, verify with first code; disable requires a current code).
+- Files: `backend/routes/auth_routes.py`, `frontend/src/app/dashboard/profile/page.tsx`, `frontend/src/lib/api.ts`, `frontend/src/lib/store.ts` (User type).
+
+**Verified**:
+- curl: login rejected without Turnstile token (`Bot verification required`); rejected with honeypot filled (`Invalid request`).
+- curl: admin JWT can hit `/auth/setup-2fa` and receives a valid base32 secret + base64 QR + provisioning URI.
+- curl: `/auth/setup-info` returns correct profile prefill for a valid token.
+- Playwright DOM eval: setup-password page renders `setup-password-card` with locked name/email + editable phone/company/address + password fields.
+- Playwright screenshot: login page shows Cloudflare Turnstile "Verify you are human" widget; client-side guard says "Please complete the bot verification below." on empty token.
+
+
 ### Session: Apr 27, 2026 — Cancelled jobs excluded from dashboard summary
 
 **Change**: Cancelled jobs no longer skew dashboard cards or panels. Backend `_build_jobs_query` now adds `status != cancelled` for every dashboard scope (super_admin/branch_admin/customer/global), and the active-jobs count + clients-with-active-jobs both exclude cancelled. Frontend Recent Jobs panel filters cancelled out before slicing.

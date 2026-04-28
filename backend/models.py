@@ -17,6 +17,9 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
     totp_code: Optional[str] = None
+    turnstile_token: Optional[str] = None
+    # Honeypot: must remain empty. Bots fill every field.
+    website: Optional[str] = None
 
 
 class UserResponse(BaseModel):
@@ -42,6 +45,9 @@ class TokenResponse(BaseModel):
 class SetupPasswordRequest(BaseModel):
     token: str
     password: str
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    address: Optional[str] = None
 
 
 # Branch Models

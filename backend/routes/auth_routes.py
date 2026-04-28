@@ -16,6 +16,13 @@ from auth import (
     get_password_hash, verify_password, create_access_token,
     get_current_user
 )
+from login_security import (
+    check_honeypot,
+    enforce_rate_limit,
+    record_login_failure,
+    clear_login_failures,
+    verify_turnstile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +85,17 @@ async def register(user_data: UserCreate):
 
 
 @router.post("/auth/login", response_model=TokenResponse)
-async def login(credentials: UserLogin):
+async def login(credentials: UserLogin, request: Request):
+    # Layer 1: honeypot must be empty
+    check_honeypot(credentials.website)
+    # Layer 2: per-IP failure rate limit
+    ip = await enforce_rate_limit(request)
+    # Layer 3: Cloudflare Turnstile siteverify (skipped if secret unset)
+    await verify_turnstile(credentials.turnstile_token, request)
+
     user = await db.users.find_one({"email": credentials.email.lower()})
     if not user or not verify_password(credentials.password, user["password_hash"]):
+        await record_login_failure(ip)
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if user.get("two_factor_enabled") and user.get("two_factor_secret"):
@@ -103,7 +118,11 @@ async def login(credentials: UserLogin):
 
         totp = pyotp.TOTP(user["two_factor_secret"])
         if not totp.verify(credentials.totp_code):
+            await record_login_failure(ip)
             raise HTTPException(status_code=401, detail="Invalid 2FA code")
+
+    # Successful login — clear the fail counter for this IP
+    await clear_login_failures(ip)
 
     user_id = str(user["_id"])
     access_token = create_access_token({"sub": user_id, "email": user["email"], "role": user["role"]})
@@ -209,6 +228,8 @@ async def verify_email(token: str):
 
 @router.post("/auth/setup-2fa")
 async def setup_2fa(user: dict = Depends(get_current_user)):
+    if user.get("role") not in ("super_admin", "branch_admin"):
+        raise HTTPException(status_code=403, detail="2FA is available for admin accounts only")
     secret = pyotp.random_base32()
     totp = pyotp.TOTP(secret)
     provisioning_uri = totp.provisioning_uri(user["email"], issuer_name="Bashari Lab")
@@ -236,6 +257,8 @@ async def setup_2fa(user: dict = Depends(get_current_user)):
 
 @router.post("/auth/enable-2fa")
 async def enable_2fa(totp_code: str = Body(..., embed=True), user: dict = Depends(get_current_user)):
+    if user.get("role") not in ("super_admin", "branch_admin"):
+        raise HTTPException(status_code=403, detail="2FA is available for admin accounts only")
     if not user.get("two_factor_secret"):
         raise HTTPException(status_code=400, detail="2FA not set up. Call /auth/setup-2fa first")
 
@@ -268,9 +291,43 @@ async def disable_2fa(totp_code: str = Body(..., embed=True), user: dict = Depen
     return {"message": "2FA disabled successfully"}
 
 
+@router.get("/auth/setup-info")
+async def get_setup_info(token: str):
+    """Return profile info for a valid setup token so the setup-password
+    page can prefill and let the user review their details."""
+    user = await db.users.find_one({"setup_token": token})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired setup link")
+
+    token_created = user.get("setup_token_created_at")
+    if token_created and datetime.utcnow() > token_created + timedelta(days=30):
+        raise HTTPException(status_code=400, detail="Setup link has expired. Please contact your administrator.")
+
+    client_doc = None
+    if user.get("client_id"):
+        try:
+            client_doc = await db.clients.find_one({"_id": ObjectId(user["client_id"])})
+        except Exception:
+            client_doc = None
+    if not client_doc:
+        client_doc = await db.clients.find_one({"email": user["email"]})
+
+    return {
+        "email": user["email"],
+        "full_name": user.get("full_name") or (client_doc.get("name") if client_doc else ""),
+        "phone": (client_doc.get("phone") if client_doc else None) or user.get("phone") or "",
+        "company": (client_doc.get("company") if client_doc else "") or "",
+        "address": (client_doc.get("address") if client_doc else "") or "",
+    }
+
+
 @router.post("/auth/setup-password")
 async def setup_password(data: SetupPasswordRequest):
-    """Set password for a new customer account using the setup token"""
+    """Set password for a new customer account using the setup token.
+
+    Also lets the customer update their phone/company/address at the same
+    time — the email and full name stay locked to what the admin entered.
+    """
     user = await db.users.find_one({"setup_token": data.token})
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired setup link")
@@ -282,16 +339,35 @@ async def setup_password(data: SetupPasswordRequest):
             raise HTTPException(status_code=400, detail="Setup link has expired. Please contact your administrator.")
 
     hashed_password = get_password_hash(data.password)
-    await db.users.update_one(
-        {"_id": user["_id"]},
-        {"$set": {
-            "password_hash": hashed_password,
-            "email_verified": True,
-            "setup_token": None,
-            "setup_token_created_at": None,
-            "updated_at": datetime.utcnow()
-        }}
-    )
+    user_update = {
+        "password_hash": hashed_password,
+        "email_verified": True,
+        "setup_token": None,
+        "setup_token_created_at": None,
+        "updated_at": datetime.utcnow(),
+    }
+    if data.phone is not None:
+        user_update["phone"] = data.phone
+    await db.users.update_one({"_id": user["_id"]}, {"$set": user_update})
+
+    # Mirror editable fields into the linked client record so the admin
+    # sees the customer's corrections on the clients page.
+    if user.get("client_id"):
+        client_update: dict = {}
+        if data.phone is not None:
+            client_update["phone"] = data.phone
+        if data.company is not None:
+            client_update["company"] = data.company
+        if data.address is not None:
+            client_update["address"] = data.address
+        if client_update:
+            try:
+                await db.clients.update_one(
+                    {"_id": ObjectId(user["client_id"])},
+                    {"$set": client_update},
+                )
+            except Exception as e:
+                logger.warning(f"Could not update client record for {user['email']}: {e}")
 
     user_id = str(user["_id"])
     access_token = create_access_token({"sub": user_id, "email": user["email"], "role": user["role"]})
@@ -305,7 +381,7 @@ async def setup_password(data: SetupPasswordRequest):
             role=user["role"],
             branch_id=user.get("branch_id"),
             client_id=user.get("client_id"),
-            phone=user.get("phone"),
+            phone=data.phone if data.phone is not None else user.get("phone"),
             email_verified=True,
             two_factor_enabled=False,
             created_at=user["created_at"]

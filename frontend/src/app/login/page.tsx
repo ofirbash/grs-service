@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { authApi } from '@/lib/api';
@@ -9,11 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldCheck } from 'lucide-react';
+import { Turnstile, TurnstileInstance } from '@marsidev/react-turnstile';
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '';
 
 export default function LoginPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [forgotMode, setForgotMode] = useState(false);
@@ -23,24 +28,66 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    website: '', // honeypot — must stay empty
   });
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [step, setStep] = useState<'login' | '2fa'>('login');
+  const [totpCode, setTotpCode] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setError('Please complete the bot verification below.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await authApi.login(formData.email, formData.password);
+      const response = await authApi.login(formData.email, formData.password, {
+        turnstile_token: turnstileToken || undefined,
+        website: formData.website, // honeypot
+      });
+      if (response.requires_2fa) {
+        setStep('2fa');
+      } else if (response.access_token) {
+        setAuth(response.access_token, response.user);
+        router.push('/dashboard');
+      }
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string }; status?: number } };
+      setError(e.response?.data?.detail || 'Invalid email or password');
+      // Reset Turnstile so the user can retry (tokens are single-use).
+      turnstileRef.current?.reset();
+      setTurnstileToken('');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handle2faSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    try {
+      const response = await authApi.login(formData.email, formData.password, {
+        turnstile_token: turnstileToken || undefined,
+        website: formData.website,
+        totp_code: totpCode.trim(),
+      });
       if (response.access_token) {
         setAuth(response.access_token, response.user);
         router.push('/dashboard');
-      } else if (response.requires_2fa) {
-        setError('2FA is required but not yet implemented in this version');
       }
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { detail?: string } } };
-      setError(error.response?.data?.detail || 'Invalid email or password');
+      const e = err as { response?: { data?: { detail?: string } } };
+      setError(e.response?.data?.detail || 'Invalid 2FA code');
+      turnstileRef.current?.reset();
+      setTurnstileToken('');
+      // Force user to redo Turnstile before retry
+      setStep('login');
     } finally {
       setIsLoading(false);
     }
@@ -75,62 +122,145 @@ export default function LoginPage() {
             <p className="text-xs text-navy-400 tracking-widest uppercase">Lab-Direct</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs text-navy-500 uppercase tracking-wider">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-                className="border-navy-200 h-10"
-                data-testid="login-email-input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs text-navy-500 uppercase tracking-wider">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-                className="border-navy-200 h-10"
-                data-testid="login-password-input"
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-2.5 text-xs text-red-700" data-testid="login-error">
-                {error}
+          {step === 'login' ? (
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs text-navy-500 uppercase tracking-wider">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  className="border-navy-200 h-10"
+                  data-testid="login-email-input"
+                  autoComplete="email"
+                />
               </div>
-            )}
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-xs text-navy-500 uppercase tracking-wider">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                  className="border-navy-200 h-10"
+                  data-testid="login-password-input"
+                  autoComplete="current-password"
+                />
+              </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-navy-900 hover:bg-navy-800 h-10 text-sm tracking-wide"
-              data-testid="login-submit-button"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                'SIGN IN'
+              {/* Honeypot — visually hidden, not tab-reachable. Bots fill it; real users skip it. */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  left: '-9999px',
+                  width: 1,
+                  height: 1,
+                  overflow: 'hidden',
+                }}
+              >
+                <label>
+                  Website
+                  <input
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={formData.website}
+                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              {TURNSTILE_SITE_KEY && (
+                <div className="flex justify-center" data-testid="turnstile-widget">
+                  <Turnstile
+                    ref={turnstileRef}
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onSuccess={setTurnstileToken}
+                    onError={() => setTurnstileToken('')}
+                    onExpire={() => setTurnstileToken('')}
+                    options={{ theme: 'light', size: 'flexible' }}
+                  />
+                </div>
               )}
-            </Button>
 
-            <button
-              type="button"
-              onClick={() => setForgotMode(true)}
-              className="w-full text-xs text-navy-400 hover:text-navy-600 transition-colors"
-              data-testid="forgot-password-link"
-            >
-              Forgot your password?
-            </button>
-          </form>
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-2.5 text-xs text-red-700" data-testid="login-error">
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-navy-900 hover:bg-navy-800 h-10 text-sm tracking-wide"
+                data-testid="login-submit-button"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'SIGN IN'}
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => setForgotMode(true)}
+                className="w-full text-xs text-navy-400 hover:text-navy-600 transition-colors"
+                data-testid="forgot-password-link"
+              >
+                Forgot your password?
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handle2faSubmit} className="space-y-4" data-testid="login-2fa-form">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <div className="h-10 w-10 rounded-full bg-navy-100 flex items-center justify-center">
+                  <ShieldCheck className="h-5 w-5 text-navy-700" />
+                </div>
+                <h3 className="font-semibold text-navy-900 text-sm">Two-factor authentication</h3>
+                <p className="text-xs text-navy-500">
+                  Enter the 6-digit code from your authenticator app.
+                </p>
+              </div>
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                placeholder="123456"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                required
+                className="border-navy-200 h-12 text-center text-xl tracking-[0.5em] font-mono"
+                data-testid="login-totp-input"
+                autoFocus
+              />
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-2.5 text-xs text-red-700" data-testid="login-2fa-error">
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isLoading || totpCode.length !== 6}
+                className="w-full bg-navy-900 hover:bg-navy-800 h-10 text-sm tracking-wide"
+                data-testid="login-2fa-submit"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'VERIFY'}
+              </Button>
+              <button
+                type="button"
+                onClick={() => { setStep('login'); setTotpCode(''); setError(''); }}
+                className="w-full text-xs text-navy-400 hover:text-navy-600"
+              >
+                Back to sign in
+              </button>
+            </form>
+          )}
 
           {/* Forgot Password Modal */}
           {forgotMode && (

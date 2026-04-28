@@ -9,6 +9,8 @@ interface User {
   role: string;
   branch_id?: string;
   phone?: string;
+  two_factor_enabled?: boolean;
+  client_id?: string;
 }
 
 interface AuthState {

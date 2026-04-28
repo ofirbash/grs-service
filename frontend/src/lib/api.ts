@@ -33,7 +33,8 @@ api.interceptors.response.use(
       const isAuthEndpoint =
         requestUrl.includes('/auth/login') ||
         requestUrl.includes('/auth/forgot-password') ||
-        requestUrl.includes('/auth/setup-password');
+        requestUrl.includes('/auth/setup-password') ||
+        requestUrl.includes('/auth/setup-info');
       const onLoginPage = window.location.pathname.startsWith('/login');
 
       if (!isAuthEndpoint && !onLoginPage) {
@@ -47,8 +48,16 @@ api.interceptors.response.use(
 
 // Auth API
 export const authApi = {
-  login: async (email: string, password: string) => {
-    const response = await api.post('/auth/login', { email, password });
+  login: async (
+    email: string,
+    password: string,
+    extras?: { turnstile_token?: string; website?: string; totp_code?: string }
+  ) => {
+    const response = await api.post('/auth/login', {
+      email,
+      password,
+      ...(extras || {}),
+    });
     return response.data;
   },
   register: async (data: { email: string; password: string; full_name: string; role?: string }) => {
@@ -59,9 +68,27 @@ export const authApi = {
     const response = await api.get('/auth/me');
     return response.data;
   },
-  setupPassword: async (token: string, password: string) => {
-    const response = await api.post('/auth/setup-password', { token, password });
+  setupPassword: async (
+    token: string,
+    password: string,
+    profile?: { phone?: string; company?: string; address?: string }
+  ) => {
+    const response = await api.post('/auth/setup-password', {
+      token,
+      password,
+      ...(profile || {}),
+    });
     return response.data;
+  },
+  getSetupInfo: async (token: string) => {
+    const response = await api.get('/auth/setup-info', { params: { token } });
+    return response.data as {
+      email: string;
+      full_name: string;
+      phone: string;
+      company: string;
+      address: string;
+    };
   },
   updateProfile: async (data: { full_name?: string; phone?: string; email?: string; password?: string }) => {
     const response = await api.put('/auth/me', data);
@@ -73,6 +100,22 @@ export const authApi = {
   },
   adminResetPassword: async (userId: string) => {
     const response = await api.post(`/auth/admin-reset-password/${userId}`);
+    return response.data;
+  },
+  setup2fa: async () => {
+    const response = await api.post('/auth/setup-2fa');
+    return response.data as {
+      secret: string;
+      qr_code: string;
+      provisioning_uri: string;
+    };
+  },
+  enable2fa: async (totp_code: string) => {
+    const response = await api.post('/auth/enable-2fa', { totp_code });
+    return response.data;
+  },
+  disable2fa: async (totp_code: string) => {
+    const response = await api.post('/auth/disable-2fa', { totp_code });
     return response.data;
   },
 };
