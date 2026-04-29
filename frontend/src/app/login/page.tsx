@@ -72,8 +72,11 @@ export default function LoginPage() {
     setIsLoading(true);
     setError('');
     try {
+      // Note: no turnstile_token sent on the 2FA hop. The token from the
+      // password step is single-use and already consumed; the backend skips
+      // Turnstile when a totp_code is present. Honeypot + rate-limit still
+      // apply, and a wrong TOTP code returns the user to step 1.
       const response = await authApi.login(formData.email, formData.password, {
-        turnstile_token: turnstileToken || undefined,
         website: formData.website,
         totp_code: totpCode.trim(),
       });
@@ -84,10 +87,13 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setError(e.response?.data?.detail || 'Invalid 2FA code');
-      turnstileRef.current?.reset();
-      setTurnstileToken('');
-      // Force user to redo Turnstile before retry
-      setStep('login');
+      // Allow another TOTP attempt without forcing a full restart. We only
+      // bounce back to step 1 if the rate limit kicks in (HTTP 429).
+      if ((e.response as { status?: number } | undefined)?.status === 429) {
+        turnstileRef.current?.reset();
+        setTurnstileToken('');
+        setStep('login');
+      }
     } finally {
       setIsLoading(false);
     }

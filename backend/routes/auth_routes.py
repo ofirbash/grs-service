@@ -86,12 +86,17 @@ async def register(user_data: UserCreate):
 
 @router.post("/auth/login", response_model=TokenResponse)
 async def login(credentials: UserLogin, request: Request):
-    # Layer 1: honeypot must be empty
+    # Layer 1: honeypot must be empty (always)
     check_honeypot(credentials.website)
-    # Layer 2: per-IP failure rate limit
+    # Layer 2: per-IP failure rate limit (always)
     ip = await enforce_rate_limit(request)
-    # Layer 3: Cloudflare Turnstile siteverify (skipped if secret unset)
-    await verify_turnstile(credentials.turnstile_token, request)
+    # Layer 3: Cloudflare Turnstile siteverify — only on the FIRST hop.
+    # When a TOTP code is supplied, this is the second step of a login that
+    # already passed Turnstile + password verification. Turnstile tokens are
+    # single-use, so re-checking would always fail. Honeypot + rate-limit
+    # still protect this branch.
+    if not credentials.totp_code:
+        await verify_turnstile(credentials.turnstile_token, request)
 
     user = await db.users.find_one({"email": credentials.email.lower()})
     if not user or not verify_password(credentials.password, user["password_hash"]):
