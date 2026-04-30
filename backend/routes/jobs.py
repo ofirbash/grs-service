@@ -128,8 +128,11 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
     if client_branch_id:
         job.branch_id = client_branch_id
 
+    # Job numbers start at 500. On a fresh install the first job is #500;
+    # after that each new job increments by 1.
     last_job = await db.jobs.find_one(sort=[("job_number", -1)])
-    job_number = (last_job.get("job_number", 0) if last_job else 0) + 1
+    last_number = last_job.get("job_number", 0) if last_job else 0
+    job_number = max(last_number + 1, 500)
 
     stones = []
     position = 1

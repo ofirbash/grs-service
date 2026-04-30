@@ -656,13 +656,18 @@ function JobsPageContent() {
     const clientFull = clients.find((c) => c.id === job.client_id);
     const branchFull = branches.find((b) => b.id === job.branch_id);
 
-    // Determine doc title based on status
-    const docTitle =
+    // Zero-pad job number to 5 digits for memo display (e.g. 500 → "00500")
+    const paddedJobNumber = String(job.job_number).padStart(5, '0');
+
+    // Determine doc title based on status. Job number is appended to the
+    // headline (e.g. "Job Memo #00500") so it's the most prominent element.
+    const docTitleBase =
       job.status === 'draft' || job.status === 'pending_stones'
         ? 'Intake Receipt / Memo'
         : job.status === 'cert_issued' || job.status === 'done'
         ? 'Completion Memo'
         : 'Job Memo';
+    const docTitle = `${docTitleBase} #${paddedJobNumber}`;
 
     // Separate ungrouped and grouped stones
     const ungroupedStones = job.stones.filter((s) => !s.certificate_group);
@@ -831,7 +836,7 @@ function JobsPageContent() {
 
         <div class="doc-title-bar">
           <h1>${docTitle}</h1>
-          <div class="job-number">Job #${job.job_number} · ${formattedDate}</div>
+          <div class="job-number">${formattedDate}</div>
         </div>
 
         <div class="job-meta-row">

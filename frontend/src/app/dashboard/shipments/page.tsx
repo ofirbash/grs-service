@@ -190,15 +190,20 @@ export default function ShipmentsPage() {
       setOptions(optionsData);
       setDropdownSettings(dropdownData);
 
-      // Build the name -> "Name\nFull street address" lookup for shipment memos.
-      // Branches contribute their `address` field; custom addresses do the same.
-      // Falls back to just the name if no street info is on file.
+      // Build the short-label → "Address line, Phone" lookup for shipment
+      // memos. The memo intentionally omits the branch/address *name* and
+      // keeps only the postal line plus phone number. Falls back gracefully
+      // if phone or address is missing.
+      const joinAddressPhone = (addr?: string, phone?: string): string => {
+        const parts = [addr, phone].map((s) => (s || '').trim()).filter(Boolean);
+        return parts.join(', ');
+      };
       const book: Record<string, string> = {};
-      for (const b of branchesData as Array<{ name: string; address?: string }>) {
-        if (b?.name) book[b.name] = b.address ? `${b.name}\n${b.address}` : b.name;
+      for (const b of branchesData as Array<{ name: string; address?: string; phone?: string }>) {
+        if (b?.name) book[b.name] = joinAddressPhone(b.address, b.phone) || b.name;
       }
-      for (const a of addressesData as Array<{ name: string; address?: string }>) {
-        if (a?.name) book[a.name] = a.address ? `${a.name}\n${a.address}` : a.name;
+      for (const a of addressesData as Array<{ name: string; address?: string; phone?: string }>) {
+        if (a?.name) book[a.name] = joinAddressPhone(a.address, a.phone) || a.name;
       }
       setAddressBook(book);
       

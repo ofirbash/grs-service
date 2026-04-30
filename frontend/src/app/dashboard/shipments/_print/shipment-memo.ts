@@ -58,13 +58,14 @@ interface PrintShipmentOptions {
 export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipmentOptions): void {
   const typeLabel = SHIPMENT_TYPE_LABELS[shipment.shipment_type] || shipment.shipment_type;
 
-  /** Resolve a stored short address label (e.g. "Israel Office") to its full
-   * postal address using the supplied lookup. Falls back to the raw value
-   * if no entry is found, or if the value already looks like a full address. */
-  const resolveAddress = (raw: string): string => {
-    if (!raw) return '';
+  /** Resolve a stored short address label (e.g. "Israel Office") into two
+   * lines: the label on top, then the postal address + phone on a second
+   * line below. The `addressBook` values are built upstream as a single
+   * string "address, phone" — here we just glue the label on top. */
+  const resolveAddress = (raw: string): { label: string; line: string } => {
+    if (!raw) return { label: '', line: '' };
     const full = addressBook?.[raw];
-    return full && full.trim() ? full : raw;
+    return { label: raw, line: full && full.trim() ? full : '' };
   };
 
   // Aggregate stones with parent job reference for a single unified table
@@ -178,7 +179,9 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
     .field .value { color: #141417; font-size: 13px; font-weight: 600; }
     .field .value.accent { color: #E30613; }
     .field-wide { grid-column: 1 / -1; }
-    .field-wide .addr-value { font-weight: 500; line-height: 1.45; white-space: pre-wrap; }
+    .field-wide .addr-value { font-weight: 500; line-height: 1.45; }
+    .field-wide .addr-label { font-weight: 700; color: #141417; font-size: 13px; }
+    .field-wide .addr-line { display: block; font-weight: 500; color: #3f3f46; font-size: 12px; margin-top: 2px; }
     .route-card { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; background: #f5f5f5; border: 1px solid #e5e5e5; padding: 16px; border-radius: 8px; }
     .route-card .endpoint { padding: 8px 12px; background: #ffffff; border: 1px solid #e5e5e5; border-radius: 6px; }
     .route-card .endpoint .label { font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -199,7 +202,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
     .summary .summary-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px; color: #a1a1aa; }
     .summary .summary-value { font-size: 18px; font-weight: 700; color: #ffffff; margin-top: 4px; }
     .notes-box { padding: 12px 16px; background: #fafafa; border: 1px solid #e5e5e5; border-radius: 8px; color: #3f3f46; font-size: 11px; }
-    .signatures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 28px 0 12px; }
+    .signatures { display: grid; grid-template-columns: repeat(2, 1fr); gap: 48px; margin: 28px 0 12px; max-width: 640px; }
     .sig-block p { margin: 0 0 22px 0; color: #141417; font-size: 12px; font-weight: 600; }
     .sig-line { border-bottom: 1px solid #141417; height: 38px; }
     .sig-caption { margin-top: 4px; font-size: 10px; color: #a1a1aa; }
@@ -224,7 +227,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
   </div>
 
   <div class="doc-title-bar">
-    <h1>Shipment Memo</h1>
+    <h1>Shipment Memo - Gemstones</h1>
     <div class="shipment-number">Shipment #${shipment.shipment_number} · ${dateSent}</div>
   </div>
 
@@ -245,11 +248,17 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
       </div>
       <div class="field field-wide">
         <div class="label">From</div>
-        <div class="value addr-value">${esc(resolveAddress(shipment.source_address))}</div>
+        ${(() => {
+          const a = resolveAddress(shipment.source_address);
+          return `<div class="value addr-value"><span class="addr-label">${esc(a.label)}</span>${a.line ? `<span class="addr-line">${esc(a.line)}</span>` : ''}</div>`;
+        })()}
       </div>
       <div class="field field-wide">
         <div class="label">To</div>
-        <div class="value addr-value">${esc(resolveAddress(shipment.destination_address))}</div>
+        ${(() => {
+          const a = resolveAddress(shipment.destination_address);
+          return `<div class="value addr-value"><span class="addr-label">${esc(a.label)}</span>${a.line ? `<span class="addr-line">${esc(a.line)}</span>` : ''}</div>`;
+        })()}
       </div>
     </div>
   </div>
@@ -276,11 +285,6 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
     </div>
     <div class="sig-block">
       <p>Courier</p>
-      <div class="sig-line"></div>
-      <div class="sig-caption">Name · Date</div>
-    </div>
-    <div class="sig-block">
-      <p>Receiver</p>
       <div class="sig-line"></div>
       <div class="sig-caption">Name · Date</div>
     </div>
