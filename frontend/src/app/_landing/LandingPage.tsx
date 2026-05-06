@@ -87,20 +87,20 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
         className="text-white sticky top-0 z-30 border-b-2 border-black/20"
         style={{ backgroundColor: BRAND_RED }}
       >
-        <div className="mx-auto max-w-7xl flex items-center justify-between px-6 py-3.5">
+        <div className="mx-auto max-w-7xl flex items-center justify-between px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3">
-            <div className="bg-white rounded px-3 py-1 flex items-center">
+            <div className="bg-white rounded-md p-1.5 flex items-center justify-center">
               <Image
-                src="/logos/bashari-full.png"
+                src="/logos/bashari-square.png"
                 alt="Bashari"
-                width={120}
-                height={36}
+                width={48}
+                height={48}
                 priority
-                className="h-7 w-auto"
+                className="h-10 w-10 sm:h-12 sm:w-12 object-contain"
               />
             </div>
-            <span className="hidden sm:inline-block h-6 w-px bg-white/30" />
-            <span className="hidden sm:inline-block text-[11px] tracking-[0.3em] uppercase font-medium text-white">
+            <span className="hidden sm:inline-block h-8 w-px bg-white/30" />
+            <span className="text-[11px] sm:text-xs tracking-[0.3em] uppercase font-semibold text-white">
               Lab&nbsp;Direct
             </span>
           </div>
@@ -406,7 +406,19 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
         if (!o) setTimeout(reset, 200);
       }}
     >
-      <DialogContent className="sm:max-w-lg font-sans">
+      <DialogContent className="sm:max-w-lg font-sans max-h-[95vh] overflow-y-auto">
+        <div className="flex flex-col items-center gap-1.5 pb-2 pt-1 border-b border-black/10 -mx-6 px-6 mb-1">
+          <Image
+            src="/logos/bashari-square.png"
+            alt="Bashari"
+            width={56}
+            height={56}
+            className="h-12 w-12 object-contain"
+          />
+          <span className="text-[10px] tracking-[0.35em] uppercase font-semibold text-neutral-600">
+            Lab&nbsp;Direct
+          </span>
+        </div>
         <DialogHeader>
           <DialogTitle className="text-2xl text-black font-bold">
             {step === 'form' && 'Request Access'}
