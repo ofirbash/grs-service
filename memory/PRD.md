@@ -26,6 +26,46 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: May 6, 2026 — Public landing page + Request Access (OTP) signup flow
+
+**1. Landing page at `/`**
+- Editorial-luxury layout (Playfair Display headline, navy + amber + cream palette, gem-card hero composition, 5 feature cards, dark closing CTA + footer).
+- Top nav: `Login` + `Request Access` buttons.
+- File: `frontend/src/app/_landing/LandingPage.tsx` (new). Wired into the SPA router at `app/page.tsx` so unauth `/` → landing, auth `/` → `/dashboard`, unauth deep link → login (no marketing-page leak).
+- Playfair Display loaded via Google Fonts in `app/layout.tsx`.
+
+**2. Request Access dialog (3-step modal: form → OTP → success)**
+- Cloudflare Turnstile + honeypot on every step.
+- Fields: Full Name, Company, Email, Phone (all required).
+- Email OTP: 6-digit, 30-minute TTL, 5 attempts max, stored in `access_otps` collection.
+- Duplicate check: if email already has a user, silently triggers a fresh setup-token + reset email and returns the same `ok: true` shape (no enumeration).
+
+**3. Backend (`routes/access_requests.py` — new, ~330 lines)**
+- `POST /api/access-requests/send-otp` — public, Turnstile + honeypot guarded, generates OTP or silently-resets, sends email via Resend.
+- `POST /api/access-requests/verify-and-submit` — public, validates OTP (TTL + attempt cap), persists pending row, prevents duplicate pendings.
+- `GET /api/access-requests?status=pending|approved|rejected` — admin-only, sorted by submitted_at desc.
+- `POST /api/access-requests/{id}/approve` — admin-only. Creates client (if needed) + customer user with fresh setup_token, sends invitation email via existing welcome template, marks request approved.
+- `POST /api/access-requests/{id}/reject` — admin-only, optional reason, no email sent.
+
+**4. Admin UI**
+- New "Access Requests" tab inside `/dashboard/clients` (super_admin only).
+- Pending / Approved / Rejected filter pills with counts, full-text search, approve/reject actions, reject-reason dialog.
+- File: `frontend/src/app/dashboard/clients/_components/AccessRequestsTab.tsx` (new).
+
+**5. Other**
+- `accessRequestApi` added to `frontend/src/lib/api.ts`.
+- Public access-request endpoints whitelisted in the 401 redirect interceptor.
+- `User` store type unchanged (we already added `two_factor_enabled` last session).
+
+**Verified end-to-end** (curl + Playwright):
+- ✅ Landing page renders, Request Access dialog opens with all fields + Turnstile widget.
+- ✅ `send-otp` → email sent via Resend, OTP stored.
+- ✅ `verify-and-submit` matches OTP, creates pending row.
+- ✅ Admin lists pending, approves → user (role=customer, setup_token issued), client (with company), request marked `approved` + reviewer name; invitation email sent.
+- ✅ Login page still works for deep links while unauthenticated.
+- ✅ Test data cleaned up.
+
+
 ### Session: Apr 28, 2026 — Account setup flow + login bot protection + admin 2FA
 
 **1. Welcome email → guided setup page**

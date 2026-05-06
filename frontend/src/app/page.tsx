@@ -22,6 +22,7 @@ import { useAuthStore } from '@/lib/store';
 const LoginPage = lazy(() => import('./login/page'));
 const SetupPasswordPage = lazy(() => import('./setup-password/page'));
 const PayPage = lazy(() => import('./pay/page'));
+const LandingPage = lazy(() => import('./_landing/LandingPage'));
 const DashboardLayout = lazy(() => import('./dashboard/layout'));
 const DashboardHome = lazy(() => import('./dashboard/page'));
 const JobsPage = lazy(() => import('./dashboard/jobs/page'));
@@ -85,11 +86,26 @@ export default function Home() {
     return <Suspense fallback={<LoadingScreen />}><PayPage /></Suspense>;
   }
 
-  // Anyone not signed in lands on the login page (regardless of URL).
-  // No redirect — server keeps returning this same HTML, so a redirect would
-  // just bounce us back to here on next paint.
+  // Unauthenticated visitors: landing page at "/", login page at "/login".
+  // Anywhere else falls back to login (a deep link to a protected page when
+  // logged out shows the login form, not the marketing site).
   if (!isAuthenticated) {
+    if (pathname === '/' || pathname === '') {
+      const goLogin = () => window.history.pushState({}, '', '/login');
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <LandingPage onLoginClick={goLogin} />
+        </Suspense>
+      );
+    }
     return <Suspense fallback={<LoadingScreen />}><LoginPage /></Suspense>;
+  }
+
+  // Authenticated user hitting "/" goes straight to the dashboard home.
+  if (pathname === '/' || pathname === '') {
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/dashboard');
+    }
   }
 
   // Authenticated dashboard routes are wrapped in the dashboard layout.

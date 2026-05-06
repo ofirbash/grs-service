@@ -32,7 +32,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, Plus, Search, Loader2, Pencil, FileText, KeyRound, Mail, CheckCircle2, XCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { Users, Plus, Search, Loader2, Pencil, FileText, KeyRound, Mail, CheckCircle2, XCircle, AlertCircle, Trash2, Inbox } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AccessRequestsTab } from './_components/AccessRequestsTab';
 
 interface Client {
   id: string;
@@ -344,8 +346,24 @@ export default function ClientsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-navy-900">Clients</h2>
-          <p className="text-navy-600">Manage your client database</p>
+          <p className="text-navy-600">Manage your client database and access requests</p>
         </div>
+      </div>
+
+      <Tabs defaultValue="clients" className="space-y-6">
+        <TabsList className="bg-navy-100/60 border border-navy-200">
+          <TabsTrigger value="clients" data-testid="clients-tab-trigger">
+            <Users className="h-4 w-4 mr-2" /> Clients
+          </TabsTrigger>
+          {isSuperAdmin && (
+            <TabsTrigger value="access-requests" data-testid="access-requests-tab-trigger">
+              <Inbox className="h-4 w-4 mr-2" /> Access Requests
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="clients" className="space-y-6 mt-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
         <div className="flex items-center gap-2">
           {isSuperAdmin && (
             <Button
@@ -1115,6 +1133,14 @@ export default function ClientsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        {isSuperAdmin && (
+          <TabsContent value="access-requests" className="mt-0">
+            <AccessRequestsTab />
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }

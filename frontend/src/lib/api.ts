@@ -34,7 +34,9 @@ api.interceptors.response.use(
         requestUrl.includes('/auth/login') ||
         requestUrl.includes('/auth/forgot-password') ||
         requestUrl.includes('/auth/setup-password') ||
-        requestUrl.includes('/auth/setup-info');
+        requestUrl.includes('/auth/setup-info') ||
+        requestUrl.includes('/access-requests/send-otp') ||
+        requestUrl.includes('/access-requests/verify-and-submit');
       const onLoginPage = window.location.pathname.startsWith('/login');
 
       if (!isAuthEndpoint && !onLoginPage) {
@@ -116,6 +118,57 @@ export const authApi = {
   },
   disable2fa: async (totp_code: string) => {
     const response = await api.post('/auth/disable-2fa', { totp_code });
+    return response.data;
+  },
+};
+
+// Access Request API (public landing page signup)
+export const accessRequestApi = {
+  sendOtp: async (data: {
+    full_name: string;
+    company: string;
+    email: string;
+    phone: string;
+    turnstile_token?: string;
+    website?: string;
+  }) => {
+    const response = await api.post('/access-requests/send-otp', data);
+    return response.data;
+  },
+  verifyAndSubmit: async (data: {
+    email: string;
+    otp: string;
+    full_name: string;
+    company: string;
+    phone: string;
+    turnstile_token?: string;
+    website?: string;
+  }) => {
+    const response = await api.post('/access-requests/verify-and-submit', data);
+    return response.data;
+  },
+  list: async (status?: 'pending' | 'approved' | 'rejected') => {
+    const response = await api.get('/access-requests', { params: status ? { status } : {} });
+    return response.data as Array<{
+      id: string;
+      full_name: string;
+      company: string;
+      email: string;
+      phone: string;
+      status: string;
+      submitted_at: string;
+      reviewed_at: string | null;
+      reviewed_by: string | null;
+      reject_reason: string | null;
+      client_id: string | null;
+    }>;
+  },
+  approve: async (id: string) => {
+    const response = await api.post(`/access-requests/${id}/approve`);
+    return response.data;
+  },
+  reject: async (id: string, reason: string) => {
+    const response = await api.post(`/access-requests/${id}/reject`, { reason });
     return response.data;
   },
 };
