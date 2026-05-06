@@ -23,10 +23,16 @@ import {
   Loader2,
   ArrowRight,
   ShieldCheck,
+  CreditCard,
 } from 'lucide-react';
 import { accessRequestApi } from '@/lib/api';
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '';
+
+// Brand red — close to the GRS reference. Tailwind doesn't ship this exact
+// shade so we inline it via style props for the few places we need it.
+const BRAND_RED = '#E60012';
+const BRAND_RED_DARK = '#B8000E';
 
 interface LandingPageProps {
   onLoginClick: () => void;
@@ -63,26 +69,38 @@ const FEATURES = [
     body:
       'Benefit from our tiered discount model — the more you send, the more you save.',
   },
+  {
+    Icon: CreditCard,
+    title: 'Online Payments',
+    body:
+      'Quick and secure payment options via Credit Card or BIT.',
+  },
 ] as const;
 
 export default function LandingPage({ onLoginClick }: LandingPageProps) {
   const [requestOpen, setRequestOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-stone-50 text-navy-900 selection:bg-amber-200/60">
-      {/* Header bar */}
-      <header className="border-b border-navy-100/80 bg-white/95 backdrop-blur sticky top-0 z-30">
-        <div className="mx-auto max-w-7xl flex items-center justify-between px-6 py-4">
+    <div className="min-h-screen bg-white text-black antialiased font-sans selection:bg-black selection:text-white">
+      {/* Top red brand bar */}
+      <header
+        className="text-white sticky top-0 z-30 border-b-2 border-black/20"
+        style={{ backgroundColor: BRAND_RED }}
+      >
+        <div className="mx-auto max-w-7xl flex items-center justify-between px-6 py-3.5">
           <div className="flex items-center gap-3">
-            <Image
-              src="/logos/bashari-full.png"
-              alt="Bashari"
-              width={140}
-              height={42}
-              priority
-            />
-            <span className="hidden sm:inline-block h-6 w-px bg-navy-200" />
-            <span className="hidden sm:inline-block text-[11px] tracking-[0.3em] uppercase text-navy-500">
+            <div className="bg-white rounded px-3 py-1 flex items-center">
+              <Image
+                src="/logos/bashari-full.png"
+                alt="Bashari"
+                width={120}
+                height={36}
+                priority
+                className="h-7 w-auto"
+              />
+            </div>
+            <span className="hidden sm:inline-block h-6 w-px bg-white/30" />
+            <span className="hidden sm:inline-block text-[11px] tracking-[0.3em] uppercase font-medium text-white">
               Lab&nbsp;Direct
             </span>
           </div>
@@ -90,14 +108,14 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
             <Button
               variant="ghost"
               onClick={onLoginClick}
-              className="text-navy-700 hover:text-navy-900 hover:bg-navy-50 font-medium text-sm h-9 px-4"
+              className="text-white hover:text-white hover:bg-white/15 font-semibold text-sm h-9 px-4"
               data-testid="landing-login-button"
             >
               Login
             </Button>
             <Button
               onClick={() => setRequestOpen(true)}
-              className="bg-navy-900 hover:bg-navy-800 text-white font-medium text-sm h-9 px-4 sm:px-5"
+              className="bg-white hover:bg-neutral-100 text-black font-semibold text-sm h-9 px-4 sm:px-5"
               data-testid="landing-request-access-button"
             >
               Request Access
@@ -108,33 +126,27 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden">
-        {/* Decorative background — subtle vertical accent line + radial */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_-10%,rgba(180,83,9,0.07),transparent_55%)]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-12 top-0 hidden lg:block h-full w-px bg-gradient-to-b from-transparent via-amber-300/40 to-transparent"
-        />
-
+      <section className="relative overflow-hidden bg-white">
         <div className="relative mx-auto max-w-7xl px-6 pt-16 pb-20 lg:pt-24 lg:pb-28 grid lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-7 space-y-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-navy-200 bg-white px-3 py-1 text-[11px] tracking-[0.25em] uppercase text-navy-600">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              Bashari × GRS Lab Hong Kong
+            <div
+              className="inline-flex items-center gap-2 border border-black/15 bg-white px-3 py-1 text-[11px] tracking-[0.25em] uppercase text-black font-semibold"
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: BRAND_RED }}
+              />
+              BASHARI × GRS
             </div>
             <h1
-              className="font-serif tracking-tight text-navy-900 text-4xl sm:text-5xl lg:text-6xl leading-[1.05]"
-              style={{ fontFamily: '"Playfair Display", Georgia, serif' }}
+              className="font-sans tracking-tight text-black text-4xl sm:text-5xl lg:text-6xl leading-[1.05] font-bold"
               data-testid="landing-hero-headline"
             >
-              <span className="font-bold">BASHARI</span>
-              <span className="text-amber-700"> — </span>
-              Your Local Gateway to <em className="italic">GRS Lab Services</em>.
+              <span style={{ color: BRAND_RED }}>BASHARI</span>
+              <span className="text-black"> — Your Local </span>
+              Gateway to GRS Lab Services.
             </h1>
-            <p className="max-w-2xl text-base sm:text-lg text-navy-600 leading-relaxed">
+            <p className="max-w-2xl text-base sm:text-lg text-neutral-700 leading-relaxed">
               Skip the logistical burden. Secure, transparent, and direct shipping for your
               gemstones to GRS lab in HK — managed locally in Israel by Bashari.
             </p>
@@ -142,7 +154,10 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
               <Button
                 onClick={() => setRequestOpen(true)}
                 size="lg"
-                className="bg-navy-900 hover:bg-navy-800 text-white h-12 px-7 text-sm tracking-wide"
+                className="text-white h-12 px-7 text-sm tracking-wide font-semibold"
+                style={{ backgroundColor: BRAND_RED }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = BRAND_RED_DARK)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = BRAND_RED)}
                 data-testid="hero-request-access-button"
               >
                 Request Access
@@ -152,70 +167,52 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
                 onClick={onLoginClick}
                 variant="outline"
                 size="lg"
-                className="border-navy-300 text-navy-800 hover:bg-navy-50 h-12 px-7 text-sm tracking-wide"
+                className="border-2 border-black text-black hover:bg-black hover:text-white h-12 px-7 text-sm tracking-wide font-semibold"
                 data-testid="hero-login-button"
               >
                 Login
               </Button>
             </div>
-            <div className="flex items-center gap-2 pt-3 text-xs text-navy-500">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <div className="flex items-center gap-2 pt-3 text-xs text-neutral-600">
+              <ShieldCheck className="h-4 w-4 text-black" />
               Insured shipments · Customs handled · Direct line to GRS HK
             </div>
           </div>
 
-          {/* Editorial visual block — replaces stock photo with a pure-CSS
-              composition that screams "lab + precision" without an external dep. */}
+          {/* Hero visual — actual GRS gemstone report rendered from the user's PDF */}
           <div className="lg:col-span-5 relative">
-            <div className="relative mx-auto max-w-md aspect-[4/5]">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-navy-900 via-navy-950 to-black shadow-2xl shadow-navy-900/30 overflow-hidden">
-                {/* gem facet illustration — pure CSS conic gradient */}
-                <div
-                  className="absolute inset-0 opacity-60"
-                  style={{
-                    background:
-                      'conic-gradient(from 210deg at 50% 45%, #1e3a8a, #0c4a6e, #155e75, #134e4a, #0f766e, #1e3a8a)',
-                    filter: 'blur(60px)',
-                  }}
+            <div className="relative mx-auto max-w-md">
+              {/* black drop shadow card behind the report for depth */}
+              <div className="absolute -inset-2 bg-black/5 rounded-sm rotate-[1.5deg]" aria-hidden />
+              <div
+                className="relative bg-white border border-black/10 shadow-2xl shadow-black/15 overflow-hidden"
+                style={{ aspectRatio: '1400 / 982' }}
+              >
+                <Image
+                  src="/landing/grs-report.jpg"
+                  alt="GRS Gemstone Report — Royal Blue Sapphire"
+                  fill
+                  sizes="(max-width: 1024px) 80vw, 480px"
+                  className="object-cover"
+                  priority
                 />
-                <div className="absolute top-8 left-8 right-8 flex items-center justify-between text-amber-200/80 text-[10px] tracking-[0.4em] uppercase">
-                  <span>Report · 25-040820</span>
-                  <span>GRS · HK</span>
-                </div>
-                <div className="absolute bottom-10 left-8 right-8 space-y-2 text-white">
-                  <div className="text-[10px] tracking-[0.35em] uppercase text-amber-200/80">
-                    Verbal Result
-                  </div>
-                  <div
-                    className="text-2xl"
-                    style={{ fontFamily: '"Playfair Display", Georgia, serif' }}
-                  >
-                    <em>Pigeon Blood</em> — Mozambique
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 pt-3">
-                    {[
-                      ['Stone', 'Ruby'],
-                      ['Carat', '3.42'],
-                      ['Treatment', 'No Heat'],
-                    ].map(([k, v]) => (
-                      <div key={k}>
-                        <div className="text-[10px] tracking-widest uppercase text-white/50">
-                          {k}
-                        </div>
-                        <div className="text-sm font-medium">{v}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                {/* small red accent strip */}
+                <div
+                  className="absolute top-0 left-0 h-1.5 w-1/3"
+                  style={{ backgroundColor: BRAND_RED }}
+                />
               </div>
-              {/* small floating accent card */}
-              <div className="absolute -bottom-6 -left-6 hidden md:block bg-white border border-navy-100 rounded-xl p-4 shadow-xl shadow-navy-900/10 w-44">
-                <div className="text-[10px] tracking-widest uppercase text-navy-400">
+              {/* floating accent card */}
+              <div className="absolute -bottom-5 -left-5 hidden md:block bg-black text-white p-4 shadow-xl shadow-black/20 w-44">
+                <div className="text-[10px] tracking-widest uppercase text-white/60">
                   Status
                 </div>
                 <div className="mt-1 flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-sm font-medium text-navy-800">Cert. Issued</span>
+                  <span
+                    className="h-2 w-2 rounded-full animate-pulse"
+                    style={{ backgroundColor: BRAND_RED }}
+                  />
+                  <span className="text-sm font-semibold">Cert. Issued</span>
                 </div>
               </div>
             </div>
@@ -224,36 +221,39 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
       </section>
 
       {/* Features */}
-      <section className="border-t border-navy-100 bg-white">
+      <section className="border-t border-black/10 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-20">
           <div className="max-w-2xl mb-14">
-            <div className="text-[11px] tracking-[0.3em] uppercase text-amber-700 font-medium">
+            <div
+              className="text-[11px] tracking-[0.3em] uppercase font-bold"
+              style={{ color: BRAND_RED }}
+            >
               Why Bashari
             </div>
-            <h2
-              className="mt-3 text-3xl sm:text-4xl text-navy-900 leading-tight"
-              style={{ fontFamily: '"Playfair Display", Georgia, serif' }}
-            >
-              A direct line between your stones and GRS Hong Kong.
+            <h2 className="mt-3 text-3xl sm:text-4xl text-black leading-tight font-bold">
+              A direct line between your stones and GRS Lab.
             </h2>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-navy-100">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-black/10">
             {FEATURES.map(({ Icon, title, body }) => (
               <div
                 key={title}
-                className="bg-white p-7 lg:p-9 group hover:bg-stone-50 transition-colors"
+                className="bg-white p-7 lg:p-9 group hover:bg-neutral-50 transition-colors"
                 data-testid={`feature-${title.toLowerCase().replace(/\s+/g, '-')}`}
               >
                 <div className="flex items-start gap-5">
-                  <div className="shrink-0 h-11 w-11 rounded-lg bg-navy-900 text-amber-200 flex items-center justify-center group-hover:bg-amber-700 group-hover:text-white transition-colors">
-                    <Icon className="h-5 w-5" strokeWidth={1.6} />
+                  <div
+                    className="shrink-0 h-11 w-11 bg-black text-white flex items-center justify-center group-hover:text-white transition-colors"
+                    style={{ /* hover swap to red via inline style on group-hover would need extra logic; keeping black for simplicity */ }}
+                  >
+                    <Icon className="h-5 w-5" strokeWidth={1.8} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-navy-900 text-lg leading-tight">
+                    <h3 className="font-semibold text-black text-lg leading-tight">
                       {title}
                     </h3>
-                    <p className="mt-2 text-sm text-navy-600 leading-relaxed">
+                    <p className="mt-2 text-sm text-neutral-700 leading-relaxed">
                       {body}
                     </p>
                   </div>
@@ -265,13 +265,10 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
       </section>
 
       {/* Closing CTA */}
-      <section className="bg-navy-950 text-white">
+      <section className="bg-black text-white">
         <div className="mx-auto max-w-7xl px-6 py-16 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
           <div>
-            <h3
-              className="text-2xl sm:text-3xl"
-              style={{ fontFamily: '"Playfair Display", Georgia, serif' }}
-            >
+            <h3 className="text-2xl sm:text-3xl font-bold">
               Ready to send your next parcel?
             </h3>
             <p className="text-white/70 mt-2 max-w-xl text-sm sm:text-base">
@@ -282,7 +279,10 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
           <Button
             onClick={() => setRequestOpen(true)}
             size="lg"
-            className="bg-amber-500 hover:bg-amber-400 text-navy-950 h-12 px-8 font-semibold tracking-wide shrink-0"
+            className="text-white h-12 px-8 font-semibold tracking-wide shrink-0"
+            style={{ backgroundColor: BRAND_RED }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = BRAND_RED_DARK)}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = BRAND_RED)}
             data-testid="footer-cta-request-access"
           >
             Request Access
@@ -291,10 +291,10 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
         </div>
       </section>
 
-      <footer className="bg-navy-950 border-t border-white/10 text-white/50">
+      <footer className="bg-black border-t border-white/10 text-white/60">
         <div className="mx-auto max-w-7xl px-6 py-6 flex flex-wrap items-center justify-between gap-4 text-xs">
           <div>© {new Date().getFullYear()} Bashari Lab-Direct. All rights reserved.</div>
-          <div className="tracking-widest uppercase">Bashari × GRS</div>
+          <div className="tracking-widest uppercase font-semibold">BASHARI × GRS</div>
         </div>
       </footer>
 
@@ -406,17 +406,14 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
         if (!o) setTimeout(reset, 200);
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg font-sans">
         <DialogHeader>
-          <DialogTitle
-            style={{ fontFamily: '"Playfair Display", Georgia, serif' }}
-            className="text-2xl text-navy-900"
-          >
+          <DialogTitle className="text-2xl text-black font-bold">
             {step === 'form' && 'Request Access'}
             {step === 'otp' && 'Verify your email'}
             {step === 'success' && "We've got your request"}
           </DialogTitle>
-          <DialogDescription className="text-navy-500">
+          <DialogDescription className="text-neutral-600">
             {step === 'form' &&
               'Tell us a bit about you. We review every request manually — usually within one business day.'}
             {step === 'otp' &&
@@ -430,7 +427,7 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
           <form onSubmit={handleSendOtp} className="space-y-4 pt-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="ra-name" className="text-xs text-navy-600">Full name *</Label>
+                <Label htmlFor="ra-name" className="text-xs text-black font-medium">Full name *</Label>
                 <Input
                   id="ra-name"
                   value={form.full_name}
@@ -440,7 +437,7 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="ra-company" className="text-xs text-navy-600">Company *</Label>
+                <Label htmlFor="ra-company" className="text-xs text-black font-medium">Company *</Label>
                 <Input
                   id="ra-company"
                   value={form.company}
@@ -451,7 +448,7 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
               </div>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="ra-email" className="text-xs text-navy-600">Email *</Label>
+              <Label htmlFor="ra-email" className="text-xs text-black font-medium">Email *</Label>
               <Input
                 id="ra-email"
                 type="email"
@@ -463,7 +460,7 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="ra-phone" className="text-xs text-navy-600">Phone *</Label>
+              <Label htmlFor="ra-phone" className="text-xs text-black font-medium">Phone *</Label>
               <Input
                 id="ra-phone"
                 type="tel"
@@ -502,19 +499,26 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
             )}
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-2.5 text-xs text-red-700" data-testid="ra-error">
+              <div
+                className="border bg-white p-2.5 text-xs"
+                style={{ borderColor: BRAND_RED, color: BRAND_RED_DARK }}
+                data-testid="ra-error"
+              >
                 {error}
               </div>
             )}
 
             <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="border-black text-black hover:bg-black hover:text-white">
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={submitting}
-                className="bg-navy-900 hover:bg-navy-800 min-w-32"
+                className="text-white min-w-32 font-semibold"
+                style={{ backgroundColor: BRAND_RED }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = BRAND_RED_DARK)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = BRAND_RED)}
                 data-testid="ra-send-otp-button"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Verification Code'}
@@ -526,7 +530,7 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
         {step === 'otp' && (
           <form onSubmit={handleVerifyAndSubmit} className="space-y-4 pt-1">
             <div>
-              <Label htmlFor="ra-otp" className="text-xs text-navy-600">6-digit code</Label>
+              <Label htmlFor="ra-otp" className="text-xs text-black font-medium">6-digit code</Label>
               <Input
                 id="ra-otp"
                 inputMode="numeric"
@@ -542,19 +546,26 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-2.5 text-xs text-red-700" data-testid="ra-otp-error">
+              <div
+                className="border bg-white p-2.5 text-xs"
+                style={{ borderColor: BRAND_RED, color: BRAND_RED_DARK }}
+                data-testid="ra-otp-error"
+              >
                 {error}
               </div>
             )}
 
             <div className="flex justify-between pt-1">
-              <Button type="button" variant="ghost" onClick={() => { setStep('form'); setError(''); }}>
+              <Button type="button" variant="ghost" onClick={() => { setStep('form'); setError(''); }} className="text-black hover:bg-black/5">
                 Back
               </Button>
               <Button
                 type="submit"
                 disabled={submitting || otp.length !== 6}
-                className="bg-navy-900 hover:bg-navy-800 min-w-32"
+                className="text-white min-w-32 font-semibold"
+                style={{ backgroundColor: BRAND_RED }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = BRAND_RED_DARK)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = BRAND_RED)}
                 data-testid="ra-verify-button"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit Request'}
@@ -565,14 +576,14 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
 
         {step === 'success' && (
           <div className="space-y-4 py-4 text-center">
-            <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto" />
-            <p className="text-sm text-navy-600 max-w-sm mx-auto">
+            <CheckCircle2 className="h-14 w-14 mx-auto text-black" />
+            <p className="text-sm text-neutral-700 max-w-sm mx-auto">
               Thanks <strong>{form.full_name.split(' ')[0]}</strong> — your request is in our
               queue. We&apos;ll email <strong>{form.email}</strong> as soon as it is approved.
             </p>
             <Button
               onClick={() => onOpenChange(false)}
-              className="bg-navy-900 hover:bg-navy-800"
+              className="bg-black hover:bg-neutral-800 text-white"
               data-testid="ra-success-close"
             >
               Close
