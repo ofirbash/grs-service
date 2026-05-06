@@ -201,8 +201,11 @@ async def send_otp(payload: SendOtpRequest, request: Request):
 
 @router.post("/access-requests/verify-and-submit")
 async def verify_and_submit(payload: VerifySubmitRequest, request: Request):
+    # Honeypot still guards this endpoint, but Turnstile is intentionally
+    # NOT re-checked here. The token from the send-otp step is single-use
+    # and already consumed; possession of the OTP is itself proof the user
+    # is human. Re-running siteverify would always fail.
     check_honeypot(payload.website)
-    await verify_turnstile(payload.turnstile_token, request)
 
     email = payload.email.lower().strip()
     row = await db.access_otps.find_one({"email": email})
