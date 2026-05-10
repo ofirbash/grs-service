@@ -87,33 +87,39 @@ export default function LandingPage({ onLoginClick }: LandingPageProps) {
         className="text-white sticky top-0 z-30 border-b-2 border-black/20"
         style={{ backgroundColor: BRAND_RED }}
       >
-        <div className="mx-auto max-w-7xl flex items-center justify-between px-4 sm:px-6 py-3">
-          <div className="flex items-center">
-            <Image
+        <div className="mx-auto max-w-7xl flex items-center justify-between gap-4 px-4 sm:px-6 py-3">
+          {/* Plain <img> + inline width:auto preserves aspect ratio reliably
+              inside a flex container (Next/Image sometimes squashes when
+              it has to share a tight row with other flex items). */}
+          <a
+            href="/"
+            className="flex items-center shrink-0"
+            data-testid="landing-logo"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src="/logos/labdirect-white.png"
               alt="Bashari Lab-Direct"
-              width={800}
-              height={116}
-              priority
-              className="h-8 sm:h-10 w-auto"
+              className="h-7 sm:h-10 w-auto block"
+              style={{ aspectRatio: '800 / 116' }}
             />
-          </div>
-          <nav className="flex items-center gap-2 sm:gap-3">
+          </a>
+          <nav className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <Button
               variant="ghost"
               onClick={onLoginClick}
-              className="text-white hover:text-white hover:bg-white/15 font-semibold text-sm h-9 px-4"
+              className="text-white hover:text-white hover:bg-white/15 font-semibold text-xs sm:text-sm h-9 px-3 sm:px-4"
               data-testid="landing-login-button"
             >
               Login
             </Button>
             <Button
               onClick={() => setRequestOpen(true)}
-              className="bg-white hover:bg-neutral-100 text-black font-semibold text-sm h-9 px-4 sm:px-5"
+              className="bg-white hover:bg-neutral-100 text-black font-semibold text-xs sm:text-sm h-9 px-3 sm:px-5"
               data-testid="landing-request-access-button"
             >
               Request Access
-              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              <ArrowRight className="ml-1 sm:ml-1.5 h-3.5 w-3.5" />
             </Button>
           </nav>
         </div>
