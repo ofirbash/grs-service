@@ -56,6 +56,7 @@ import {
   FileCheck2,
   Send,
   Trash2,
+  XCircle,
 } from 'lucide-react';
 
 import type {
@@ -64,6 +65,7 @@ import type {
 } from './_types';
 import { printShipmentMemo } from './_print/shipment-memo';
 import { PartialStonesPicker } from './_components/PartialStonesPicker';
+import { DoubleConfirmDialog } from '@/components/DoubleConfirmDialog';
 
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -112,6 +114,9 @@ export default function ShipmentsPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [shipmentJobs, setShipmentJobs] = useState<Job[]>([]);
+
+  // Cancel-shipment double-confirm
+  const [cancelShipmentTarget, setCancelShipmentTarget] = useState<Shipment | null>(null);
 
   // Nested Job dialog (opens on top of shipment dialog)
   const [jobDialogOpen, setJobDialogOpen] = useState(false);
@@ -1211,6 +1216,18 @@ export default function ShipmentsPage() {
                       Add Jobs
                     </Button>
                   )}
+                  {selectedShipment.status !== 'delivered' && selectedShipment.status !== 'cancelled' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCancelShipmentTarget(selectedShipment)}
+                      className="border-red-200 text-red-600 hover:bg-red-50"
+                      data-testid="cancel-shipment-button"
+                    >
+                      <XCircle className="h-4 w-4 mr-1" />
+                      Cancel
+                    </Button>
+                  )}
                 </div>
               )}
             </DialogTitle>
@@ -2293,6 +2310,30 @@ export default function ShipmentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel-shipment double-confirm */}
+      <DoubleConfirmDialog
+        open={!!cancelShipmentTarget}
+        onOpenChange={(o) => { if (!o) setCancelShipmentTarget(null); }}
+        title={`Cancel shipment ${cancelShipmentTarget?.tracking_number || ''}?`}
+        description={
+          <>
+            The shipment will be marked <strong>Cancelled</strong> and any
+            attached jobs will revert to their pre-shipment state. Stones
+            in this shipment are released back to the source location.
+          </>
+        }
+        confirmLabel="Cancel Shipment"
+        testIdPrefix="cancel-shipment"
+        onConfirm={async () => {
+          if (!cancelShipmentTarget) return;
+          await shipmentsApi.updateStatus(cancelShipmentTarget.id, 'cancelled', true);
+          await fetchData();
+          setSelectedShipment((prev) =>
+            prev && prev.id === cancelShipmentTarget.id ? { ...prev, status: 'cancelled' } : prev
+          );
+        }}
+      />
     </div>
   );
 }

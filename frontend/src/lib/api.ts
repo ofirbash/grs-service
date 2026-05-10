@@ -318,7 +318,7 @@ export const jobsApi = {
 
 // Stones API
 export const stonesApi = {
-  getAll: async (params?: { branch_id?: string }) => {
+  getAll: async (params?: { branch_id?: string; include_cancelled?: boolean }) => {
     const response = await api.get('/stones', { params });
     return response.data;
   },
@@ -351,6 +351,14 @@ export const stonesApi = {
   },
   uploadGroupCertificateScan: async (job_id: string, certificate_group: number, filename: string, file_data: string) => {
     const response = await api.put('/stones/group/certificate-scan', { job_id, certificate_group, filename, file_data });
+    return response.data;
+  },
+  cancel: async (id: string) => {
+    const response = await api.patch(`/stones/${id}/cancel`);
+    return response.data;
+  },
+  uncancel: async (id: string) => {
+    const response = await api.patch(`/stones/${id}/uncancel`);
     return response.data;
   },
 };

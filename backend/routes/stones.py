@@ -15,8 +15,16 @@ router = APIRouter()
 
 
 @router.get("/stones")
-async def get_all_stones(branch_id: Optional[str] = None, user: dict = Depends(get_current_user)):
-    """Get all stones across all jobs with job info"""
+async def get_all_stones(
+    branch_id: Optional[str] = None,
+    include_cancelled: bool = False,
+    user: dict = Depends(get_current_user),
+):
+    """Get all stones across all jobs with job info.
+
+    Cancelled stones are excluded by default — pass `?include_cancelled=true`
+    to include them (used by the admin "show cancelled" toggle).
+    """
     query = {}
 
     if user["role"] == "customer":
@@ -36,9 +44,14 @@ async def get_all_stones(branch_id: Optional[str] = None, user: dict = Depends(g
     for job in jobs:
         job_id = str(job["_id"])
         job_number = job.get("job_number", 0)
+        job_cancelled = job.get("status") == "cancelled"
         for stone in job.get("stones", []):
+            stone_cancelled = bool(stone.get("cancelled")) or job_cancelled
+            if stone_cancelled and not include_cancelled:
+                continue
             stone_data = {
                 **stone,
+                "cancelled": stone_cancelled,
                 "job_id": job_id,
                 "job_number": job_number,
                 "client_name": job.get("client_name", ""),
@@ -224,3 +237,86 @@ async def upload_stone_certificate_scan(stone_id: str, data: CertificateScanUplo
     )
 
     return {"message": "Certificate scan uploaded successfully", "filename": data.filename}
+
+
+
+@router.patch("/stones/{stone_id}/cancel")
+async def cancel_stone(stone_id: str, user: dict = Depends(require_admin)):
+    """Mark an individual stone as cancelled.
+
+    Cancelled stones stay on their parent job (so we keep the audit trail)
+    but are excluded from default queries, the dashboard counts, and any
+    fee/value totals. The job's stored `total_stones / total_value /
+    total_fee` are recomputed from the surviving stones so the dashboard
+    aggregates stay accurate. Reverse via `uncancel_stone` below.
+    """
+    job = await db.jobs.find_one({"stones.id": stone_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Stone not found")
+
+    new_stones = []
+    for s in job.get("stones", []):
+        if s.get("id") == stone_id:
+            new_stones.append({
+                **s,
+                "cancelled": True,
+                "cancelled_at": datetime.utcnow(),
+                "cancelled_by": user.get("full_name") or user.get("email"),
+            })
+        else:
+            new_stones.append(s)
+
+    active = [s for s in new_stones if not s.get("cancelled")]
+    totals = _recompute_job_totals(active)
+
+    await db.jobs.update_one(
+        {"_id": job["_id"]},
+        {"$set": {
+            "stones": new_stones,
+            **totals,
+            "updated_at": datetime.utcnow(),
+        }},
+    )
+    return {"message": "Stone cancelled", "totals": totals}
+
+
+@router.patch("/stones/{stone_id}/uncancel")
+async def uncancel_stone(stone_id: str, user: dict = Depends(require_admin)):
+    """Reverse a stone cancellation (admin escape hatch)."""
+    job = await db.jobs.find_one({"stones.id": stone_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Stone not found")
+
+    new_stones = []
+    for s in job.get("stones", []):
+        if s.get("id") == stone_id:
+            cleaned = {k: v for k, v in s.items() if k not in ("cancelled", "cancelled_at", "cancelled_by")}
+            new_stones.append(cleaned)
+        else:
+            new_stones.append(s)
+
+    active = [s for s in new_stones if not s.get("cancelled")]
+    totals = _recompute_job_totals(active)
+
+    await db.jobs.update_one(
+        {"_id": job["_id"]},
+        {"$set": {
+            "stones": new_stones,
+            **totals,
+            "updated_at": datetime.utcnow(),
+        }},
+    )
+    return {"message": "Stone restored", "totals": totals}
+
+
+def _recompute_job_totals(active_stones: list) -> dict:
+    """Sum value/fee/count over a list of stone dicts.
+
+    Pulled out so cancel + uncancel share the same logic and a future
+    bulk-cancel endpoint can reuse it.
+    """
+    return {
+        "total_stones": len(active_stones),
+        "total_value": sum(float(s.get("value", 0) or 0) for s in active_stones),
+        "total_fee": sum(float(s.get("actual_fee") or s.get("fee", 0) or 0) for s in active_stones),
+    }

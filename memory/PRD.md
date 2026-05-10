@@ -26,6 +26,33 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: May 10, 2026 — Stone & shipment cancellation with double-confirm
+
+**1. Reusable `<DoubleConfirmDialog>`** (`frontend/src/components/DoubleConfirmDialog.tsx`)
+- Two-click pattern: step 1 explains the action, step 2 forces a second click. Async `onConfirm`, auto-closes on success, surfaces error on failure. Used everywhere we need a "really sure?" beat.
+
+**2. Stones can now be individually cancelled**
+- New endpoints: `PATCH /api/stones/{id}/cancel` + `PATCH /api/stones/{id}/uncancel` (admin-only).
+- Cancelled flag persisted on the stone object inside the parent job's `stones` array (audit trail kept).
+- Job's stored `total_stones / total_value / total_fee` are recomputed in `_recompute_job_totals` after every cancel/uncancel so dashboard aggregates stay correct.
+- `GET /api/stones` excludes cancelled by default; pass `?include_cancelled=true` to surface them.
+- Stones page UI: per-row red Cancel button, "Show cancelled" toggle, restore button on cancelled rows, line-through styling. Mobile cards mirror the same.
+
+**3. Shipments**: existing `cancelled` status already worked via the status dropdown; added a discoverable Cancel button (with double-confirm) in the shipment detail view header. Reuses existing `PUT /shipments/{id}/status` with `cancelled` + `cascade_to_jobs=true` (jobs revert to pre-shipment state).
+
+**Verified via curl + Mongo**:
+- ✅ Cancel flag persists with `cancelled_by` audit field.
+- ✅ Default GET hides cancelled stones; `?include_cancelled=true` shows them.
+- ✅ Job totals correctly drop to 0 on cancel and restore exactly to original on uncancel ($55,555 value / $700 fee in test case).
+
+**Files**:
+- `backend/routes/stones.py` — `_recompute_job_totals` helper, `cancel_stone`, `uncancel_stone`, updated `get_all_stones` filter.
+- `frontend/src/components/DoubleConfirmDialog.tsx` (new).
+- `frontend/src/lib/api.ts` — `stonesApi.cancel/uncancel` + `getAll` accepts `include_cancelled`.
+- `frontend/src/app/dashboard/stones/page.tsx` — toggle, cancel/restore buttons, dialog.
+- `frontend/src/app/dashboard/shipments/page.tsx` — Cancel button + dialog.
+
+
 ### Session: May 6, 2026 — Public landing page + Request Access (OTP) signup flow
 
 **1. Landing page at `/`**
