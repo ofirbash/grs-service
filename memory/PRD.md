@@ -26,6 +26,32 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: May 13, 2026 — Invoice generation crash + Cloudflare 520 root cause
+
+**Problem on production**: Clicking "Generate Invoice" on a job returned an error, then subsequent requests showed `Cloudflare 520 — Web server returned an unknown error`.
+
+**Root causes (3 bugs in `backend/routes/pdf.py`)**:
+
+1. **`stone.get('fee', 0)` returns `None` when fee is explicitly null** (default only kicks in for missing keys). `total_estimated += None` raised TypeError, the worker crashed before responding, Cloudflare wrapped the dropped connection as a 520. Same issue for `stone['value']` (KeyError on missing key) and `stone['sku']`.
+2. **Cancelled stones were still included in the invoice** — recently added cancellation feature wasn't wired into the PDF renderer.
+3. **Cloudinary upload had no client-side timeout** — slow uploads could hang the uvicorn worker past Cloudflare's 30s edge timeout, producing a 520.
+
+**Fix**:
+- Extracted invoice rendering into `_build_invoice_pdf_buffer()` so GET (preview) and POST (save to Cloudinary) share the exact same code.
+- Defensive helpers `_coerce_float(v)` and `_format_money(v)` coerce None / missing / non-numeric to 0 gracefully.
+- All `stone[...]` accesses → `stone.get(..., '')`.
+- Cancelled stones filtered out: `stones = [s for s in job.get('stones', []) if not s.get('cancelled')]`.
+- Cloudinary upload gets `timeout=25` (5s under Cloudflare's 30s edge timeout, so we always return a proper 5xx instead of a dropped connection).
+- Both endpoints wrap render + upload in `try/except` with `logger.exception(...)` so future failures show full tracebacks in prod logs.
+
+**Verified end-to-end on preview**:
+- ✅ Normal case: GET returns 342KB PDF, POST uploads to Cloudinary and stores URL.
+- ✅ Stress case: stone with `fee: null` + missing `value` field → PDF renders cleanly (renders as $0.00).
+- ✅ Cancelled stone present → correctly excluded from totals + PDF (size identical to clean run).
+
+**Files**: `backend/routes/pdf.py`.
+
+
 ### Session: May 10, 2026 — Stone & shipment cancellation with double-confirm
 
 **1. Reusable `<DoubleConfirmDialog>`** (`frontend/src/components/DoubleConfirmDialog.tsx`)
