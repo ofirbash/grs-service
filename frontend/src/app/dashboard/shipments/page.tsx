@@ -74,7 +74,7 @@ export default function ShipmentsPage() {
   const [options, setOptions] = useState<ShipmentOptions | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active');
   const [typeFilter, setTypeFilter] = useState<'all' | 'send_stones_to_lab' | 'stones_from_lab' | 'certificates_from_lab'>('all');
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'super_admin' || user?.role === 'branch_admin';
@@ -191,7 +191,9 @@ export default function ShipmentsPage() {
         addressesApi.getAll().catch(() => [] as Array<{ name: string; address?: string }>),
       ]);
       setShipments(shipmentsData);
-      setAvailableJobs(jobsData.filter((j: Job) => j.status !== 'done'));
+      // Hide finished + cancelled jobs from the "Add jobs to shipment"
+      // picker — only live jobs are eligible for new shipments.
+      setAvailableJobs(jobsData.filter((j: Job) => j.status !== 'done' && j.status !== 'cancelled'));
       setOptions(optionsData);
       setDropdownSettings(dropdownData);
 
@@ -635,16 +637,26 @@ export default function ShipmentsPage() {
     }
   };
 
+  /** Matches a shipment against the status pill. "active" = pending +
+   * in_transit only (the everyday working view). "all" still includes
+   * delivered + cancelled for historical lookups. */
+  const matchesStatusFilter = (status: string): boolean => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'active') return status === 'pending' || status === 'in_transit';
+    return status === statusFilter;
+  };
+
   const filteredShipments = useMemo(
     () => shipments.filter((shipment) => {
       const matchesSearch =
         shipment.shipment_number.toString().includes(searchTerm) ||
         shipment.courier.toLowerCase().includes(searchTerm.toLowerCase()) ||
         shipment.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || shipment.status === statusFilter;
+      const matchesStatus = matchesStatusFilter(shipment.status);
       const matchesType = typeFilter === 'all' || shipment.shipment_type === typeFilter;
       return matchesSearch && matchesStatus && matchesType;
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [shipments, searchTerm, statusFilter, typeFilter],
   );
 
@@ -658,13 +670,14 @@ export default function ShipmentsPage() {
         s.shipment_number.toString().includes(searchTerm) ||
         s.courier.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || s.status === statusFilter;
+      const matchesStatus = matchesStatusFilter(s.status);
       if (matchesSearch && matchesStatus) {
         counts.all += 1;
         if (s.shipment_type in counts) counts[s.shipment_type] += 1;
       }
     });
     return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shipments, searchTerm, statusFilter]);
 
   const getStatusBadge = (status: string) => {
@@ -850,6 +863,7 @@ export default function ShipmentsPage() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="active">Active (Pending + In Transit)</SelectItem>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="in_transit">In Transit</SelectItem>
