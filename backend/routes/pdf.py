@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from datetime import datetime
 from io import BytesIO
 from bson import ObjectId
+import asyncio
 import os
 import logging
 
@@ -224,7 +225,9 @@ async def generate_invoice_pdf(job_id: str, user: dict = Depends(get_current_use
     branch = await db.branches.find_one({"_id": ObjectId(job["branch_id"])}) if job.get("branch_id") else None
 
     try:
-        buffer = _build_invoice_pdf_buffer(job, client, branch)
+        # ReportLab is synchronous — run it in a thread so it doesn't
+        # block the event loop while we build the PDF.
+        buffer = await asyncio.to_thread(_build_invoice_pdf_buffer, job, client, branch)
     except Exception as e:
         logger.exception(f"Invoice PDF build failed for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Could not render invoice: {e}")
@@ -247,25 +250,35 @@ async def generate_and_save_invoice(job_id: str, user: dict = Depends(require_ad
     branch = await db.branches.find_one({"_id": ObjectId(job["branch_id"])}) if job.get("branch_id") else None
 
     try:
-        buffer = _build_invoice_pdf_buffer(job, client, branch)
+        # ReportLab is synchronous → run it off the event loop.
+        buffer = await asyncio.to_thread(_build_invoice_pdf_buffer, job, client, branch)
     except Exception as e:
-        # Critical: log the full traceback so we can see what bad data tripped
-        # the renderer in production logs. Without this, the worker dies
-        # silently and Cloudflare wraps the dropped connection as a 520.
         logger.exception(f"Invoice PDF build failed for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Could not render invoice: {e}")
 
     try:
         filename = f"invoice_job_{job['job_number']}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-        # Cap upload at 25s. Cloudinary's default has no client-side timeout
-        # — a slow network would hang the uvicorn worker until Cloudflare
-        # gives up (~30s) and returns a 520 to the user.
-        upload_result = cloudinary.uploader.upload(
-            buffer,
-            folder="invoices",
-            public_id=filename,
-            resource_type="raw",
-            timeout=25,
+
+        # CRITICAL: cloudinary.uploader.upload is a *synchronous* call (uses
+        # `requests` under the hood). Calling it directly from this async
+        # route would block the entire uvicorn event loop for the duration
+        # of the HTTP upload to Cloudinary. With a single worker (the
+        # production default), that means every concurrent request — even
+        # `/api/health` — sits queued for the whole upload, which often
+        # exceeds Cloudflare's 30s edge timeout and surfaces as a
+        # site-wide 520 outage. Offloading to a thread keeps the loop free.
+        def _do_upload() -> dict:
+            return cloudinary.uploader.upload(
+                buffer,
+                folder="invoices",
+                public_id=filename,
+                resource_type="raw",
+                timeout=25,
+            )
+
+        upload_result = await asyncio.wait_for(
+            asyncio.to_thread(_do_upload),
+            timeout=28,  # belt-and-suspenders: kill the thread if Cloudinary stalls past Cloudflare's edge.
         )
         invoice_url = upload_result.get('secure_url')
 
@@ -284,6 +297,9 @@ async def generate_and_save_invoice(job_id: str, user: dict = Depends(require_ad
             "invoice_url": invoice_url,
             "filename": f"{filename}.pdf"
         }
+    except asyncio.TimeoutError:
+        logger.error(f"Cloudinary upload timed out for job {job_id}")
+        raise HTTPException(status_code=504, detail="Invoice upload timed out. Please try again.")
     except Exception as e:
         logger.exception(f"Cloudinary upload failed for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to save invoice: {e}")

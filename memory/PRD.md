@@ -26,6 +26,24 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: May 15, 2026 — Real fix for invoice 520: blocking sync call in async route
+
+**Round 1 fix (May 13) was incomplete.** Defensive None handling helped, but the real culprit was a blocking sync call inside an async route handler.
+
+**Diagnosis from user's DevTools**: the response body for `POST /api/jobs/{id}/generate-invoice` was literally the Cloudflare 520 HTML page — the backend never responded at all. Combined with "the whole site goes down for a few minutes after, then recovers", this is the classic `cloudinary.uploader.upload()` (sync, uses `requests`) called inside `async def` route → blocks the entire uvicorn event loop for the duration of the HTTP upload → all other requests queue up → Cloudflare's 30s edge timeout fires → site-wide 520 cascade.
+
+**Fix** (`backend/routes/pdf.py`):
+- `_build_invoice_pdf_buffer` (ReportLab) wrapped in `asyncio.to_thread(...)` for both GET and POST endpoints.
+- `cloudinary.uploader.upload(...)` wrapped in `asyncio.to_thread(...)` and additionally bounded by `asyncio.wait_for(..., timeout=28)` so a Cloudinary stall returns 504 instead of dropping the connection (which Cloudflare wraps as 520).
+- Distinct `asyncio.TimeoutError` handler returns a clean 504 with `Invoice upload timed out. Please try again.`
+
+**Verified on preview**:
+- ✅ Single invoice generation: GET 2.6s, POST 2.8s, both 200.
+- ✅ **Concurrency**: 3 invoice POSTs running in parallel + 1 `/dashboard/stats` request → all 200, stats endpoint responds in **180ms** while uploads are in flight. Before the fix, stats would have queued behind the uploads (often beyond Cloudflare's 30s timeout).
+
+**Files**: `backend/routes/pdf.py`.
+
+
 ### Session: May 13, 2026 — Invoice generation crash + Cloudflare 520 root cause
 
 **Problem on production**: Clicking "Generate Invoice" on a job returned an error, then subsequent requests showed `Cloudflare 520 — Web server returned an unknown error`.
