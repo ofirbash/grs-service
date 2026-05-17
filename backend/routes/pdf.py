@@ -121,9 +121,13 @@ def _coerce_float(v) -> float:
 
 
 COMPANY_NAME = "ELIYAHU BASHARI DIAMONDS LTD."
-COMPANY_ADDRESS_LINE = (
-    "Diamond Tower, 1 Jabotinsky St., 12th floor, Ramat Gan 5252002, Israel · "
-    "Tel: +972-3-7521295 · info@bashari.co"
+COMPANY_FOOTER_ADDRESS = (
+    "ELIYAHU BASHARI DIAMONDS LTD. · "
+    "Zeev Jabotinsky St 1, Maccabi Building, Floor 23, Room 42-44, "
+    "Ramat Gan, 5252001 Israel"
+)
+COMPANY_FOOTER_CONTACT = (
+    "T +972-3-7521295 · M +972-54-2989805 · lab@bashari.co · VAT No. 513180083"
 )
 
 WIRE_DETAILS = [
@@ -138,41 +142,48 @@ WIRE_DETAILS = [
 def _draw_invoice_chrome(canvas, doc):
     """Page-level chrome (header + footer) drawn on every page.
 
-    Black-only palette. The square Bashari mark + company name run at the top,
-    and the full postal/contact line runs at the bottom, separated by hairlines.
+    Header: square "B" mark centered, company name centered beneath it,
+    hairline rule. Footer: hairline rule + two centered lines (address +
+    contact). Black-only.
     """
     canvas.saveState()
     page_w, page_h = doc.pagesize
 
-    # Header: square logo + uppercase company name + thin rule
-    header_top = page_h - 0.45 * inch
+    # ---- Header (stacked: logo above, company name below, centered) ----
+    logo_size = 0.55 * inch
+    logo_x = (page_w - logo_size) / 2
+    logo_y = page_h - 0.55 * inch  # top of logo
     logo = download_square_logo()
     if logo:
         try:
             from reportlab.lib.utils import ImageReader
             canvas.drawImage(
                 ImageReader(logo),
-                x=0.55 * inch,
-                y=header_top - 0.45 * inch,
-                width=0.45 * inch,
-                height=0.45 * inch,
+                x=logo_x,
+                y=logo_y - logo_size + 0.1 * inch,
+                width=logo_size,
+                height=logo_size,
                 mask='auto',
                 preserveAspectRatio=True,
             )
         except Exception as e:
             logger.warning(f"Could not draw header logo: {e}")
     canvas.setFillColor(colors.black)
-    canvas.setFont('Helvetica-Bold', 12)
-    canvas.drawString(1.15 * inch, header_top - 0.28 * inch, COMPANY_NAME)
+    canvas.setFont('Helvetica-Bold', 11)
+    canvas.drawCentredString(page_w / 2, logo_y - logo_size + 0.0 * inch, COMPANY_NAME)
+    # hairline below the company name
+    rule_y = logo_y - logo_size - 0.1 * inch
     canvas.setStrokeColor(colors.black)
     canvas.setLineWidth(0.6)
-    canvas.line(0.55 * inch, header_top - 0.55 * inch, page_w - 0.55 * inch, header_top - 0.55 * inch)
+    canvas.line(0.55 * inch, rule_y, page_w - 0.55 * inch, rule_y)
 
-    # Footer: rule + postal address + page number
-    footer_top = 0.6 * inch
-    canvas.line(0.55 * inch, footer_top + 0.15 * inch, page_w - 0.55 * inch, footer_top + 0.15 * inch)
+    # ---- Footer (two centered lines + rule + page number) ----
+    footer_rule_y = 0.85 * inch
+    canvas.line(0.55 * inch, footer_rule_y, page_w - 0.55 * inch, footer_rule_y)
     canvas.setFont('Helvetica', 8)
-    canvas.drawCentredString(page_w / 2, footer_top - 0.02 * inch, COMPANY_ADDRESS_LINE)
+    canvas.drawCentredString(page_w / 2, footer_rule_y - 0.2 * inch, COMPANY_FOOTER_ADDRESS)
+    canvas.drawCentredString(page_w / 2, footer_rule_y - 0.36 * inch, COMPANY_FOOTER_CONTACT)
+    canvas.setFont('Helvetica', 7)
     canvas.drawRightString(page_w - 0.55 * inch, 0.35 * inch, f"Page {doc.page}")
     canvas.restoreState()
 
@@ -189,8 +200,8 @@ def _build_invoice_pdf_buffer(job: dict, client: dict, branch: dict, payment_url
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
-        topMargin=1.1 * inch,    # leave room for header chrome
-        bottomMargin=0.95 * inch,  # leave room for footer chrome
+        topMargin=1.5 * inch,    # taller for stacked logo + company name
+        bottomMargin=1.25 * inch,  # taller for 2-line footer
         leftMargin=0.65 * inch,
         rightMargin=0.65 * inch,
         title="Invoice",
@@ -344,18 +355,19 @@ def _build_invoice_pdf_buffer(job: dict, client: dict, branch: dict, payment_url
         pay_online_cell = [
             Paragraph('PAY ONLINE', section),
             Paragraph(
-                'Settle this invoice instantly with credit card, BIT, or bank transfer:',
+                'Settle this invoice instantly with credit card or BIT.',
                 body,
             ),
-            Spacer(1, 0.1 * inch),
+            Spacer(1, 0.12 * inch),
             Paragraph(
-                f'<font color="black"><b><u><link href="{payment_url}">{payment_url}</link></u></b></font>',
-                ParagraphStyle('PayLink', parent=body, fontSize=9, leading=12),
+                f'<font color="black"><b><u>'
+                f'<link href="{payment_url}">CLICK TO PAY</link>'
+                f'</u></b></font>',
+                ParagraphStyle('PayLink', parent=body, fontSize=11, leading=14, alignment=TA_LEFT),
             ),
             Spacer(1, 0.08 * inch),
             Paragraph(
-                'Click the link above to pay by credit card, BIT, or bank transfer. '
-                'No login required.',
+                'Click the link above to pay by credit card or BIT. No login required.',
                 note,
             ),
         ]
@@ -377,13 +389,6 @@ def _build_invoice_pdf_buffer(job: dict, client: dict, branch: dict, payment_url
         ('LEFTPADDING', (1, 0), (1, 0), 14),
     ]))
     elements.append(KeepTogether(two_col))
-
-    # --- Closing note -------------------------------------------------------
-    elements.append(Spacer(1, 0.3 * inch))
-    elements.append(Paragraph(
-        'Thank you for trusting Bashari with your stones.',
-        ParagraphStyle('Thanks', parent=note, alignment=TA_CENTER),
-    ))
 
     doc.build(elements, onFirstPage=_draw_invoice_chrome, onLaterPages=_draw_invoice_chrome)
     buffer.seek(0)
