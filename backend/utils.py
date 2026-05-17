@@ -28,9 +28,28 @@ def generate_sku(stone_type: str, weight: float, job_id: int, position: int) -> 
 
 
 def download_logo():
-    """Download logo image for PDF generation"""
+    """Download landscape logo image for PDF generation."""
     try:
         with urllib.request.urlopen(FULL_LOGO_URL, timeout=10) as response:
             return BytesIO(response.read())
-    except:
+    except Exception:
+        return None
+
+
+def download_square_logo():
+    """Download the square "B" mark used in invoice header/footer.
+
+    Prefers the local copy bundled into `backend/assets/` so PDF rendering
+    works even when outbound network is blocked. Falls back to the CDN URL.
+    """
+    import os
+    here = os.path.dirname(os.path.abspath(__file__))
+    local = os.path.join(here, "assets", "bashari-square.png")
+    if os.path.exists(local):
+        with open(local, "rb") as f:
+            return BytesIO(f.read())
+    try:
+        with urllib.request.urlopen(SQUARE_LOGO_URL, timeout=10) as response:
+            return BytesIO(response.read())
+    except Exception:
         return None

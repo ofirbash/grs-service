@@ -9,15 +9,17 @@ import logging
 
 import cloudinary
 import cloudinary.uploader
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+from reportlab.lib.units import inch, mm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
 
 from database import db
 from auth import get_current_user, require_admin
-from utils import download_logo
+from utils import download_logo, download_square_logo
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +100,10 @@ async def generate_memo_in_pdf(job_id: str, user: dict = Depends(get_current_use
     )
 
 
+# --------------------------------------------------------------------------
+#  Bashari brand constants for invoice rendering
+# --------------------------------------------------------------------------
+
 def _format_money(v) -> str:
     """Render numeric value as `$1,234.56`. Tolerates None / missing / str."""
     try:
@@ -114,105 +120,289 @@ def _coerce_float(v) -> float:
         return 0.0
 
 
-def _build_invoice_pdf_buffer(job: dict, client: dict, branch: dict) -> BytesIO:
+COMPANY_NAME = "ELIYAHU BASHARI DIAMONDS LTD."
+COMPANY_ADDRESS_LINE = (
+    "Diamond Tower, 1 Jabotinsky St., 12th floor, Ramat Gan 5252002, Israel · "
+    "Tel: +972-3-7521295 · info@bashari.co"
+)
+
+WIRE_DETAILS = [
+    ("Account Name", "ELIYAHU BASHARI DIAMONDS LTD."),
+    ("Bank Name", "Bank Mizrahi Tefahot"),
+    ("Account No.", "164265"),
+    ("IBAN / ACH Routing", "IL600204660000000164265"),
+    ("SWIFT Code", "MIZBILITDMD"),
+]
+
+
+def _draw_invoice_chrome(canvas, doc):
+    """Page-level chrome (header + footer) drawn on every page.
+
+    Black-only palette. The square Bashari mark + company name run at the top,
+    and the full postal/contact line runs at the bottom, separated by hairlines.
+    """
+    canvas.saveState()
+    page_w, page_h = doc.pagesize
+
+    # Header: square logo + uppercase company name + thin rule
+    header_top = page_h - 0.45 * inch
+    logo = download_square_logo()
+    if logo:
+        try:
+            from reportlab.lib.utils import ImageReader
+            canvas.drawImage(
+                ImageReader(logo),
+                x=0.55 * inch,
+                y=header_top - 0.45 * inch,
+                width=0.45 * inch,
+                height=0.45 * inch,
+                mask='auto',
+                preserveAspectRatio=True,
+            )
+        except Exception as e:
+            logger.warning(f"Could not draw header logo: {e}")
+    canvas.setFillColor(colors.black)
+    canvas.setFont('Helvetica-Bold', 12)
+    canvas.drawString(1.15 * inch, header_top - 0.28 * inch, COMPANY_NAME)
+    canvas.setStrokeColor(colors.black)
+    canvas.setLineWidth(0.6)
+    canvas.line(0.55 * inch, header_top - 0.55 * inch, page_w - 0.55 * inch, header_top - 0.55 * inch)
+
+    # Footer: rule + postal address + page number
+    footer_top = 0.6 * inch
+    canvas.line(0.55 * inch, footer_top + 0.15 * inch, page_w - 0.55 * inch, footer_top + 0.15 * inch)
+    canvas.setFont('Helvetica', 8)
+    canvas.drawCentredString(page_w / 2, footer_top - 0.02 * inch, COMPANY_ADDRESS_LINE)
+    canvas.drawRightString(page_w - 0.55 * inch, 0.35 * inch, f"Page {doc.page}")
+    canvas.restoreState()
+
+
+def _build_invoice_pdf_buffer(job: dict, client: dict, branch: dict, payment_url: str = "") -> BytesIO:
     """Render the invoice PDF for a job into an in-memory BytesIO.
 
-    Excludes cancelled stones (they don't belong on the invoice and would
-    inflate totals). All numeric fields are coerced defensively so a stone
-    with `fee: null` or a missing `value` field doesn't crash the request.
+    Black-only palette, branded header/footer, columns: #, SKU, Stone Type,
+    Weight, Value, Fees. Excludes cancelled stones. Defensively coerces
+    None / missing numeric fields. If `payment_url` is supplied, a clickable
+    "Pay Online" link is rendered next to the wire-transfer block.
     """
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        topMargin=1.1 * inch,    # leave room for header chrome
+        bottomMargin=0.95 * inch,  # leave room for footer chrome
+        leftMargin=0.65 * inch,
+        rightMargin=0.65 * inch,
+        title="Invoice",
+    )
 
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('Title', parent=styles['Title'], fontSize=18, spaceAfter=12, textColor=colors.HexColor('#1a365d'))
-    header_style = ParagraphStyle('Header', parent=styles['Normal'], fontSize=12, spaceAfter=6)
+    h_style = ParagraphStyle(
+        'InvHead', parent=styles['Normal'], fontName='Helvetica-Bold',
+        fontSize=18, spaceAfter=4, textColor=colors.black, leading=22,
+    )
+    label = ParagraphStyle(
+        'Label', parent=styles['Normal'], fontName='Helvetica',
+        fontSize=8, textColor=colors.black, leading=11, spaceAfter=2,
+        letterSpacing=0.5,
+    )
+    val = ParagraphStyle(
+        'Val', parent=styles['Normal'], fontName='Helvetica-Bold',
+        fontSize=10, textColor=colors.black, leading=12, spaceAfter=2,
+    )
+    body = ParagraphStyle(
+        'Body', parent=styles['Normal'], fontName='Helvetica',
+        fontSize=9, textColor=colors.black, leading=13,
+    )
+    note = ParagraphStyle(
+        'Note', parent=styles['Normal'], fontName='Helvetica-Oblique',
+        fontSize=8, textColor=colors.black, leading=11,
+    )
+    section = ParagraphStyle(
+        'Section', parent=styles['Normal'], fontName='Helvetica-Bold',
+        fontSize=10, textColor=colors.black, leading=12, spaceBefore=6, spaceAfter=4,
+    )
 
     elements = []
-    logo_data = download_logo()
-    if logo_data:
-        elements.append(RLImage(logo_data, width=2*inch, height=0.8*inch))
 
-    elements.append(Spacer(1, 0.3*inch))
-    elements.append(Paragraph("INVOICE", title_style))
-    elements.append(Paragraph(f"Job #{job.get('job_number', 'N/A')}", header_style))
-    elements.append(Paragraph(f"Date: {datetime.utcnow().strftime('%Y-%m-%d')}", header_style))
-    elements.append(Paragraph(f"Client: {client.get('name', 'N/A') if client else 'N/A'}", header_style))
-    elements.append(Paragraph(f"Service Type: {job.get('service_type', '—')}", header_style))
-    elements.append(Spacer(1, 0.3*inch))
+    # --- Title + meta block (two columns) -----------------------------------
+    invoice_no = f"INV-{job.get('job_number', 'NA'):0>5}"
+    today = datetime.utcnow().strftime('%d %b %Y')
+    client_name = (client.get('name') if client else None) or 'N/A'
+    company = (client.get('company') if client else None) or ''
 
-    # Only live stones go on the invoice.
-    stones = [s for s in job.get('stones', []) if not s.get('cancelled')]
-    has_actual_fees = any(s.get('actual_fee') is not None for s in stones)
-
-    if has_actual_fees:
-        table_data = [['#', 'SKU', 'Value', 'Color Test', 'Est. Fee', 'Actual Fee']]
-    else:
-        table_data = [['#', 'SKU', 'Value (USD)', 'Color Test', 'Fee (USD)']]
-
-    total_estimated = 0.0
-    total_actual = 0.0
-    for i, stone in enumerate(stones, 1):
-        estimated_fee = _coerce_float(stone.get('fee'))
-        actual_fee_raw = stone.get('actual_fee')
-        actual_fee = _coerce_float(actual_fee_raw) if actual_fee_raw is not None else None
-        total_estimated += estimated_fee
-        total_actual += actual_fee if actual_fee is not None else estimated_fee
-
-        if has_actual_fees:
-            table_data.append([
-                str(i),
-                str(stone.get('sku', '')),
-                _format_money(stone.get('value')),
-                'Yes' if stone.get('color_stability_test') else 'No',
-                _format_money(estimated_fee),
-                _format_money(actual_fee) if actual_fee is not None else '-',
-            ])
-        else:
-            table_data.append([
-                str(i),
-                str(stone.get('sku', '')),
-                _format_money(stone.get('value')),
-                'Yes (+$50)' if stone.get('color_stability_test') else 'No',
-                _format_money(estimated_fee),
-            ])
-
-    if has_actual_fees:
-        table_data.append(['', '', '', 'TOTAL:', _format_money(total_estimated), _format_money(total_actual)])
-        col_widths = [0.4*inch, 1.5*inch, 1*inch, 0.8*inch, 0.9*inch, 0.9*inch]
-    else:
-        table_data.append(['', '', '', 'TOTAL:', _format_money(total_estimated)])
-        col_widths = [0.5*inch, 1.8*inch, 1.2*inch, 1.2*inch, 1*inch]
-
-    table = Table(table_data, colWidths=col_widths)
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a365d')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
-        ('FONTNAME', (-2, -1), (-1, -1), 'Helvetica-Bold'),
-        ('BACKGROUND', (-2, -1), (-1, -1), colors.HexColor('#e2e8f0')),
+    meta_left = [
+        [Paragraph('INVOICE', h_style)],
+        [Paragraph('INVOICE NO.', label)],
+        [Paragraph(invoice_no, val)],
+        [Paragraph('JOB', label)],
+        [Paragraph(f"#{job.get('job_number', '—'):0>5}", val)],
+    ]
+    meta_right = [
+        [Paragraph('DATE', label)],
+        [Paragraph(today, val)],
+        [Paragraph('BILL TO', label)],
+        [Paragraph(client_name, val)],
+        [Paragraph(company, body) if company else Paragraph('', body)],
+    ]
+    meta_tbl = Table(
+        [[Table(meta_left, colWidths=[3.2 * inch]),
+          Table(meta_right, colWidths=[3.6 * inch])]],
+        colWidths=[3.3 * inch, 3.7 * inch],
+    )
+    meta_tbl.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
     ]))
-    elements.append(table)
+    elements.append(meta_tbl)
+    elements.append(Spacer(1, 0.25 * inch))
 
-    elements.append(Spacer(1, 0.3*inch))
-    amount_due = total_actual if has_actual_fees else total_estimated
-    elements.append(Paragraph(f"<b>Amount Due: {_format_money(amount_due)}</b>", header_style))
-    elements.append(Paragraph("Payment is due upon collection of stones.", header_style))
+    # --- Line items table ---------------------------------------------------
+    stones = [s for s in job.get('stones', []) if not s.get('cancelled')]
+    rows = [['#', 'SKU', 'STONE TYPE', 'WEIGHT (CT)', 'VALUE (USD)', 'FEES (USD)']]
+    total_value = 0.0
+    total_fee = 0.0
+    for i, stone in enumerate(stones, 1):
+        stone_value = _coerce_float(stone.get('value'))
+        actual_fee_raw = stone.get('actual_fee')
+        fee = _coerce_float(actual_fee_raw) if actual_fee_raw is not None else _coerce_float(stone.get('fee'))
+        total_value += stone_value
+        total_fee += fee
+        weight = _coerce_float(stone.get('weight'))
+        rows.append([
+            str(i),
+            str(stone.get('sku', '')),
+            str(stone.get('stone_type', '')),
+            f"{weight:.2f}" if weight else '—',
+            _format_money(stone_value),
+            _format_money(fee),
+        ])
 
-    elements.append(Spacer(1, 0.5*inch))
-    if branch:
-        footer_style = ParagraphStyle('Footer', fontSize=9, textColor=colors.gray)
-        elements.append(Paragraph(f"Office: {branch.get('name', '')}", footer_style))
-        elements.append(Paragraph(branch.get('address', ''), footer_style))
+    if not stones:
+        rows.append(['—', '—', 'No stones on this invoice', '—', '—', '—'])
 
-    doc.build(elements)
+    rows.append(['', '', '', 'TOTAL', _format_money(total_value), _format_money(total_fee)])
+
+    line_tbl = Table(
+        rows,
+        colWidths=[0.45 * inch, 1.45 * inch, 1.4 * inch, 1.1 * inch, 1.25 * inch, 1.25 * inch],
+        repeatRows=1,
+    )
+    line_tbl.setStyle(TableStyle([
+        # header row
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.black),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        # body rows
+        ('FONTNAME', (0, 1), (-1, -2), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -2), 9),
+        ('TEXTCOLOR', (0, 1), (-1, -2), colors.black),
+        ('LINEBELOW', (0, 1), (-1, -2), 0.25, colors.HexColor('#cccccc')),
+        ('TOPPADDING', (0, 1), (-1, -2), 6),
+        ('BOTTOMPADDING', (0, 1), (-1, -2), 6),
+        # total row
+        ('FONTNAME', (3, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, -1), (-1, -1), 9),
+        ('LINEABOVE', (3, -1), (-1, -1), 1, colors.black),
+        ('TOPPADDING', (0, -1), (-1, -1), 8),
+        # alignment
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (3, 0), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(line_tbl)
+
+    elements.append(Spacer(1, 0.2 * inch))
+    elements.append(Paragraph(
+        f"<b>Amount Due:</b>&nbsp;&nbsp;&nbsp;<font size=12>{_format_money(total_fee)}</font>",
+        ParagraphStyle('Due', parent=val, fontSize=11, alignment=TA_RIGHT, leading=14),
+    ))
+    elements.append(Spacer(1, 0.25 * inch))
+
+    # --- Payment terms ------------------------------------------------------
+    elements.append(Paragraph('PAYMENT TERMS', section))
+    elements.append(Paragraph('Due upon collection of gemstones.', body))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    # --- Wire instructions + online payment (two columns) ------------------
+    wire_rows = [[Paragraph(f'<b>{k}</b>', body), Paragraph(v, body)] for k, v in WIRE_DETAILS]
+    wire_inner = Table(wire_rows, colWidths=[1.4 * inch, 2.2 * inch])
+    wire_inner.setStyle(TableStyle([
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+
+    pay_online_cell = []
+    if payment_url:
+        pay_online_cell = [
+            Paragraph('PAY ONLINE', section),
+            Paragraph(
+                'Settle this invoice instantly with credit card, BIT, or bank transfer:',
+                body,
+            ),
+            Spacer(1, 0.1 * inch),
+            Paragraph(
+                f'<font color="black"><b><u><link href="{payment_url}">{payment_url}</link></u></b></font>',
+                ParagraphStyle('PayLink', parent=body, fontSize=9, leading=12),
+            ),
+            Spacer(1, 0.08 * inch),
+            Paragraph(
+                'Click the link above to pay by credit card, BIT, or bank transfer. '
+                'No login required.',
+                note,
+            ),
+        ]
+    else:
+        pay_online_cell = [Paragraph('', body)]
+
+    two_col = Table(
+        [[
+            [Paragraph('WIRE TRANSFER', section), wire_inner],
+            pay_online_cell,
+        ]],
+        colWidths=[3.7 * inch, 3.3 * inch],
+    )
+    two_col.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('LINEBEFORE', (1, 0), (1, 0), 0.5, colors.HexColor('#cccccc')),
+        ('LEFTPADDING', (1, 0), (1, 0), 14),
+    ]))
+    elements.append(KeepTogether(two_col))
+
+    # --- Closing note -------------------------------------------------------
+    elements.append(Spacer(1, 0.3 * inch))
+    elements.append(Paragraph(
+        'Thank you for trusting Bashari with your stones.',
+        ParagraphStyle('Thanks', parent=note, alignment=TA_CENTER),
+    ))
+
+    doc.build(elements, onFirstPage=_draw_invoice_chrome, onLaterPages=_draw_invoice_chrome)
     buffer.seek(0)
     return buffer
+
+
+async def _get_or_create_payment_url(job_id: str, job: dict) -> str:
+    """Return a customer payment URL for this invoice, minting a token if needed."""
+    frontend_url = os.environ.get('FRONTEND_URL', '').rstrip('/')
+    if not frontend_url:
+        return ''
+    token = job.get('payment_token')
+    if not token:
+        token = str(uuid.uuid4())
+        await db.jobs.update_one(
+            {"_id": ObjectId(job_id)},
+            {"$set": {"payment_token": token, "updated_at": datetime.utcnow()}},
+        )
+    return f"{frontend_url}/pay?token={token}"
 
 
 @router.get("/jobs/{job_id}/pdf/invoice")
@@ -223,11 +413,12 @@ async def generate_invoice_pdf(job_id: str, user: dict = Depends(get_current_use
 
     client = await db.clients.find_one({"_id": ObjectId(job["client_id"])}) if job.get("client_id") else None
     branch = await db.branches.find_one({"_id": ObjectId(job["branch_id"])}) if job.get("branch_id") else None
+    payment_url = await _get_or_create_payment_url(job_id, job)
 
     try:
         # ReportLab is synchronous — run it in a thread so it doesn't
         # block the event loop while we build the PDF.
-        buffer = await asyncio.to_thread(_build_invoice_pdf_buffer, job, client, branch)
+        buffer = await asyncio.to_thread(_build_invoice_pdf_buffer, job, client, branch, payment_url)
     except Exception as e:
         logger.exception(f"Invoice PDF build failed for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Could not render invoice: {e}")
@@ -248,10 +439,11 @@ async def generate_and_save_invoice(job_id: str, user: dict = Depends(require_ad
 
     client = await db.clients.find_one({"_id": ObjectId(job["client_id"])}) if job.get("client_id") else None
     branch = await db.branches.find_one({"_id": ObjectId(job["branch_id"])}) if job.get("branch_id") else None
+    payment_url = await _get_or_create_payment_url(job_id, job)
 
     try:
         # ReportLab is synchronous → run it off the event loop.
-        buffer = await asyncio.to_thread(_build_invoice_pdf_buffer, job, client, branch)
+        buffer = await asyncio.to_thread(_build_invoice_pdf_buffer, job, client, branch, payment_url)
     except Exception as e:
         logger.exception(f"Invoice PDF build failed for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Could not render invoice: {e}")

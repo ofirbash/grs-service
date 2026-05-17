@@ -26,6 +26,33 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: May 17, 2026 — Invoice redesigned (black-only, Bashari branded)
+
+**Header + footer** rendered on every page via `_draw_invoice_chrome` callback (`onFirstPage` + `onLaterPages`):
+- Header: square Bashari mark (loaded from `backend/assets/bashari-square.png`) + `ELIYAHU BASHARI DIAMONDS LTD.` company line + 0.6pt hairline rule.
+- Footer: hairline rule + centered postal line "Diamond Tower, 1 Jabotinsky St., 12th floor, Ramat Gan 5252002, Israel · Tel: +972-3-7521295 · info@bashari.co" + page number.
+
+**Body**: invoice title, INVOICE NO. / JOB / DATE / BILL TO meta block, line items table with columns `#  SKU  STONE TYPE  WEIGHT (CT)  VALUE (USD)  FEES (USD)`, totals row, Amount Due, PAYMENT TERMS section ("Due upon collection of gemstones."), and a two-column WIRE TRANSFER + PAY ONLINE block.
+
+**Wire transfer details** (hardcoded — same on every invoice):
+- Account Name: ELIYAHU BASHARI DIAMONDS LTD.
+- Bank Name: Bank Mizrahi Tefahot
+- Account No.: 164265
+- IBAN / ACH Routing: IL600204660000000164265
+- SWIFT Code: MIZBILITDMD
+
+**Pay Online**: clickable link to `${FRONTEND_URL}/pay?token=<payment_token>`. Token is minted lazily on the job document (via `_get_or_create_payment_url`) and reused across invoice regenerations.
+
+**Black-only palette** (no navy/red/grey except a 0.25pt `#cccccc` rule between line items for readability).
+
+**Files**:
+- `backend/routes/pdf.py` — added `_format_money`, `_coerce_float`, `_draw_invoice_chrome`, `_get_or_create_payment_url`; rewrote `_build_invoice_pdf_buffer`.
+- `backend/utils.py` — added `download_square_logo()` with local-file priority.
+- `backend/assets/bashari-square.png` — bundled logo asset.
+
+**Verified on preview**: 19KB PDF rendered in 430ms; visual analysis confirms correct header, footer, table, totals, payment terms, wire block, and clickable pay-online link.
+
+
 ### Session: May 15, 2026 — Real fix for invoice 520: blocking sync call in async route
 
 **Round 1 fix (May 13) was incomplete.** Defensive None handling helped, but the real culprit was a blocking sync call inside an async route handler.
