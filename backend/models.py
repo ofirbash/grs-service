@@ -138,6 +138,13 @@ class StoneResponse(BaseModel):
     # Partial-return lifecycle (only populated on jobs created after the feature launched)
     stone_status: Optional[str] = None   # "at_office" | "at_lab" | "returned"
     cert_status: Optional[str] = None    # "pending" | "delivered"
+    # Soft-cancellation — when True, the stone stays on the job for audit but
+    # is hidden from active views and excluded from job totals. Without
+    # surfacing this flag here, every consumer (jobs page, shipments page,
+    # printed memos) would happily re-display cancelled stones.
+    cancelled: Optional[bool] = None
+    cancelled_at: Optional[datetime] = None
+    cancelled_by: Optional[str] = None
 
 
 # Verbal Findings Models

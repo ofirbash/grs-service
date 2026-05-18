@@ -112,7 +112,7 @@ def _job_meta_pill(job: dict) -> str:
             <tr>
               <td style="padding: 4px 0;"><span style="color: {TEXT_MUTED}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;">Job</span><br/><strong style="color: {BRAND_NAVY}; font-size: 14px;">#{job.get('job_number', 'N/A')}</strong></td>
               <td style="padding: 4px 0;"><span style="color: {TEXT_MUTED}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;">Service</span><br/><strong style="color: {BRAND_NAVY}; font-size: 13px;">{job.get('service_type', 'Standard')}</strong></td>
-              <td style="padding: 4px 0;"><span style="color: {TEXT_MUTED}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;">Stones</span><br/><strong style="color: {BRAND_NAVY}; font-size: 13px;">{len(job.get('stones', []))}</strong></td>
+              <td style="padding: 4px 0;"><span style="color: {TEXT_MUTED}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;">Stones</span><br/><strong style="color: {BRAND_NAVY}; font-size: 13px;">{len([s for s in job.get('stones', []) if not s.get('cancelled')])}</strong></td>
             </tr>
           </table>
         </td>
@@ -770,7 +770,10 @@ def build_notification_email_html(
         "client": client,
         "job_number": job_number,
         "client_name": client_name,
-        "stones": job.get("stones", []),
+        # Cancelled stones are excluded from every notification email — they
+        # would otherwise appear in stones tables, verbal/cert/fee breakdowns,
+        # and totals despite being soft-removed from the job.
+        "stones": [s for s in job.get("stones", []) if not s.get("cancelled")],
         "verbal_findings": job.get("verbal_findings", []),
         "portal_link": f"{PORTAL_URL}/dashboard/jobs",
         "payment_url": payment_url,

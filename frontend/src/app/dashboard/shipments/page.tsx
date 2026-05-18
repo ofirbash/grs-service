@@ -386,8 +386,10 @@ export default function ShipmentsPage() {
 
   // Print job from nested dialog
   const handlePrintJobInShipment = (job: Job) => {
+    // Cancelled stones must NOT appear in the shipment job memo or its totals.
+    const activeStones = (job.stones || []).filter((s) => !s.cancelled);
     // Generate stones table HTML
-    const stonesTableHtml = job.stones && job.stones.length > 0 
+    const stonesTableHtml = activeStones.length > 0 
       ? `
         <table>
           <thead>
@@ -403,7 +405,7 @@ export default function ShipmentsPage() {
             </tr>
           </thead>
           <tbody>
-            ${job.stones.map((stone, idx) => `
+            ${activeStones.map((stone, idx) => `
               <tr>
                 <td>${idx + 1}</td>
                 <td>${esc(stone.sku)}</td>

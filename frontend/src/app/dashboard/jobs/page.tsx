@@ -602,13 +602,26 @@ function JobsPageContent() {
 
   // Memoised derivations of the currently-open job's stones.
   // Without useMemo these recompute on every keystroke in the dialog body.
-  const selectedJobStoneGroups = useMemo(
-    () => (selectedJob ? organizeStonesIntoGroups(selectedJob.stones) : []),
+  //
+  // Cancelled stones are hidden from the active job view (they stay on the
+  // backend for audit and can be inspected via the Stones page "Show
+  // cancelled" toggle). Everything user-facing below operates on
+  // `selectedJobActiveStones`, never `selectedJob.stones` directly.
+  const selectedJobActiveStones = useMemo(
+    () => (selectedJob ? selectedJob.stones.filter((s) => !s.cancelled) : []),
     [selectedJob],
   );
-  const selectedJobUngroupedStones = useMemo(
-    () => (selectedJob ? selectedJob.stones.filter((s) => !s.certificate_group) : []),
+  const selectedJobCancelledCount = useMemo(
+    () => (selectedJob ? selectedJob.stones.filter((s) => s.cancelled).length : 0),
     [selectedJob],
+  );
+  const selectedJobStoneGroups = useMemo(
+    () => (selectedJob ? organizeStonesIntoGroups(selectedJobActiveStones) : []),
+    [selectedJob, selectedJobActiveStones],
+  );
+  const selectedJobUngroupedStones = useMemo(
+    () => selectedJobActiveStones.filter((s) => !s.certificate_group),
+    [selectedJobActiveStones],
   );
 
   const openJobDetails = (job: Job) => {
@@ -671,10 +684,13 @@ function JobsPageContent() {
         : 'Job Memo';
     const docTitle = `${docTitleBase} #${paddedJobNumber}`;
 
+    // Cancelled stones must NOT appear on the printed memo or in its totals.
+    const activeStones = job.stones.filter((s) => !s.cancelled);
+
     // Separate ungrouped and grouped stones
-    const ungroupedStones = job.stones.filter((s) => !s.certificate_group);
+    const ungroupedStones = activeStones.filter((s) => !s.certificate_group);
     const groupedStonesMap = new Map<number, Stone[]>();
-    job.stones
+    activeStones
       .filter((s) => s.certificate_group)
       .forEach((s) => {
         const group = s.certificate_group!;
@@ -748,10 +764,10 @@ function JobsPageContent() {
     const hasDiscount = (job.discount || 0) > 0;
 
     // Totals for the table footer row (no black bg, per spec).
-    const totalWeight = job.stones.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
-    const totalValueAll = job.stones.reduce((sum, s) => sum + (s.value || 0), 0);
-    const totalFeeAll = job.stones.reduce((sum, s) => sum + (s.fee || 0), 0);
-    const totalStonesCount = job.stones.length;
+    const totalWeight = activeStones.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
+    const totalValueAll = activeStones.reduce((sum, s) => sum + (s.value || 0), 0);
+    const totalFeeAll = activeStones.reduce((sum, s) => sum + (s.fee || 0), 0);
+    const totalStonesCount = activeStones.length;
 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const absoluteLogo = COMPANY_INFO.logoUrl.startsWith('http')
@@ -1652,7 +1668,7 @@ function JobsPageContent() {
                 <div className="flex items-center justify-between">
                     <Label className="text-base font-semibold flex items-center gap-2">
                       <Gem className="h-4 w-4" />
-                      Stones ({selectedJob.stones.length} total)
+                      Stones ({selectedJobActiveStones.length} total{selectedJobCancelledCount > 0 ? ` · ${selectedJobCancelledCount} cancelled hidden` : ''})
                     </Label>
                     <div className="flex items-center gap-2">
                       {editMode && isAdmin && (
@@ -1717,7 +1733,7 @@ function JobsPageContent() {
                 
                 {/* Stones - Mobile Cards */}
                 <div className="md:hidden space-y-2">
-                  {selectedJob.stones.map((stone) => (
+                  {selectedJobActiveStones.map((stone) => (
                     <div
                       key={stone.id}
                       className="border border-navy-200 rounded-lg p-2.5 active:bg-navy-50 relative"
@@ -1824,7 +1840,7 @@ function JobsPageContent() {
                       
                       {/* Grouped stones with visual separation */}
                       {(() => {
-                        const groupedStones = selectedJob.stones.filter(s => s.certificate_group);
+                        const groupedStones = selectedJobActiveStones.filter(s => s.certificate_group);
                         const groups = new Map<number, Stone[]>();
                         groupedStones.forEach(s => {
                           const group = s.certificate_group!;

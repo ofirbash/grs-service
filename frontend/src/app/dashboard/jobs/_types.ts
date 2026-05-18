@@ -26,6 +26,11 @@ export interface Stone {
   // Partial-return lifecycle — only populated on new jobs
   stone_status?: 'at_office' | 'at_lab' | 'returned';
   cert_status?: 'pending' | 'delivered';
+  // Soft-cancellation — cancelled stones stay on the job for audit but are
+  // hidden from the active stones list and excluded from the job totals.
+  cancelled?: boolean;
+  cancelled_at?: string;
+  cancelled_by?: string;
 }
 
 export interface DropdownOption {

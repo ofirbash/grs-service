@@ -58,7 +58,7 @@ async def generate_memo_in_pdf(job_id: str, user: dict = Depends(get_current_use
     elements.append(Spacer(1, 0.3*inch))
 
     table_data = [['#', 'SKU', 'Type', 'Weight (ct)', 'Shape', 'Value (USD)']]
-    for i, stone in enumerate(job.get('stones', []), 1):
+    for i, stone in enumerate([s for s in job.get('stones', []) if not s.get('cancelled')], 1):
         table_data.append([
             str(i),
             stone['sku'],
@@ -537,7 +537,7 @@ async def generate_shipment_pdf(job_id: str, user: dict = Depends(require_admin)
     elements.append(Spacer(1, 0.3*inch))
 
     table_data = [['#', 'SKU', 'Type', 'Weight (ct)', 'Shape', 'Value (USD)']]
-    for i, stone in enumerate(job.get('stones', []), 1):
+    for i, stone in enumerate([s for s in job.get('stones', []) if not s.get('cancelled')], 1):
         table_data.append([
             str(i),
             stone['sku'],

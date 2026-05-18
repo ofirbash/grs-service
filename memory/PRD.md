@@ -26,6 +26,40 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: Feb 18, 2026 (round 3) — Bug fix: cancelled stones still showing on the job
+
+User report (verbatim):
+> Cancel a stone, expected: the stone is being removed from the job. Actual, the stone is still there. for example, stone SKU: EM552J50201
+
+**Root cause:** the `StoneResponse` Pydantic model in `backend/models.py` was missing the `cancelled` field, so the API silently stripped that flag before sending the job to the frontend. Even though Mongo correctly stored `cancelled: True` on the subdoc (and the job's `total_stones / total_value / total_fee` were already recomputed at cancel time), every consumer that iterated `job.stones` had no signal to filter — the cancelled stone kept appearing on the job dialog, in the printed memo, and in client/lab notification emails.
+
+**Fix — surface the flag, then hide the stone everywhere it's user-visible:**
+
+- `backend/models.py` — added `cancelled`, `cancelled_at`, `cancelled_by` (all `Optional`) to `StoneResponse`. This is the actual root-cause fix; without it the frontend filters had nothing to filter on.
+- `backend/routes/pdf.py` — Memo-In Receipt PDF and the shipment-per-job memo now skip stones where `s.get('cancelled')`. (The invoice PDF was already filtering correctly.)
+- `backend/email_templates.py` — `build_notification_email_html` now seeds `ctx["stones"]` from `job.get("stones")` filtered to active only, so every email template (intake, verbal results, fees breakdown, cert scans, partial-return, etc.) inherits the filter via one line. Also fixed the standalone job-summary card's stone count.
+- `frontend/src/app/dashboard/jobs/_types.ts` — added `cancelled?: boolean`, `cancelled_at?: string`, `cancelled_by?: string` to `Stone`.
+- `frontend/src/app/dashboard/shipments/_types.ts` — same `cancelled?` addition.
+- `frontend/src/app/dashboard/jobs/page.tsx`:
+  - New memoised `selectedJobActiveStones = selectedJob.stones.filter(s => !s.cancelled)` and `selectedJobCancelledCount`.
+  - `selectedJobStoneGroups` and `selectedJobUngroupedStones` now derive from `selectedJobActiveStones` instead of `selectedJob.stones`.
+  - Mobile cards loop, desktop grouped-stones rendering, and the "Stones (N total)" header now use the active list. Header shows `Stones (N total · K cancelled hidden)` when any are cancelled, so admins still know they exist.
+  - `handlePrintJob` builds its `activeStones` from `job.stones.filter(s => !s.cancelled)` and uses that for ungrouped, grouped, table footer totals, and the printed memo's stone count.
+- `frontend/src/app/dashboard/shipments/page.tsx` — `handlePrintJobInShipment` now uses `(job.stones || []).filter(s => !s.cancelled)`.
+
+**Untouched on purpose:** bulk-action checkbox filters and the "next available group number" computation continue to operate on the raw `selectedJob.stones`. Cancelled stones can't be selected (they don't render with checkboxes) and we want a cancelled group number to stay "used" so it isn't accidentally reassigned.
+
+**Verification (preview):**
+- `PATCH /api/stones/{id}/cancel` on stone `TZ5000J50201` (job 502, the only stone) → `total_stones: 0, total_value: 0, total_fee: 0`.
+- `GET /api/jobs/{job_502_id}` now returns `cancelled: true` on the stone subdoc (previously the field was stripped by the response model).
+- Opening Job #502 in the Jobs dialog: stones table is empty, header reads `Stones (0 total · 1 cancelled hidden)`, totals are $0/$0 — exactly the expected behaviour. Restored the stone via `PATCH /api/stones/{id}/uncancel` after testing.
+
+TypeScript and Python imports both clean. Turnstile blanked for screenshot login and **restored** at end of session.
+
+---
+
+
+
 ### Session: Feb 18, 2026 (round 2) — Stone modal: bug fix + density polish + jobs-page parity
 
 User feedback after round 1 (verbatim):
