@@ -9,6 +9,7 @@ import httpx
 
 from database import db
 from auth import require_admin
+from jobs_helpers import active_stones, payable_amount, sum_fees
 
 logger = logging.getLogger(__name__)
 
@@ -108,13 +109,7 @@ async def get_payment_details(token: str):
 
     is_adjustment = job.get("payment_adjustment", False)
     discount = job.get("discount", 0) or 0
-
-    if is_adjustment and job.get("payment_adjustment_amount") is not None:
-        total_fee = job["payment_adjustment_amount"]
-    else:
-        # Cancelled stones are excluded from the amount the client pays.
-        total_fee = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []) if not s.get("cancelled"))
-        total_fee = max(0, total_fee - discount)
+    total_fee = payable_amount(job)
 
     return {
         "status": "pending",
@@ -148,13 +143,7 @@ async def create_payment_handshake(token: str, request: Request):
 
     is_adjustment = job.get("payment_adjustment", False)
     discount = job.get("discount", 0) or 0
-
-    if is_adjustment and job.get("payment_adjustment_amount") is not None:
-        total_fee_usd = job["payment_adjustment_amount"]
-    else:
-        # Cancelled stones are excluded from the Tranzila charge amount.
-        total_fee_usd = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []) if not s.get("cancelled"))
-        total_fee_usd = max(0, total_fee_usd - discount)
+    total_fee_usd = payable_amount(job)
 
     if currency == "ILS":
         amount = round(total_fee_usd * exchange_rate, 2)
@@ -297,7 +286,7 @@ async def simulate_payment(token: str):
             "payment_date": datetime.utcnow(),
             "payment_transaction_id": f"TEST-{uuid.uuid4().hex[:8]}",
             "payment_currency": "USD",
-            "payment_amount": str(sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []) if not s.get("cancelled"))),
+            "payment_amount": str(sum_fees(active_stones(job))),
             "updated_at": datetime.utcnow()
         }}
     )

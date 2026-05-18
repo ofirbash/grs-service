@@ -15,6 +15,7 @@ from models import (
 )
 from pricing import get_pricing_brackets_from_db, get_color_stability_fee_from_db, calculate_stone_fee_from_brackets
 from utils import generate_sku
+from jobs_helpers import active_stones, recompute_job_totals
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 
@@ -424,19 +425,14 @@ async def delete_stone_from_job(job_id: str, stone_id: str, user: dict = Depends
 
     # Totals only count active (non-cancelled) stones; cancelled ones remain
     # on the job for audit but must never contribute to the job's totals.
-    active_remaining = [s for s in remaining if not s.get("cancelled")]
-    new_total_stones = len(active_remaining)
-    new_total_value = sum(s.get("value", 0) for s in active_remaining)
-    new_total_fee = sum(s.get("fee", 0) for s in active_remaining)
+    totals = recompute_job_totals(active_stones(remaining))
 
     await db.jobs.update_one(
         {"_id": ObjectId(job_id)},
         {
             "$set": {
                 "stones": remaining,
-                "total_stones": new_total_stones,
-                "total_value": new_total_value,
-                "total_fee": new_total_fee,
+                **totals,
                 "updated_at": datetime.utcnow(),
             }
         },
@@ -445,9 +441,7 @@ async def delete_stone_from_job(job_id: str, stone_id: str, user: dict = Depends
     return {
         "message": "Stone removed",
         "stone_id": stone_id,
-        "total_stones": new_total_stones,
-        "total_value": new_total_value,
-        "total_fee": new_total_fee,
+        **totals,
     }
 
 
