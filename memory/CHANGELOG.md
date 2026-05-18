@@ -5,14 +5,42 @@
 
 ---
 
-## Feb 18, 2026 (round 6) — Helper refactor + bookkeeping split + first P3 frontend extraction
+## Feb 18, 2026 (round 6) — Helper refactor + bookkeeping split + P3 refactor pass
 
-- Created `backend/jobs_helpers.py` exposing `active_stones(job_or_stones)`, `sum_fees`, `sum_values`, `recompute_job_totals(stones, mounted_fee=)`, and `payable_amount(job)`. Single source of truth for cancel-aware job arithmetic.
-- Refactored callers to use the helper: `routes/stones.py` (cancel / uncancel / update_stone_fees — also dropped the now-duplicated `_recompute_job_totals` definition), `routes/jobs.py:delete_stone_from_job`, and the three customer-pay paths in `routes/payments.py` (`GET /payment/{token}`, handshake, test-success). Behaviour unchanged; regression test re-run successfully (toggle CS on/off + cancel/uncancel both produce correct totals).
-- Bookkeeping: split `/app/memory/PRD.md` (~1400 lines) into three smaller files — compact `PRD.md` (just the spec), `ROADMAP.md` (P0..P3), and `CHANGELOG.md` (this file). Original preserved at `PRD.old.md` for reference until next clean-up.
-- P3 frontend refactor (first slice): extracted the ~300-line `handlePrintJob` HTML template from `frontend/src/app/dashboard/jobs/page.tsx` into a pure function at `frontend/src/app/dashboard/jobs/_lib/buildJobMemoHtml.ts`. The page now just resolves client + branch + origin and delegates. `jobs/page.tsx`: **2471 → 2178 LOC (-293, -12%)**. Removed unused `esc` and `COMPANY_INFO` imports from the page. TypeScript + static build green; smoke-tested the page renders and the Print button is wired.
+### Backend
+- New `backend/jobs_helpers.py` (95 LOC) with `active_stones(job_or_stones)`, `sum_fees`, `sum_values`, `recompute_job_totals(stones, mounted_fee=)`, `payable_amount(job)`. Single source of truth for cancel-aware job arithmetic.
+- Refactored callers: `routes/stones.py` (cancel / uncancel / update_stone_fees — deleted the duplicate `_recompute_job_totals`), `routes/jobs.py:delete_stone_from_job`, all 3 customer-pay sites in `routes/payments.py`. Behaviour-preserving regression: toggle CS on/off → `$750/$700`; cancel/uncancel → correct totals. ✅
+- Decomposed the 100-line `routes/jobs.py:create_job` into three small helpers (mirroring the existing `_resolve_shipment_ids`, `_serialize_payments` pattern):
+  - `_enforce_client_branch_consistency(job, client)` — raises 400 on cross-branch mismatch; mutates `job.branch_id` to the client's branch when caller omitted it.
+  - `_assign_next_job_number()` — single-line async helper; job numbers start at 500.
+  - `_build_stones_for_create(certificate_units, ...)` → returns `(stones, total_value, total_fee)`. Centralises SKU generation, position assignment, fee bracket lookup, and the partial-return lifecycle defaults (`stone_status=at_office`, `cert_status=pending`).
+  `create_job` body now reads almost as pseudocode. E2E test: created job #503 (Ruby 2.5ct $5000) via the API → got SKU `RU250J50301`, status `draft`, totals correct → cancelled the test job to clean up.
+- Added pytest pin: `backend/tests/test_jobs_helpers.py` (15 tests, 0.02s). Covers `active_stones` filtering / list-vs-dict input / missing fields, `sum_fees` honouring `actual_fee`, `recompute_job_totals` empty / mounted-group dedup / mounted-without-group passthrough, `payable_amount` excluding cancelled stones / discount / floor-at-zero / adjustment override / `actual_fee` precedence. The cancel-leak regression would have failed `test_payable_amount_excludes_cancelled_stones` immediately.
+
+### Frontend (P3 refactor pass)
+- Extracted the ~300-line `handlePrintJob` HTML template from `dashboard/jobs/page.tsx` into a pure function at `dashboard/jobs/_lib/buildJobMemoHtml.ts`. The page now resolves client + branch + origin and delegates. **`jobs/page.tsx`: 2471 → 2178 LOC (-293, -12%)**. Cleaned up now-unused `esc` and `COMPANY_INFO` imports.
+- Same treatment on `dashboard/shipments/page.tsx` — extracted `handlePrintJobInShipment` into `_lib/buildShipmentJobMemoHtml.ts`. **`shipments/page.tsx`: 2356 → 2233 LOC (-123, -5%)**.
+- Stones page already shrank substantially in earlier rounds (round 1: extracted `filterOptionsForStone`, compacted the dialog) — sits at 891 LOC now (down from ~955).
+
+### Bookkeeping
+- Split `/app/memory/PRD.md` (1404 LOC, sprawling) into three smaller files:
+  - **PRD.md** (169 LOC) — compact product spec, tech stack, entities, routing/auth gotchas, data-integrity rules, file layout.
+  - **ROADMAP.md** (~60 LOC) — P0/P1/P2/P3 backlog, "done recent" highlights.
+  - **CHANGELOG.md** — newest-first session log (this file); full legacy history preserved at the bottom.
+- Original kept at `PRD.old.md` for one round of reference until the new split is verified.
+
+### Cumulative LOC impact this session
+- 5 big page files combined: **~6800 → ~6200** (-600 LOC frontend) + new pure-function modules (`buildJobMemoHtml.ts` 420, `buildShipmentJobMemoHtml.ts` 145, `stoneDropdownFilter.ts` 40).
+- Backend: `routes/jobs.py:create_job` 100 → 35 LOC + new `jobs_helpers.py` (95 LOC) with 15 pytest pins.
+
+### Verification
+- `yarn tsc --noEmit` clean.
+- `yarn build` static export clean.
+- `pytest tests/test_jobs_helpers.py` — 15 passed in 0.02s.
+- Smoke-tested: login page renders, deep-link `/dashboard/jobs/` while authed renders jobs list, job dialog opens with stones table and `Stones (N total · K cancelled hidden)` header. Print button wired to the new `buildJobMemoHtml`. E2E create_job via the refactored helper path succeeded.
 
 ---
+
 
 
 ## Legacy log (imported from the old monolithic PRD.md)

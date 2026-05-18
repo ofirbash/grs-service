@@ -110,65 +110,103 @@ async def build_job_response(job: dict) -> JobResponse:
     )
 
 
-@router.post("/jobs", response_model=JobResponse)
-async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
-    client = await db.clients.find_one({"_id": ObjectId(job.client_id)})
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
+def _enforce_client_branch_consistency(job: JobCreate, client: dict) -> None:
+    """A job must live in the client's own branch (no cross-branch jobs).
 
-    # Enforce: a job must live in the client's own branch (no cross-branch jobs).
-    # The frontend auto-fills branch_id from the selected client, but we guard
-    # the API too for direct-caller safety.
+    The frontend auto-fills `branch_id` from the selected client, but we guard
+    the API too for direct-caller safety. Mutates `job.branch_id` in place
+    when the client has a branch — even if the caller omitted it.
+    """
     client_branch_id = str(client.get("branch_id")) if client.get("branch_id") else None
     if client_branch_id and job.branch_id and job.branch_id != client_branch_id:
         raise HTTPException(
             status_code=400,
             detail="Job branch must match the client's branch.",
         )
-    # Always prefer the client's branch if one exists, even if the caller omitted it
     if client_branch_id:
         job.branch_id = client_branch_id
 
-    # Job numbers start at 500. On a fresh install the first job is #500;
-    # after that each new job increments by 1.
+
+async def _assign_next_job_number() -> int:
+    """Job numbers start at 500. After that each new job increments by 1."""
     last_job = await db.jobs.find_one(sort=[("job_number", -1)])
     last_number = last_job.get("job_number", 0) if last_job else 0
-    job_number = max(last_number + 1, 500)
+    return max(last_number + 1, 500)
 
-    stones = []
+
+def _build_stones_for_create(
+    certificate_units: list,
+    *,
+    job_number: int,
+    service_type: str,
+    db_brackets: list,
+    cs_fee: float,
+) -> tuple[list[dict], float, float]:
+    """Build the `stones` subdocs for a brand-new job.
+
+    Returns `(stones, total_value, total_fee)`. Each stone gets a fresh UUID,
+    deterministic SKU (`<TYPE><CT00><JOB><POS>`), and starts in the partial-
+    return lifecycle at `stone_status=at_office, cert_status=pending`.
+    """
+    stones: list[dict] = []
     position = 1
-    total_value = 0
-    total_fee = 0
+    total_value = 0.0
+    total_fee = 0.0
+    for cert_unit in certificate_units:
+        for stone_data in cert_unit.stones:
+            sku = generate_sku(
+                stone_data.stone_type, stone_data.weight, job_number, position
+            )
+            fee = calculate_stone_fee_from_brackets(
+                stone_data.value,
+                service_type,
+                stone_data.color_stability_test,
+                db_brackets,
+                cs_fee,
+            )
+            stones.append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "sku": sku,
+                    "stone_type": stone_data.stone_type,
+                    "weight": stone_data.weight,
+                    "shape": stone_data.shape,
+                    "value": stone_data.value,
+                    "color_stability_test": stone_data.color_stability_test,
+                    "fee": fee,
+                    "position": position,
+                    "certificate_scan": None,
+                    # Every new stone starts at the office, cert not yet issued.
+                    "stone_status": "at_office",
+                    "cert_status": "pending",
+                }
+            )
+            total_value += stone_data.value
+            total_fee += fee
+            position += 1
+    return stones, total_value, total_fee
+
+
+@router.post("/jobs", response_model=JobResponse)
+async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
+    client = await db.clients.find_one({"_id": ObjectId(job.client_id)})
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    _enforce_client_branch_consistency(job, client)
+
+    job_number = await _assign_next_job_number()
 
     db_brackets = await get_pricing_brackets_from_db()
     cs_fee = await get_color_stability_fee_from_db()
 
-    for cert_unit in job.certificate_units:
-        for stone_data in cert_unit.stones:
-            sku = generate_sku(stone_data.stone_type, stone_data.weight, job_number, position)
-            fee = calculate_stone_fee_from_brackets(stone_data.value, job.service_type, stone_data.color_stability_test, db_brackets, cs_fee)
-
-            stone = {
-                "id": str(uuid.uuid4()),
-                "sku": sku,
-                "stone_type": stone_data.stone_type,
-                "weight": stone_data.weight,
-                "shape": stone_data.shape,
-                "value": stone_data.value,
-                "color_stability_test": stone_data.color_stability_test,
-                "fee": fee,
-                "position": position,
-                "certificate_scan": None,
-                # Partial-return lifecycle: every new stone starts at the office,
-                # cert not yet issued. Legacy stones (pre-feature) lack these fields
-                # and keep using the old job-level flow.
-                "stone_status": "at_office",
-                "cert_status": "pending",
-            }
-            stones.append(stone)
-            total_value += stone_data.value
-            total_fee += fee
-            position += 1
+    stones, total_value, total_fee = _build_stones_for_create(
+        job.certificate_units,
+        job_number=job_number,
+        service_type=job.service_type,
+        db_brackets=db_brackets,
+        cs_fee=cs_fee,
+    )
 
     job_doc = {
         "job_number": job_number,
@@ -186,7 +224,7 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
         "total_fee": total_fee,
         "created_by": str(user["_id"]),
         "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
+        "updated_at": datetime.utcnow(),
     }
 
     result = await db.jobs.insert_one(job_doc)
@@ -209,7 +247,7 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
         total_value=total_value,
         total_fee=total_fee,
         created_at=job_doc["created_at"],
-        updated_at=job_doc["updated_at"]
+        updated_at=job_doc["updated_at"],
     )
 
 
