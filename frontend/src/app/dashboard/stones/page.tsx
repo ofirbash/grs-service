@@ -245,6 +245,34 @@ export default function StonesPage() {
     }
   };
 
+  // Filter dropdown options based on the currently-selected stone type.
+  // - An option is "universal" if `stone_types` is empty/undefined OR contains
+  //   the sentinel "all" (case-insensitive). The settings page uses ["all"]
+  //   as the wildcard for options that apply to every stone type.
+  // - Otherwise, the option is scoped and must list the current stone type
+  //   (case-insensitive) to be shown.
+  // The currently-selected value is also force-included so the trigger still
+  // displays legacy values that may not match the new whitelist.
+  const filterOptionsForStone = (
+    opts: DropdownOption[],
+    stoneType: string | undefined,
+    currentValue: string,
+  ): { value: string }[] => {
+    const st = (stoneType || '').trim().toLowerCase();
+    const matched = opts.filter((opt) => {
+      const types = (opt.stone_types || []).map((t) => t.trim().toLowerCase());
+      if (!types.length) return true; // universal — no scope set
+      if (types.includes('all')) return true; // explicit wildcard
+      return types.includes(st);
+    });
+    // Force-include the current value if it isn't in the matched list, so
+    // legacy entries still render in the trigger.
+    if (currentValue && !matched.some((m) => m.value === currentValue)) {
+      matched.unshift({ value: currentValue, stone_types: [] });
+    }
+    return matched.map((opt) => ({ value: opt.value }));
+  };
+
   // Filter stones
   const filteredStones = stones.filter(stone => {
     const matchesSearch = 
@@ -490,7 +518,7 @@ export default function StonesPage() {
 
       {/* Stone Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
               <Diamond className="h-5 w-5" />
@@ -656,7 +684,11 @@ export default function StonesPage() {
                       value={structuredFindings.identification || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, identification: value }))}
                       disabled={!verbalEditMode}
-                      options={dropdownSettings.identification.map(opt => ({ value: opt.value }))}
+                      options={filterOptionsForStone(
+                        dropdownSettings.identification,
+                        selectedStone.stone_type,
+                        structuredFindings.identification || '',
+                      )}
                       placeholder="Select identification..."
                       searchPlaceholder="Search identification..."
                       data-testid="verbal-identification"
@@ -670,7 +702,11 @@ export default function StonesPage() {
                       value={structuredFindings.color || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, color: value }))}
                       disabled={!verbalEditMode}
-                      options={dropdownSettings.color.map(opt => ({ value: opt.value }))}
+                      options={filterOptionsForStone(
+                        dropdownSettings.color,
+                        selectedStone.stone_type,
+                        structuredFindings.color || '',
+                      )}
                       placeholder="Select color..."
                       searchPlaceholder="Search color..."
                       data-testid="verbal-color"
@@ -684,7 +720,11 @@ export default function StonesPage() {
                       value={structuredFindings.origin || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, origin: value }))}
                       disabled={!verbalEditMode}
-                      options={dropdownSettings.origin.map(opt => ({ value: opt.value }))}
+                      options={filterOptionsForStone(
+                        dropdownSettings.origin,
+                        selectedStone.stone_type,
+                        structuredFindings.origin || '',
+                      )}
                       placeholder="Select origin..."
                       searchPlaceholder="Search origin..."
                       data-testid="verbal-origin"
@@ -698,7 +738,11 @@ export default function StonesPage() {
                       value={structuredFindings.comment || ''}
                       onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, comment: value }))}
                       disabled={!verbalEditMode}
-                      options={dropdownSettings.comment.map(opt => ({ value: opt.value }))}
+                      options={filterOptionsForStone(
+                        dropdownSettings.comment,
+                        selectedStone.stone_type,
+                        structuredFindings.comment || '',
+                      )}
                       placeholder="Select comment..."
                       searchPlaceholder="Search comment..."
                       data-testid="verbal-comment"
@@ -770,31 +814,26 @@ export default function StonesPage() {
                 </Button>
                 )}
               </div>
+            </div>
+          )}
 
-              {/* Certificate Scan */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base font-semibold flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Certificate Scan
-                    {selectedStone.certificate_group && (
-                      <Badge variant="outline" className="ml-2">
-                        <Link2 className="h-3 w-3 mr-1" />
-                        Group {selectedStone.certificate_group}
-                      </Badge>
-                    )}
-                  </Label>
-                  {selectedStone.certificate_scan_url && (
-                    <Badge variant="success">Uploaded</Badge>
+          {/* Certificate Scan - pinned at the bottom, doesn't scroll */}
+          {selectedStone && (
+            <div className="flex-shrink-0 border-t border-navy-200 bg-navy-50/50 px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <Label className="text-sm font-semibold flex items-center gap-2 text-navy-900">
+                  <Upload className="h-4 w-4" />
+                  Certificate Scan
+                  {selectedStone.certificate_group && (
+                    <Badge variant="outline" className="ml-1">
+                      <Link2 className="h-3 w-3 mr-1" />
+                      Group {selectedStone.certificate_group}
+                    </Badge>
                   )}
-                </div>
-                
-                {selectedStone.certificate_group && (
-                  <p className="text-sm text-navy-600 bg-amber-50 p-2 rounded">
-                    This stone is part of Certificate Group {selectedStone.certificate_group}. 
-                    Uploading a scan will apply to all stones in this group.
-                  </p>
-                )}
+                  {selectedStone.certificate_scan_url && (
+                    <Badge variant="success" className="ml-1">Uploaded</Badge>
+                  )}
+                </Label>
 
                 <div className="flex items-center gap-2">
                   {isAdmin && (
@@ -809,6 +848,7 @@ export default function StonesPage() {
                       />
                       <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => certInputRef.current?.click()}
                         disabled={uploadingCert}
                         data-testid="upload-cert-button"
@@ -827,10 +867,11 @@ export default function StonesPage() {
                       </Button>
                     </>
                   )}
-                  
+
                   {selectedStone.certificate_scan_url && (
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => setViewCertOpen(true)}
                       data-testid="view-cert-button"
                     >
@@ -840,6 +881,13 @@ export default function StonesPage() {
                   )}
                 </div>
               </div>
+
+              {selectedStone.certificate_group && (
+                <p className="text-xs text-navy-600 bg-amber-50 px-2 py-1.5 rounded">
+                  This stone is part of Certificate Group {selectedStone.certificate_group}.
+                  Uploading a scan will apply to all stones in this group.
+                </p>
+              )}
             </div>
           )}
 

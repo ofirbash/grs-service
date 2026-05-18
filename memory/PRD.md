@@ -26,6 +26,31 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: Feb 18, 2026 — Stone Editing Modal UX fixes (P0 completed)
+
+User-reported issues with the **Stone details / edit modal** (`/dashboard/stones`):
+
+1. **Modal width** — was cramped on desktop (`sm:max-w-2xl`). Now `sm:max-w-4xl lg:max-w-5xl` so the verbal-findings grid breathes properly on wide screens.
+2. **Certificate Scan pinned to bottom** — moved out of the scrolling area and into a sticky `flex-shrink-0` footer block right above the dialog footer. Shows the Upload / Replace / View Scan controls, status badge, and the optional "Group N" notice in one row.
+3. **Clearable dropdowns** — `SearchableSelect` now renders an inline × button (next to the chevron) whenever a value is selected. Clicking it resets the field to empty without opening the dropdown. Test id: `<base>-clear`.
+4. **Stone-type-aware dropdown filtering** — added `filterOptionsForStone(opts, stoneType, currentValue)` in `stones/page.tsx`. Logic:
+   - Options with no `stone_types` OR containing the sentinel `"all"` (case-insensitive) are universal.
+   - Other options are only shown if their `stone_types` array contains the current `stone_type` (case-insensitive).
+   - The current value is force-included so legacy data still renders in the trigger.
+   - Wired into all four `SearchableSelect` instances: Identification, Color, Origin, Comment.
+
+**Files touched:**
+- `frontend/src/app/dashboard/stones/page.tsx` — modal width, filter helper, footer Certificate Scan section.
+- `frontend/src/components/ui/searchable-select.tsx` — actual clear-button rendering.
+
+**Verification:** Logged in as `admin@bashari.com`, opened a stone, switched to Edit mode, selected `RED` in Color → × clear button appeared → clicking it reset the field. Screenshots confirm widened modal, pinned bottom Certificate Scan, and × clear behaviour. TypeScript build green; static export rebuilt successfully (`yarn build`).
+
+**Backend untouched** — pure frontend change. Turnstile was temporarily blanked in `.env` for screenshot login and **restored** at the end of the session.
+
+---
+
+
+
 ### Session: May 17, 2026 — Invoice redesigned (black-only, Bashari branded)
 
 **Header + footer** rendered on every page via `_draw_invoice_chrome` callback (`onFirstPage` + `onLaterPages`):

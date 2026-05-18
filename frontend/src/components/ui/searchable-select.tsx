@@ -82,6 +82,7 @@ export function SearchableSelect({
   }, [open]);
 
   const selectedOption = options.find((opt) => opt.value === value);
+  const showClear = clearable && !disabled && !!value;
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
@@ -95,14 +96,39 @@ export function SearchableSelect({
           "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
           "disabled:cursor-not-allowed disabled:opacity-70",
           "border-navy-200",
-          disabled && "bg-gray-200 text-gray-600"
+          disabled && "bg-gray-200 text-gray-600",
+          showClear && "pr-2"
         )}
         data-testid={dataTestId}
       >
         <span className={cn(!value && "text-muted-foreground", "truncate text-left")}>
-          {selectedOption ? (selectedOption.label || selectedOption.value) : placeholder}
+          {selectedOption ? (selectedOption.label || selectedOption.value) : (value || placeholder)}
         </span>
-        <ChevronDown className={cn("h-4 w-4 opacity-50 transition-transform flex-shrink-0", open && "rotate-180")} />
+        <span className="flex items-center gap-1 flex-shrink-0">
+          {showClear && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onValueChange("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onValueChange("");
+                }
+              }}
+              className="rounded-full p-0.5 text-navy-400 hover:bg-navy-100 hover:text-navy-700 transition-colors"
+              data-testid={dataTestId ? `${dataTestId}-clear` : undefined}
+              aria-label="Clear selection"
+            >
+              <X className="h-3.5 w-3.5" />
+            </span>
+          )}
+          <ChevronDown className={cn("h-4 w-4 opacity-50 transition-transform", open && "rotate-180")} />
+        </span>
       </button>
 
       {/* Dropdown */}
