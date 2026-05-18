@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SearchableSelectProps {
@@ -12,6 +12,8 @@ interface SearchableSelectProps {
   searchPlaceholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Show an inline × to clear the selection. Defaults to true. */
+  clearable?: boolean;
   "data-testid"?: string;
 }
 
@@ -23,6 +25,7 @@ export function SearchableSelect({
   searchPlaceholder = "Search...",
   className,
   disabled = false,
+  clearable = true,
   "data-testid": dataTestId,
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
