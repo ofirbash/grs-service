@@ -26,6 +26,42 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: Feb 18, 2026 (round 4) — Bug fix: stuck on "Loading…" when deep-linking into the dashboard
+
+User report (verbatim):
+> The app is not working properly! pages are not loaded, I just see a black screen with "LOADING"
+
+**Root cause:** the dashboard layout had its auth-gate redirect deliberately removed (per a comment from a previous session warning about Cloudflare loops on static export). The comment incorrectly assumed the root SPA router in `app/page.tsx` would always catch unauthenticated visitors — but **that's only true when the user lands on `/`**. Next.js's static export prerenders every protected route as its own HTML file, so visiting `/dashboard/jobs` directly (bookmark, manual refresh, returning to a tab after sessionStorage expiry, or any deep link) boots `DashboardLayout` directly, bypassing the SPA router. The layout then sat on its `if (!mounted || !isAuthenticated)` "Loading..." fallback forever because nothing redirected to `/login`.
+
+**Fix** — restored the auth-gate redirect in `frontend/src/app/dashboard/layout.tsx`:
+
+```tsx
+useEffect(() => {
+  if (mounted && !isAuthenticated) {
+    router.replace('/login');
+  }
+}, [mounted, isAuthenticated, router]);
+```
+
+Safety notes:
+- Gated on `mounted` so zustand-persist has rehydrated from sessionStorage first; authenticated users with a valid token are NOT bounced.
+- `router.replace` (not `push`) so it doesn't pollute browser history.
+- No loop with the SPA router: `app/page.tsx` only runs for `/` and renders `LoginPage` directly (no further redirect). `LoginPage` has no automatic "if-authed → /dashboard" effect; it only pushes after a successful login.
+- No loop with the LoginPage itself: it doesn't auto-redirect on mount.
+
+**Verification (preview, static export rebuilt):**
+- Unauth → `/dashboard/jobs/` ➜ ends at `/login/` with the sign-in form rendered. ✅
+- Auth → `/dashboard/jobs/` ➜ Jobs page renders with sidebar + 3 jobs. ✅
+- Auth → `/dashboard/profile/` ➜ Profile page renders (this route wasn't even in the SPA router's `pickDashboardPage` whitelist, so deep-link access here was doubly broken before). ✅
+
+**Production note:** fix is in **preview only**. Production at https://lab.bashari.co will continue to hang on "Loading…" for deep-link entries until you redeploy. Workaround for users in the meantime: enter the app via the root URL (https://lab.bashari.co/) which goes through the SPA router and works.
+
+Turnstile blanked for screenshot login during testing and **restored** at end of session.
+
+---
+
+
+
 ### Session: Feb 18, 2026 (round 3) — Bug fix: cancelled stones still showing on the job
 
 User report (verbatim):

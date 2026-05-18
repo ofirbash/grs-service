@@ -81,13 +81,23 @@ export default function DashboardLayout({
     }
   }, [mounted, isAuthenticated, isSuperAdmin]);
 
-  // No auth-gate redirect here — the root SPA router (`app/page.tsx`) handles
-  // unauthenticated users by rendering the LoginPage instead of mounting this
-  // layout. Re-adding a redirect here would compete with that gate and could
-  // cause loops on static-export deployments.
+  // Auth gate for deep-link entry into the dashboard.
+  //
+  // The root SPA router (`app/page.tsx`) handles unauthenticated users on `/`,
+  // but Next.js's static export serves each protected route as its own
+  // prerendered HTML file. That means visiting `/dashboard/jobs` directly (a
+  // bookmark, a manual refresh, or returning to the tab after sessionStorage
+  // expired) boots this layout WITHOUT going through the SPA router — and
+  // without this redirect the user just sees the "Loading..." fallback below
+  // forever. We wait for `mounted` so zustand-persist has had a chance to
+  // rehydrate from sessionStorage; otherwise authenticated users would be
+  // bounced to /login on every page load. `router.replace` (not push) so we
+  // don't pollute browser history.
   useEffect(() => {
-    // intentionally empty — kept as a marker for future auth-touchups
-  }, [mounted, isAuthenticated]);
+    if (mounted && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [mounted, isAuthenticated, router]);
 
   const handleLogout = () => {
     logout();
