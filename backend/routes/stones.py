@@ -167,15 +167,18 @@ async def update_stone_fees(stone_id: str, data: StoneFeeUpdate, user: dict = De
         {"$set": update_data}
     )
 
-    # Recalculate job total_fee from stone fees
-    # For grouped mounted stones, mounted fee is counted once per group
+    # Recalculate job total_fee from stone fees.
+    # Cancelled stones are EXCLUDED (they're soft-deleted via /cancel and must
+    # not contribute to fees/value/count). For grouped mounted stones, the
+    # mounted fee is counted once per group.
     updated_job_for_calc = await db.jobs.find_one({"_id": job["_id"]})
     stones_list = updated_job_for_calc.get("stones", [])
-    new_total = sum(s.get("fee", 0) for s in stones_list)
-    
+    active_stones = [s for s in stones_list if not s.get("cancelled")]
+    new_total = sum(s.get("fee", 0) for s in active_stones)
+
     # Subtract duplicate mounted fees for certificate groups
     mounted_groups: dict = {}
-    for s in stones_list:
+    for s in active_stones:
         if s.get("mounted") and s.get("certificate_group") is not None:
             g = s["certificate_group"]
             mounted_groups[g] = mounted_groups.get(g, 0) + 1
@@ -183,9 +186,16 @@ async def update_stone_fees(stone_id: str, data: StoneFeeUpdate, user: dict = De
         if count > 1:
             new_total -= (count - 1) * mounted_fee
 
+    # Keep total_value and total_stones in sync with the active set so a stone
+    # cancellation that happened BEFORE this fee edit doesn't get partially
+    # re-counted (only total_fee was being rewritten here previously).
     await db.jobs.update_one(
         {"_id": job["_id"]},
-        {"$set": {"total_fee": new_total}}
+        {"$set": {
+            "total_fee": new_total,
+            "total_value": sum(float(s.get("value", 0) or 0) for s in active_stones),
+            "total_stones": len(active_stones),
+        }}
     )
 
     # Return the updated job total for the frontend

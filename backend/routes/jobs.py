@@ -422,9 +422,12 @@ async def delete_stone_from_job(job_id: str, stone_id: str, user: dict = Depends
     for idx, s in enumerate(sorted(remaining, key=lambda x: x.get("position", 0)), start=1):
         s["position"] = idx
 
-    new_total_stones = len(remaining)
-    new_total_value = sum(s.get("value", 0) for s in remaining)
-    new_total_fee = sum(s.get("fee", 0) for s in remaining)
+    # Totals only count active (non-cancelled) stones; cancelled ones remain
+    # on the job for audit but must never contribute to the job's totals.
+    active_remaining = [s for s in remaining if not s.get("cancelled")]
+    new_total_stones = len(active_remaining)
+    new_total_value = sum(s.get("value", 0) for s in active_remaining)
+    new_total_fee = sum(s.get("fee", 0) for s in active_remaining)
 
     await db.jobs.update_one(
         {"_id": ObjectId(job_id)},

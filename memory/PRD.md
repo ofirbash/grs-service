@@ -26,6 +26,41 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: Feb 18, 2026 (round 5) — Bug fix: cancelled stones leaked back into job totals via fee/delete/payment paths
+
+User report (verbatim):
+> The fees are wrong when cancelling a stone from a job. It still counts the cancelled stone
+
+**Root cause:** the cancel-stone route correctly recomputed `total_fee / total_value / total_stones` excluding cancelled stones. But **other backend routes that touch job totals were summing `job.stones` without filtering** — so the moment any of those routes ran, the cancelled stone's fee/value was re-introduced into the job totals. Affected paths:
+
+1. **`backend/routes/stones.py:174` — `PUT /stones/{id}/fees`**. Every fee/CS/mounted toggle on any *other* stone rewrote `total_fee` from `sum(s.fee for s in stones_list)` (all stones, cancelled included). Also never refreshed `total_value` / `total_stones`, so once cancel happened those could drift if a re-add later occurred.
+2. **`backend/routes/jobs.py:425` — `DELETE /jobs/{id}/stones/{id}`** (hard-delete). When a stone was hard-deleted, totals were recomputed from `remaining` which still included any soft-cancelled stones.
+3. **`backend/routes/payments.py`** — three places computing the amount the customer pays:
+   - `GET /payment/{token}` (line 115)
+   - `POST /payment/{token}/handshake` (line 154)
+   - `POST /payment/{token}/test-success` (line 298)
+   All summed `s.fee` over all stones — so the customer could be charged for cancelled stones.
+
+**Fix:** every place above now filters `if not s.get("cancelled")` before summing. In `update_stone_fees`, also keep `total_value` and `total_stones` in sync with the active set (the route now writes all three).
+
+**Verified end-to-end on preview (job 501 had a $90k active stone fee $700 + a $150k cancelled stone fee $800):**
+- Toggle Color Stability ON for the active stone → `total_fee = $750` (active $700 + $50 CS), **not $1550** (which would have included the cancelled $800). ✅
+- Toggle CS OFF → `total_fee = $700`, **not $1500**. ✅
+- `total_stones = 1`, `total_value = $90,000` throughout. ✅
+
+**Files touched:**
+- `backend/routes/stones.py` — `update_stone_fees` now filters active and rewrites all three totals.
+- `backend/routes/jobs.py` — `delete_stone_from_job` recomputes totals from `[s for s in remaining if not s.get("cancelled")]`.
+- `backend/routes/payments.py` — three customer-payment computations filter out cancelled stones.
+
+**Production:** fix is in **preview only**. Customers on production at https://lab.bashari.co could currently be charged for cancelled stones if you trigger any fee edit after cancelling. Redeploy when ready.
+
+Turnstile blanked for the curl-based reproduction and **restored** at end of session.
+
+---
+
+
+
 ### Session: Feb 18, 2026 (round 4) — Bug fix: stuck on "Loading…" when deep-linking into the dashboard
 
 User report (verbatim):

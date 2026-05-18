@@ -112,7 +112,8 @@ async def get_payment_details(token: str):
     if is_adjustment and job.get("payment_adjustment_amount") is not None:
         total_fee = job["payment_adjustment_amount"]
     else:
-        total_fee = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []))
+        # Cancelled stones are excluded from the amount the client pays.
+        total_fee = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []) if not s.get("cancelled"))
         total_fee = max(0, total_fee - discount)
 
     return {
@@ -151,7 +152,8 @@ async def create_payment_handshake(token: str, request: Request):
     if is_adjustment and job.get("payment_adjustment_amount") is not None:
         total_fee_usd = job["payment_adjustment_amount"]
     else:
-        total_fee_usd = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []))
+        # Cancelled stones are excluded from the Tranzila charge amount.
+        total_fee_usd = sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []) if not s.get("cancelled"))
         total_fee_usd = max(0, total_fee_usd - discount)
 
     if currency == "ILS":
@@ -295,7 +297,7 @@ async def simulate_payment(token: str):
             "payment_date": datetime.utcnow(),
             "payment_transaction_id": f"TEST-{uuid.uuid4().hex[:8]}",
             "payment_currency": "USD",
-            "payment_amount": str(sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []))),
+            "payment_amount": str(sum(s.get("actual_fee") or s.get("fee", 0) for s in job.get("stones", []) if not s.get("cancelled"))),
             "updated_at": datetime.utcnow()
         }}
     )
