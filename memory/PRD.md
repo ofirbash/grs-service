@@ -26,6 +26,40 @@ GRS Global is a laboratory logistics and ERP application for gemstone testing, b
 
 ---
 
+### Session: Feb 18, 2026 (round 2) — Stone modal: bug fix + density polish + jobs-page parity
+
+User feedback after round 1 (verbatim):
+> 1. you fixed only the stone modal from the stone page, it has to be fixed also when editing a stone from job.
+> 2. BUG: assume 2 values are set for a stone (identification + color) and I'm trying to delete the values. I delete, save and close. now I reopen and the values are still there. If I delete only one of the values and save, it works.
+> 3. The certificate upload action on the bottom: there is no need in all this wide design ... just add a button on the bottom left "upload cert scan" so you can reduce the height of the sticky area at the bottom.
+> 4. The header where it displays the stone's details (type, weight, shape, value, etc.) takes a lot of space. ... The main area should be the verbal results. Generally, editing a stone shouldn't require scrolling normally.
+
+**All four addressed:**
+
+1. **Jobs-page stone editor parity.** Applied the same four round-1 fixes to the nested stone dialog inside `frontend/src/app/dashboard/jobs/page.tsx` (lines ~2010-2380): widened to `sm:max-w-4xl lg:max-w-5xl`, wired `filterOptionsForStone` into all four `SearchableSelect`s, compacted header, compacted bottom (see #3, #4).
+
+2. **Bug — clearing multiple verbal fields didn't persist.** Root cause: both save handlers gated the structured-verbal API call behind `if (hasVerbalData)` (some field non-empty). When the user cleared *every* field, the call was skipped and the DB kept stale values; clearing one of two worked because the other still made `hasVerbalData` truthy. Fix: while in edit mode we **always** send `structuredFindings` to `PUT /api/stones/:id/verbal` — the backend already accepts and persists empty strings via `data.structured_findings.dict()`. Also fixed `hasUnsavedStoneChanges` in `jobs/page.tsx` (same gate caused the unsaved-changes warning to be missed when wiping fields).
+
+3. **Compact bottom.** Removed the entire "Certificate Scan" titled block (label, badges, upload-applies-to-group helper line, double-button row). Replaced with a single small `Upload cert scan` button placed at the bottom-left of `<DialogFooter>`, alongside the existing right-aligned `Save Changes` / `Close`. Group-applies hint moved to the button's `title` tooltip. Cuts the footer from ~140px to ~52px.
+
+4. **Compact header.** Replaced the 3- or 4-column tile grid (Type, Weight, Shape, Value, Fee, Color Stability, Mounted, Cert Group — each in its own `<div>` with a `Label` + `<p>`) with a single horizontal flex row that reads `TYPE Ruby │ WEIGHT 6 ct │ SHAPE Other │ VALUE $150,000 │ FEE $800 │ CERT GROUP n` plus a second one-line strip for Color Stability + Mounted toggles (only rendered when in edit mode or actually set). Saves ~65% of vertical space; the modal no longer requires scrolling at 900px viewport.
+
+**Shared helper:** extracted the round-1 inline filter into `frontend/src/lib/stoneDropdownFilter.ts` (`filterOptionsForStone`) so both pages import the same logic.
+
+**Files touched:**
+- `frontend/src/lib/stoneDropdownFilter.ts` (new — extracted shared helper).
+- `frontend/src/app/dashboard/stones/page.tsx` — compact header, compact footer, save fix, helper import, dropped unused `Link2` import.
+- `frontend/src/app/dashboard/jobs/page.tsx` — same as above + widened nested stone dialog + `filterOptionsForStone` wired into all four dropdowns + `hasUnsavedStoneChanges` fix.
+
+**Verification (Playwright on preview, admin login):**
+- Stones page: opened Ruby `RU600J50101` (Identification = NATURAL RUBY pre-set) → Edit → clicked × on Identification → Save → closed → reopened → Identification is now empty. ✅ Bug fixed.
+- Both modals render the new compact one-row header and the compact "Upload cert scan" footer button.
+- TypeScript build green, static export rebuilt clean. Turnstile secret blanked during screenshots, restored at end.
+
+---
+
+
+
 ### Session: Feb 18, 2026 — Stone Editing Modal UX fixes (P0 completed)
 
 User-reported issues with the **Stone details / edit modal** (`/dashboard/stones`):
