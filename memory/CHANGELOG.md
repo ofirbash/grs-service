@@ -5,7 +5,25 @@
 
 ---
 
-## Feb 18, 2026 (round 6) — Helper refactor + bookkeeping split + P3 refactor pass
+## Feb 19, 2026 — Bug fix: SearchableSelect dropdown layout broken inside modals
+
+User screenshot showed the verbal-findings dropdown rendering with the search bar visually overlapping the first option ("NATURAL RUBY" was clipped behind the search input). Root cause was twofold:
+
+1. **Sticky-positioned search bar inside a non-scroll parent.** The dropdown panel used `<div class="sticky top-0">` for the search header, expecting the parent to be the scroll container. But the parent had no `overflow` set — the actual scroll was on an inner sibling div for the options. `position: sticky` without a scrolling ancestor falls back to just sitting in normal flow, which combined with the inner options scroller's `maxHeight: 240px` produced the visual overlap.
+2. **Drop-up heuristic measured only the viewport.** Triggers near the bottom of a tall modal (which has its own scroll) saw "plenty of room above, no room below" because the viewport bottom was beyond the modal. The heuristic flipped the panel upward more aggressively than needed.
+
+**Fix in `frontend/src/components/ui/searchable-select.tsx`:**
+- Rebuilt the panel as a **flex column** with `overflow-hidden` on the panel itself. Search header is `flex-shrink-0`, options list is `flex-1 overflow-y-auto`. The visual stacking is now guaranteed by flexbox — search is always at the top of the panel and options always scroll cleanly below it, no sticky needed.
+- **Smarter drop-up heuristic**: walks the DOM upward to find the nearest scrollable ancestor (e.g. `<DialogContent>`) and measures available space relative to that container, not just the viewport. Only flips upward when `spaceBelow < 180px` (need at least ~3 rows visible) AND `spaceAbove > spaceBelow + 80px`. This keeps the panel in the conventional downward position unless really necessary.
+- Gave the search `<input>` a real `bg-background` (was `bg-transparent`), and added `pointer-events-none` to the magnifier icon so it can't intercept the input click.
+
+**Verification:** rebuilt static export, reopened the stone edit modal on preview, clicked Identification → dropdown opens (in this case upward because the trigger is near the bottom of the modal) with search bar cleanly on top, full list visible, "NATURAL RUBY" no longer clipped. No layout regressions in other dropdowns observed.
+
+**Production note:** the bug exists on `lab.bashari.co` too; redeploy when ready.
+
+---
+
+
 
 ### Backend
 - New `backend/jobs_helpers.py` (95 LOC) with `active_stones(job_or_stones)`, `sum_fees`, `sum_values`, `recompute_job_totals(stones, mounted_fee=)`, `payable_amount(job)`. Single source of truth for cancel-aware job arithmetic.
