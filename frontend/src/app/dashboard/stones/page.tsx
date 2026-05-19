@@ -44,7 +44,6 @@ import {
   Pencil,
   Lock,
   XCircle,
-  RotateCcw,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { DoubleConfirmDialog } from '@/components/DoubleConfirmDialog';
@@ -138,19 +137,18 @@ export default function StonesPage() {
   // View certificate scan
   const [viewCertOpen, setViewCertOpen] = useState(false);
 
-  // Cancel-stone double-confirm dialog
+  // Delete-stone double-confirm dialog
   const [cancelTarget, setCancelTarget] = useState<Stone | null>(null);
-  const [showCancelled, setShowCancelled] = useState(false);
 
   useEffect(() => {
     fetchStones();
-  }, [selectedBranchId, showCancelled]);
+  }, [selectedBranchId]);
 
   const fetchStones = async () => {
     try {
       const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
       const [stonesData, dropdownData, pricingData] = await Promise.all([
-        stonesApi.getAll({ ...branchParam, include_cancelled: showCancelled }),
+        stonesApi.getAll(branchParam),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
         settingsApi.getPricing().catch(() => ({})),
       ]);
@@ -325,16 +323,6 @@ export default function StonesPage() {
                 <SelectItem value="ungrouped">Not Grouped</SelectItem>
               </SelectContent>
             </Select>
-            {isAdmin && (
-              <label className="flex items-center gap-2 text-sm text-navy-700 px-3 cursor-pointer select-none">
-                <Switch
-                  checked={showCancelled}
-                  onCheckedChange={setShowCancelled}
-                  data-testid="stones-show-cancelled-toggle"
-                />
-                Show cancelled
-              </label>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -355,22 +343,17 @@ export default function StonesPage() {
               filteredStones.map((stone) => (
                 <div
                   key={stone.id}
-                  className={`border border-navy-200 rounded-lg p-3 hover:bg-navy-50 cursor-pointer active:bg-navy-100 ${stone.cancelled ? 'opacity-60' : ''}`}
+                  className="border border-navy-200 rounded-lg p-3 hover:bg-navy-50 cursor-pointer active:bg-navy-100"
                   onClick={() => handleOpenDetails(stone)}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`font-mono text-sm font-semibold text-navy-900 ${stone.cancelled ? 'line-through' : ''}`}>{stone.sku}</span>
-                    <div className="flex items-center gap-2">
-                      {stone.cancelled && (
-                        <Badge variant="secondary" className="bg-red-100 text-red-700 text-[10px] px-1.5 py-0">Cancelled</Badge>
-                      )}
-                      <span className="text-xs text-navy-500">Job #{stone.job_number}</span>
-                    </div>
+                    <span className="font-mono text-sm font-semibold text-navy-900">{stone.sku}</span>
+                    <span className="text-xs text-navy-500">Job #{stone.job_number}</span>
                   </div>
-                  <div className={`text-sm text-navy-600 ${stone.cancelled ? 'line-through' : ''}`}>{stone.stone_type} &middot; {stone.weight} ct</div>
+                  <div className="text-sm text-navy-600">{stone.stone_type} &middot; {stone.weight} ct</div>
                   <div className="flex items-center justify-between mt-1 text-xs text-navy-500">
                     <span>{stone.client_name}</span>
-                    <span className={`font-medium text-navy-900 ${stone.cancelled ? 'line-through' : ''}`}>${stone.fee?.toLocaleString()}</span>
+                    <span className="font-medium text-navy-900">${stone.fee?.toLocaleString()}</span>
                   </div>
                 </div>
               ))
@@ -396,7 +379,7 @@ export default function StonesPage() {
               {filteredStones.map((stone) => (
                 <TableRow 
                   key={stone.id}
-                  className={`cursor-pointer hover:bg-navy-50 ${stone.cancelled ? 'opacity-60 line-through' : ''}`}
+                  className="cursor-pointer hover:bg-navy-50"
                   onClick={() => handleOpenDetails(stone)}
                   data-testid={`stone-row-${stone.sku}`}
                 >
@@ -413,11 +396,8 @@ export default function StonesPage() {
                   <TableCell>${stone.value.toLocaleString()}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {stone.cancelled && (
-                        <Badge variant="secondary" className="bg-red-100 text-red-700">Cancelled</Badge>
-                      )}
-                      {!stone.cancelled && getStatusIndicators(stone)}
-                      {!stone.cancelled && getStatusIndicators(stone).length === 0 && (
+                      {getStatusIndicators(stone)}
+                      {getStatusIndicators(stone).length === 0 && (
                         <span className="text-navy-400 text-sm">-</span>
                       )}
                     </div>
@@ -439,36 +419,16 @@ export default function StonesPage() {
                           <FileText className="h-4 w-4" />
                         </Button>
                       )}
-                      {isAdmin && !stone.cancelled && (
+                      {isAdmin && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setCancelTarget(stone)}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          data-testid={`cancel-stone-${stone.sku}`}
-                          title="Cancel stone"
+                          data-testid={`delete-stone-${stone.sku}`}
+                          title="Delete stone"
                         >
                           <XCircle className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {isAdmin && stone.cancelled && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              await stonesApi.uncancel(stone.id);
-                              fetchStones();
-                            } catch (e: unknown) {
-                              const err = e as { response?: { data?: { detail?: string } } };
-                              alert(err.response?.data?.detail || 'Could not restore stone');
-                            }
-                          }}
-                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          data-testid={`restore-stone-${stone.sku}`}
-                          title="Restore stone"
-                        >
-                          <RotateCcw className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
@@ -865,21 +825,20 @@ export default function StonesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Cancel-stone double-confirm */}
+      {/* Delete-stone double-confirm */}
       <DoubleConfirmDialog
         open={!!cancelTarget}
         onOpenChange={(o) => { if (!o) setCancelTarget(null); }}
-        title={`Cancel stone ${cancelTarget?.sku || ''}?`}
+        title={`Delete stone ${cancelTarget?.sku || ''}?`}
         description={
           <>
-            This stone will be marked <strong>Cancelled</strong>, hidden from
-            the default list, and excluded from the parent job&apos;s totals
-            (fees, value and stone count). The audit trail is preserved.
-            You can restore it anytime from the &quot;Show cancelled&quot; toggle.
+            This stone will be <strong>permanently removed</strong> from its job.
+            Its value, fee and count will no longer contribute to the job&apos;s
+            totals. This action cannot be undone.
           </>
         }
-        confirmLabel="Cancel Stone"
-        testIdPrefix="cancel-stone"
+        confirmLabel="Delete Stone"
+        testIdPrefix="delete-stone"
         onConfirm={async () => {
           if (!cancelTarget) return;
           await stonesApi.cancel(cancelTarget.id);

@@ -1402,7 +1402,7 @@ function JobsPageContent() {
                 <div className="flex items-center justify-between">
                     <Label className="text-base font-semibold flex items-center gap-2">
                       <Gem className="h-4 w-4" />
-                      Stones ({selectedJobActiveStones.length} total{selectedJobCancelledCount > 0 ? ` · ${selectedJobCancelledCount} cancelled hidden` : ''})
+                      Stones ({selectedJobActiveStones.length} total)
                     </Label>
                     <div className="flex items-center gap-2">
                       {editMode && isAdmin && (
@@ -1697,39 +1697,45 @@ function JobsPageContent() {
               Document upload/view buttons (Memo, Client Invoice, Lab Invoice)
               live here so the user can act on the job without scrolling. */}
           {selectedJob && (
-            <div className="bg-white border-t px-4 py-2.5 shrink-0">
-              <JobDocumentsRow
-                job={selectedJob}
-                isAdmin={isAdmin}
-                memoInputRef={fileInputRef}
-                uploadingMemo={uploading}
-                onMemoChange={handleMemoUpload}
-                onViewMemo={() => setViewMemoOpen(true)}
-                generatingInvoice={generatingInvoice}
-                onGenerateInvoice={handleGenerateInvoice}
-                onViewInvoice={() => setViewInvoiceOpen(true)}
-                labInvoiceInputRef={labInvoiceInputRef}
-                uploadingLabInvoice={uploadingLabInvoice}
-                onLabInvoiceChange={handleLabInvoiceUpload}
-                onViewLabInvoice={() => setViewLabInvoiceOpen(true)}
-              />
+            <div className="bg-white border-t px-4 py-2 shrink-0 flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <JobDocumentsRow
+                  job={selectedJob}
+                  isAdmin={isAdmin}
+                  memoInputRef={fileInputRef}
+                  uploadingMemo={uploading}
+                  onMemoChange={handleMemoUpload}
+                  onViewMemo={() => setViewMemoOpen(true)}
+                  generatingInvoice={generatingInvoice}
+                  onGenerateInvoice={handleGenerateInvoice}
+                  onViewInvoice={() => setViewInvoiceOpen(true)}
+                  labInvoiceInputRef={labInvoiceInputRef}
+                  uploadingLabInvoice={uploadingLabInvoice}
+                  onLabInvoiceChange={handleLabInvoiceUpload}
+                  onViewLabInvoice={() => setViewLabInvoiceOpen(true)}
+                />
+              </div>
+              {/* Close button shares the row with the documents to keep the
+                  footer compact. Save button only appears in edit mode. */}
+              {isAdmin && editMode && (
+                <Button
+                  onClick={handleUpdateJob}
+                  className="h-7 px-3 text-xs bg-navy-900 hover:bg-navy-800"
+                  data-testid="save-job-button"
+                >
+                  Save Changes
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => setViewDialogOpen(false)}
+                className="h-7 px-3 text-xs"
+                data-testid="close-job-dialog"
+              >
+                Close
+              </Button>
             </div>
           )}
-
-          <DialogFooter className="bg-white border-t px-6 py-3 shrink-0 gap-2">
-            {editMode && (
-              <Button
-                onClick={handleUpdateJob}
-                className="bg-navy-900 hover:bg-navy-800"
-                data-testid="save-job-button"
-              >
-                Save Changes
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

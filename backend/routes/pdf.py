@@ -293,7 +293,18 @@ def _build_invoice_pdf_buffer(job: dict, client: dict, branch: dict, payment_url
     if not stones:
         rows.append(['—', '—', 'No stones on this invoice', '—', '—', '—'])
 
-    rows.append(['', '', '', 'TOTAL', _format_money(total_value), _format_money(total_fee)])
+    rows.append(['', '', '', 'SUBTOTAL', _format_money(total_value), _format_money(total_fee)])
+
+    # Discount + net amount due. The job document stores discount as a flat
+    # dollar amount applied to the total fee (not per-stone). When set, we
+    # append a Discount row and recompute the "Amount Due" so the invoice
+    # matches what the customer is asked to pay via /api/payment/{token}
+    # (which uses `payable_amount(job)` from `jobs_helpers`).
+    discount = float(job.get('discount') or 0)
+    amount_due = max(0.0, total_fee - discount)
+    if discount > 0:
+        rows.append(['', '', '', 'Discount', '', f'- {_format_money(discount)}'])
+        rows.append(['', '', '', 'TOTAL', '', _format_money(amount_due)])
 
     line_tbl = Table(
         rows,
@@ -330,7 +341,7 @@ def _build_invoice_pdf_buffer(job: dict, client: dict, branch: dict, payment_url
 
     elements.append(Spacer(1, 0.2 * inch))
     elements.append(Paragraph(
-        f"<b>Amount Due:</b>&nbsp;&nbsp;&nbsp;<font size=12>{_format_money(total_fee)}</font>",
+        f"<b>Amount Due:</b>&nbsp;&nbsp;&nbsp;<font size=12>{_format_money(amount_due)}</font>",
         ParagraphStyle('Due', parent=val, fontSize=11, alignment=TA_RIGHT, leading=14),
     ))
     elements.append(Spacer(1, 0.25 * inch))

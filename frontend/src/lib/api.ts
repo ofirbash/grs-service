@@ -318,7 +318,7 @@ export const jobsApi = {
 
 // Stones API
 export const stonesApi = {
-  getAll: async (params?: { branch_id?: string; include_cancelled?: boolean }) => {
+  getAll: async (params?: { branch_id?: string }) => {
     const response = await api.get('/stones', { params });
     return response.data;
   },
@@ -354,11 +354,10 @@ export const stonesApi = {
     return response.data;
   },
   cancel: async (id: string) => {
+    // Backend treats this as a hard delete now (the PATCH route is kept
+    // for backwards-compat). Frontend label is "Delete" but the call name
+    // stays `cancel` to avoid a churn of test-ids across the app.
     const response = await api.patch(`/stones/${id}/cancel`);
-    return response.data;
-  },
-  uncancel: async (id: string) => {
-    const response = await api.patch(`/stones/${id}/uncancel`);
     return response.data;
   },
 };

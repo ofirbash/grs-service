@@ -41,13 +41,13 @@ interface ActionGroupProps {
 }
 
 const ActionGroup: React.FC<ActionGroupProps> = ({ icon, title, badge, children }) => (
-  <div className="flex flex-col items-center gap-1.5 px-3">
-    <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-navy-600">
+  <div className="flex flex-col items-center gap-1 px-3 py-0.5">
+    <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-navy-600 leading-none">
       {icon}
       <span>{title}</span>
       {badge}
     </div>
-    <div className="flex items-center gap-1.5">{children}</div>
+    <div className="flex items-center gap-1">{children}</div>
   </div>
 );
 
@@ -91,7 +91,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
                 size="sm"
                 onClick={() => memoInputRef.current?.click()}
                 disabled={uploadingMemo}
-                className="h-7 px-2.5 text-xs"
+                className="h-6 px-2 text-[11px]"
                 data-testid="upload-memo-button"
               >
                 {uploadingMemo ? (
@@ -110,7 +110,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
               variant="outline"
               size="sm"
               onClick={onViewMemo}
-              className="h-7 px-2.5 text-xs"
+              className="h-6 px-2 text-[11px]"
               data-testid="view-memo-button"
             >
               <Eye className="h-3 w-3 mr-1" />View
@@ -131,7 +131,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
             size="sm"
             onClick={onGenerateInvoice}
             disabled={generatingInvoice}
-            className="h-7 px-2.5 text-xs border-navy-300"
+            className="h-6 px-2 text-[11px] border-navy-300"
             data-testid="generate-invoice-button"
           >
             {generatingInvoice ? (
@@ -148,7 +148,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
               variant="outline"
               size="sm"
               onClick={onViewInvoice}
-              className="h-7 px-2.5 text-xs"
+              className="h-6 px-2 text-[11px]"
               data-testid="view-invoice-button"
             >
               <Eye className="h-3 w-3 mr-1" />View
@@ -176,7 +176,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
             size="sm"
             onClick={() => labInvoiceInputRef.current?.click()}
             disabled={uploadingLabInvoice}
-            className="h-7 px-2.5 text-xs"
+            className="h-6 px-2 text-[11px]"
             data-testid="upload-lab-invoice-button"
           >
             {uploadingLabInvoice ? (
@@ -193,7 +193,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
               variant="outline"
               size="sm"
               onClick={onViewLabInvoice}
-              className="h-7 px-2.5 text-xs"
+              className="h-6 px-2 text-[11px]"
               data-testid="view-lab-invoice-button"
             >
               <Eye className="h-3 w-3 mr-1" />View

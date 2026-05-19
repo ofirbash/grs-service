@@ -18,13 +18,14 @@ router = APIRouter()
 @router.get("/stones")
 async def get_all_stones(
     branch_id: Optional[str] = None,
-    include_cancelled: bool = False,
     user: dict = Depends(get_current_user),
 ):
     """Get all stones across all jobs with job info.
 
-    Cancelled stones are excluded by default — pass `?include_cancelled=true`
-    to include them (used by the admin "show cancelled" toggle).
+    Stones belonging to a cancelled job are still hidden from the active list
+    (the job itself is the cancelled record; we don't show its constituent
+    stones in the "stones" view). Individually-deleted stones are pulled from
+    the DB by `DELETE /stones/{id}` so they don't appear here at all.
     """
     query = {}
 
@@ -45,14 +46,19 @@ async def get_all_stones(
     for job in jobs:
         job_id = str(job["_id"])
         job_number = job.get("job_number", 0)
-        job_cancelled = job.get("status") == "cancelled"
+        # Skip cancelled jobs entirely — their stones never show up in the
+        # stones list. The job's own row still surfaces under /api/jobs with
+        # its cancelled status badge.
+        if job.get("status") == "cancelled":
+            continue
         for stone in job.get("stones", []):
-            stone_cancelled = bool(stone.get("cancelled")) or job_cancelled
-            if stone_cancelled and not include_cancelled:
+            # Legacy soft-cancelled stones from the pre-hard-delete era still
+            # carry `cancelled: true` in the DB; ignore them here so they
+            # appear deleted as the user expects.
+            if stone.get("cancelled"):
                 continue
             stone_data = {
                 **stone,
-                "cancelled": stone_cancelled,
                 "job_id": job_id,
                 "job_number": job_number,
                 "client_name": job.get("client_name", ""),
@@ -233,33 +239,30 @@ async def upload_stone_certificate_scan(stone_id: str, data: CertificateScanUplo
 
 
 @router.patch("/stones/{stone_id}/cancel")
-async def cancel_stone(stone_id: str, user: dict = Depends(require_admin)):
-    """Mark an individual stone as cancelled.
+@router.delete("/stones/{stone_id}")
+async def delete_stone(stone_id: str, user: dict = Depends(require_admin)):
+    """Hard-delete a stone from its parent job.
 
-    Cancelled stones stay on their parent job (so we keep the audit trail)
-    but are excluded from default queries, the dashboard counts, and any
-    fee/value totals. The job's stored `total_stones / total_value /
-    total_fee` are recomputed from the surviving stones so the dashboard
-    aggregates stay accurate. Reverse via `uncancel_stone` below.
+    Earlier we kept cancelled stones on the job as a soft-deletion audit
+    trail, but the UX wart of "X cancelled hidden" appearing on every job
+    + the steady stream of bugs where cancelled stones leaked into totals
+    convinced us to switch to plain hard-deletion. The PATCH /cancel route
+    is kept as an alias so existing frontend calls (and integrations) keep
+    working transparently.
+
+    Job totals (`total_stones / total_value / total_fee`) are recomputed
+    from the surviving stones.
     """
     job = await db.jobs.find_one({"stones.id": stone_id})
     if not job:
         raise HTTPException(status_code=404, detail="Stone not found")
 
-    new_stones = []
-    for s in job.get("stones", []):
-        if s.get("id") == stone_id:
-            new_stones.append({
-                **s,
-                "cancelled": True,
-                "cancelled_at": datetime.utcnow(),
-                "cancelled_by": user.get("full_name") or user.get("email"),
-            })
-        else:
-            new_stones.append(s)
-
-    active = active_stones(new_stones)
-    totals = recompute_job_totals(active)
+    new_stones = [s for s in job.get("stones", []) if s.get("id") != stone_id]
+    # Reassign contiguous positions over the surviving stones so the order
+    # number on receipts / memos stays sensible after a delete.
+    for idx, s in enumerate(sorted(new_stones, key=lambda x: x.get("position", 0)), start=1):
+        s["position"] = idx
+    totals = recompute_job_totals(new_stones)
 
     await db.jobs.update_one(
         {"_id": job["_id"]},
@@ -269,33 +272,4 @@ async def cancel_stone(stone_id: str, user: dict = Depends(require_admin)):
             "updated_at": datetime.utcnow(),
         }},
     )
-    return {"message": "Stone cancelled", "totals": totals}
-
-
-@router.patch("/stones/{stone_id}/uncancel")
-async def uncancel_stone(stone_id: str, user: dict = Depends(require_admin)):
-    """Reverse a stone cancellation (admin escape hatch)."""
-    job = await db.jobs.find_one({"stones.id": stone_id})
-    if not job:
-        raise HTTPException(status_code=404, detail="Stone not found")
-
-    new_stones = []
-    for s in job.get("stones", []):
-        if s.get("id") == stone_id:
-            cleaned = {k: v for k, v in s.items() if k not in ("cancelled", "cancelled_at", "cancelled_by")}
-            new_stones.append(cleaned)
-        else:
-            new_stones.append(s)
-
-    active = active_stones(new_stones)
-    totals = recompute_job_totals(active)
-
-    await db.jobs.update_one(
-        {"_id": job["_id"]},
-        {"$set": {
-            "stones": new_stones,
-            **totals,
-            "updated_at": datetime.utcnow(),
-        }},
-    )
-    return {"message": "Stone restored", "totals": totals}
+    return {"message": "Stone deleted", "totals": totals}
