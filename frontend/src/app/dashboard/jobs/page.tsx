@@ -1697,7 +1697,7 @@ function JobsPageContent() {
               Document upload/view buttons (Memo, Client Invoice, Lab Invoice)
               live here so the user can act on the job without scrolling. */}
           {selectedJob && (
-            <div className="bg-white border-t px-6 py-2 shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+            <div className="bg-white border-t px-4 py-2.5 shrink-0">
               <JobDocumentsRow
                 job={selectedJob}
                 isAdmin={isAdmin}
