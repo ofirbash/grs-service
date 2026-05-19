@@ -41,13 +41,13 @@ interface ActionGroupProps {
 }
 
 const ActionGroup: React.FC<ActionGroupProps> = ({ icon, title, badge, children }) => (
-  <div className="flex flex-col items-center gap-1 px-3 py-0.5">
-    <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-navy-600 leading-none">
+  <div className="flex flex-col items-center gap-1.5 px-5 py-0.5">
+    <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-navy-600 leading-none">
       {icon}
       <span>{title}</span>
       {badge}
     </div>
-    <div className="flex items-center gap-1">{children}</div>
+    <div className="flex items-center gap-1.5">{children}</div>
   </div>
 );
 
@@ -73,10 +73,10 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
   ].filter(Boolean) as string[];
 
   return (
-    <div className="flex items-stretch divide-x divide-navy-200 gap-0">
+    <div className="flex items-stretch divide-x divide-navy-200">
       {/* Signed Memo */}
       {visibleGroups.includes('memo') && (
-        <ActionGroup icon={<Upload className="h-3 w-3" />} title="Memo">
+        <ActionGroup icon={<Upload className="h-3.5 w-3.5" />} title="Memo">
           {isAdmin && (
             <>
               <input
@@ -91,7 +91,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
                 size="sm"
                 onClick={() => memoInputRef.current?.click()}
                 disabled={uploadingMemo}
-                className="h-6 px-2 text-[11px]"
+                className="h-9 px-3 text-xs"
                 data-testid="upload-memo-button"
               >
                 {uploadingMemo ? (
@@ -110,7 +110,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
               variant="outline"
               size="sm"
               onClick={onViewMemo}
-              className="h-6 px-2 text-[11px]"
+              className="h-9 px-3 text-xs"
               data-testid="view-memo-button"
             >
               <Eye className="h-3 w-3 mr-1" />View
@@ -122,7 +122,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
       {/* Client Invoice */}
       {visibleGroups.includes('client') && (
         <ActionGroup
-          icon={<Receipt className="h-3 w-3" />}
+          icon={<Receipt className="h-3.5 w-3.5" />}
           title="Client Invoice"
           badge={<Badge variant="secondary" className="bg-navy-900 text-white text-[9px] px-1 py-0">Email</Badge>}
         >
@@ -131,7 +131,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
             size="sm"
             onClick={onGenerateInvoice}
             disabled={generatingInvoice}
-            className="h-6 px-2 text-[11px] border-navy-300"
+            className="h-9 px-3 text-xs border-navy-300"
             data-testid="generate-invoice-button"
           >
             {generatingInvoice ? (
@@ -148,7 +148,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
               variant="outline"
               size="sm"
               onClick={onViewInvoice}
-              className="h-6 px-2 text-[11px]"
+              className="h-9 px-3 text-xs"
               data-testid="view-invoice-button"
             >
               <Eye className="h-3 w-3 mr-1" />View
@@ -160,7 +160,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
       {/* Lab Invoice */}
       {visibleGroups.includes('lab') && (
         <ActionGroup
-          icon={<FileText className="h-3 w-3" />}
+          icon={<FileText className="h-3.5 w-3.5" />}
           title="Lab Invoice"
           badge={<Badge variant="secondary" className="bg-navy-200 text-navy-700 text-[9px] px-1 py-0">Admin</Badge>}
         >
@@ -176,7 +176,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
             size="sm"
             onClick={() => labInvoiceInputRef.current?.click()}
             disabled={uploadingLabInvoice}
-            className="h-6 px-2 text-[11px]"
+            className="h-9 px-3 text-xs"
             data-testid="upload-lab-invoice-button"
           >
             {uploadingLabInvoice ? (
@@ -193,7 +193,7 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
               variant="outline"
               size="sm"
               onClick={onViewLabInvoice}
-              className="h-6 px-2 text-[11px]"
+              className="h-9 px-3 text-xs"
               data-testid="view-lab-invoice-button"
             >
               <Eye className="h-3 w-3 mr-1" />View

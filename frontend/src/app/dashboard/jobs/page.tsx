@@ -1697,7 +1697,7 @@ function JobsPageContent() {
               Document upload/view buttons (Memo, Client Invoice, Lab Invoice)
               live here so the user can act on the job without scrolling. */}
           {selectedJob && (
-            <div className="bg-white border-t px-4 py-2 shrink-0 flex items-center gap-4">
+            <div className="bg-white border-t px-4 py-2.5 shrink-0 flex items-center gap-4">
               <div className="flex-1 min-w-0">
                 <JobDocumentsRow
                   job={selectedJob}
@@ -1720,7 +1720,8 @@ function JobsPageContent() {
               {isAdmin && editMode && (
                 <Button
                   onClick={handleUpdateJob}
-                  className="h-7 px-3 text-xs bg-navy-900 hover:bg-navy-800"
+                  className="h-9 px-4 bg-navy-900 hover:bg-navy-800"
+                  size="sm"
                   data-testid="save-job-button"
                 >
                   Save Changes
@@ -1728,8 +1729,9 @@ function JobsPageContent() {
               )}
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => setViewDialogOpen(false)}
-                className="h-7 px-3 text-xs"
+                className="h-9 px-4"
                 data-testid="close-job-dialog"
               >
                 Close
