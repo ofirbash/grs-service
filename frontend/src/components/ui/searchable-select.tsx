@@ -31,6 +31,7 @@ export function SearchableSelect({
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [dropUp, setDropUp] = React.useState(false);
+  const [panelMaxHeight, setPanelMaxHeight] = React.useState(280);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -42,40 +43,60 @@ export function SearchableSelect({
     );
   }, [options, search]);
 
-  // Decide whether the panel should open upward.
+  // Decide drop direction AND compute the panel's max height in one pass.
   //
-  // The trigger may live inside a scrollable modal, so we measure available
-  // space relative to BOTH the viewport AND the nearest scrollable ancestor
-  // (e.g. `<DialogContent>`). The dropdown only flips upward when there is
-  // genuinely not enough room below — otherwise it stays in the conventional
-  // downward position so the user isn't surprised.
-  const PANEL_MAX_HEIGHT = 300;
-  const MIN_BELOW = 180; // need at least ~3 rows below the trigger
+  // When the trigger sits near the bottom of a tall modal (very common in the
+  // stone edit dialog), opening "upward" with a fixed 300px height makes the
+  // panel collide with the modal's sticky header — and because the scroll
+  // body has `overflow-y-auto`, any panel content extending past the scroll
+  // viewport is silently clipped. The previous version showed the dropdown
+  // disappearing behind the header.
+  //
+  // Fix: measure the actual usable space in the nearest scrollable ancestor
+  // and shrink the panel to fit. We also keep the search input visible at the
+  // top so the user can always filter. Minimum of ~3 visible rows is enforced
+  // by `MIN_PANEL_HEIGHT` — if we can't fit that, we flip the other way.
+  const PANEL_DESIRED_HEIGHT = 280;
+  const MIN_PANEL_HEIGHT = 160; // search bar (~56px) + ~2 rows
+  const PANEL_MARGIN = 12; // breathing room against scroll-viewport edges
   React.useEffect(() => {
     if (!open || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
 
-    // Find the nearest scrollable ancestor (the dialog scroll container).
+    // Walk up to the nearest scrollable ancestor (e.g. DialogContent's
+    // overflow-y-auto body). Fall back to the viewport.
     let scrollHost: HTMLElement | null = containerRef.current.parentElement;
     while (scrollHost) {
       const style = getComputedStyle(scrollHost);
       const oy = style.overflowY;
-      if ((oy === "auto" || oy === "scroll") && scrollHost.clientHeight < scrollHost.scrollHeight + 1) {
+      if (
+        (oy === "auto" || oy === "scroll") &&
+        scrollHost.scrollHeight > scrollHost.clientHeight
+      ) {
         break;
       }
       scrollHost = scrollHost.parentElement;
     }
-    const hostBottom = scrollHost ? scrollHost.getBoundingClientRect().bottom : window.innerHeight;
-    const hostTop = scrollHost ? scrollHost.getBoundingClientRect().top : 0;
+    const hostRect = scrollHost
+      ? scrollHost.getBoundingClientRect()
+      : { top: 0, bottom: window.innerHeight };
 
-    const spaceBelow = Math.min(window.innerHeight, hostBottom) - rect.bottom;
-    const spaceAbove = rect.top - Math.max(0, hostTop);
+    const usableBottom = Math.min(window.innerHeight, hostRect.bottom);
+    const usableTop = Math.max(0, hostRect.top);
 
-    // Only flip up if there's truly not enough space below AND meaningfully
-    // more space above. Keep a conservative threshold so the panel doesn't
-    // pop upward unexpectedly when the trigger is near the middle of a tall
-    // modal.
-    setDropUp(spaceBelow < MIN_BELOW && spaceAbove > spaceBelow + 80);
+    const spaceBelow = Math.max(0, usableBottom - rect.bottom - PANEL_MARGIN);
+    const spaceAbove = Math.max(0, rect.top - usableTop - PANEL_MARGIN);
+
+    // Prefer dropping down. Only flip up when below is too cramped AND there's
+    // visibly more room above.
+    const shouldFlipUp =
+      spaceBelow < MIN_PANEL_HEIGHT && spaceAbove > spaceBelow + 40;
+    setDropUp(shouldFlipUp);
+
+    const available = shouldFlipUp ? spaceAbove : spaceBelow;
+    setPanelMaxHeight(
+      Math.max(MIN_PANEL_HEIGHT, Math.min(PANEL_DESIRED_HEIGHT, available)),
+    );
   }, [open, filteredOptions.length]);
 
   // Handle click outside to close
@@ -167,7 +188,7 @@ export function SearchableSelect({
             "animate-in fade-in-0 zoom-in-95",
             dropUp ? "bottom-full mb-1" : "top-full mt-1"
           )}
-          style={{ maxHeight: `${PANEL_MAX_HEIGHT}px` }}
+          style={{ maxHeight: `${panelMaxHeight}px` }}
         >
           {/* Search header — fixed at top of the panel */}
           <div className="flex-shrink-0 bg-popover p-2 border-b">

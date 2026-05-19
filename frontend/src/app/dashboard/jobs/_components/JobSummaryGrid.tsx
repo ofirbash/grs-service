@@ -2,9 +2,6 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 import type { Job } from '../_types';
 
 export interface EditJobFormData {
@@ -18,109 +15,82 @@ interface JobSummaryGridProps {
   editMode: boolean;
   editFormData: EditJobFormData;
   setEditFormData: (d: EditJobFormData) => void;
-  getStatusBadge: (status: string) => React.ReactNode;
 }
 
-/** Top info grid + notes section inside the View Job dialog. */
+/**
+ * Compact single-row job-summary strip rendered inside the View Job dialog
+ * body. Saves ~60% vertical space compared to the previous 4-column grid.
+ *
+ * The status badge is no longer shown here — it lives in the sticky dialog
+ * header next to the job number. Net total is rendered inline beside the
+ * discount field when a discount is set.
+ */
 export const JobSummaryGrid: React.FC<JobSummaryGridProps> = ({
-  job, editMode, editFormData, setEditFormData, getStatusBadge,
-}) => (
-  <>
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-      <div>
-        <Label className="text-navy-500 text-xs">Client</Label>
-        <p className="font-medium text-navy-900 text-sm">{job.client_name || 'N/A'}</p>
-      </div>
-      <div>
-        <Label className="text-navy-500">Branch</Label>
-        <p className="font-medium text-navy-900">{job.branch_name || 'N/A'}</p>
-      </div>
-      <div>
-        <Label className="text-navy-500">Service Type</Label>
-        <p className="font-medium text-navy-900">{job.service_type}</p>
-      </div>
-      <div>
-        <Label className="text-navy-500">Status</Label>
-        {editMode ? (
-          <Select
-            value={editFormData.status}
-            onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}
-          >
-            <SelectTrigger className="mt-1" data-testid="edit-status-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="stones_accepted">Stones Accepted</SelectItem>
-              <SelectItem value="sent_to_lab">Sent to Lab</SelectItem>
-              <SelectItem value="verbal_uploaded">Verbal Uploaded</SelectItem>
-              <SelectItem value="stones_returned">Stones Returned</SelectItem>
-              <SelectItem value="cert_uploaded">Cert. Uploaded</SelectItem>
-              <SelectItem value="cert_returned">Cert. Returned</SelectItem>
-              <SelectItem value="done">Done</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-        ) : (
-          <div className="mt-1">{getStatusBadge(job.status)}</div>
+  job, editMode, editFormData, setEditFormData,
+}) => {
+  const netTotal = Math.max(0, job.total_fee - (job.discount || 0));
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-3 py-2 bg-navy-50 rounded-md text-sm">
+        <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Client</span><span className="font-medium text-navy-900">{job.client_name || 'N/A'}</span></span>
+        <span className="text-navy-200">|</span>
+        <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Branch</span><span className="font-medium text-navy-900">{job.branch_name || 'N/A'}</span></span>
+        <span className="text-navy-200">|</span>
+        <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Service</span><span className="font-medium text-navy-900">{job.service_type}</span></span>
+        <span className="text-navy-200">|</span>
+        <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Value</span><span className="font-medium text-navy-900">${job.total_value.toLocaleString()}</span></span>
+        <span className="text-navy-200">|</span>
+        <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Est. Fees</span><span className="font-medium text-navy-900">${job.total_fee.toLocaleString()}</span></span>
+        {(editMode || (job.discount || 0) > 0) && (
+          <>
+            <span className="text-navy-200">|</span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-navy-500 text-xs uppercase tracking-wide">Discount</span>
+              {editMode ? (
+                <span className="flex items-center gap-1">
+                  <span className="text-navy-600 text-sm">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editFormData.discount}
+                    onChange={(e) => setEditFormData({ ...editFormData, discount: e.target.value })}
+                    className="h-7 w-24 border-navy-200 text-sm py-0"
+                    placeholder="0"
+                    data-testid="job-discount-input"
+                  />
+                </span>
+              ) : (
+                <span className="font-medium text-navy-900">-${(job.discount || 0).toLocaleString()}</span>
+              )}
+            </span>
+            {(job.discount || 0) > 0 && (
+              <>
+                <span className="text-navy-200">|</span>
+                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Net Total</span><span className="font-bold text-navy-900">${netTotal.toLocaleString()}</span></span>
+              </>
+            )}
+          </>
         )}
       </div>
-      <div>
-        <Label className="text-navy-500">Total Value</Label>
-        <p className="font-medium text-navy-900">${job.total_value.toLocaleString()}</p>
-      </div>
-      <div>
-        <Label className="text-navy-500">Total Est. Fees</Label>
-        <p className="font-medium text-navy-900">${job.total_fee.toLocaleString()}</p>
-      </div>
-      <div>
-        <Label className="text-navy-500">Discount</Label>
-        {editMode ? (
-          <div className="flex items-center gap-1 mt-1">
-            <span className="text-navy-600 text-sm">$</span>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={editFormData.discount}
-              onChange={(e) => setEditFormData({ ...editFormData, discount: e.target.value })}
-              className="h-7 w-24 border-navy-200 text-sm"
-              placeholder="0"
-              data-testid="job-discount-input"
-            />
-          </div>
-        ) : (
-          <p className="font-medium text-navy-900">
-            {job.discount ? `-$${job.discount.toLocaleString()}` : '-'}
-          </p>
-        )}
-      </div>
-      {job.discount ? (
+
+      {/* Notes — only when present or in edit mode */}
+      {editMode ? (
         <div>
-          <Label className="text-navy-500 font-semibold">Net Total</Label>
-          <p className="font-bold text-navy-900">
-            ${Math.max(0, job.total_fee - (job.discount || 0)).toLocaleString()}
-          </p>
+          <Label className="text-navy-500 text-xs">Notes</Label>
+          <Textarea
+            value={editFormData.notes}
+            onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+            className="mt-1"
+            rows={2}
+          />
+        </div>
+      ) : job.notes ? (
+        <div className="px-3 py-1.5 text-sm text-navy-700 italic">
+          <span className="text-navy-500 text-xs uppercase tracking-wide mr-2">Notes</span>
+          {job.notes}
         </div>
       ) : null}
-    </div>
-
-    {/* Notes */}
-    {editMode ? (
-      <div>
-        <Label className="text-navy-500">Notes</Label>
-        <Textarea
-          value={editFormData.notes}
-          onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
-          className="mt-1"
-          rows={2}
-        />
-      </div>
-    ) : job.notes ? (
-      <div>
-        <Label className="text-navy-500">Notes</Label>
-        <p className="font-medium text-navy-900">{job.notes}</p>
-      </div>
-    ) : null}
-  </>
-);
+    </>
+  );
+};

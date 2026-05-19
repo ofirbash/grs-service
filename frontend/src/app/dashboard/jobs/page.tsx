@@ -1328,11 +1328,38 @@ function JobsPageContent() {
         }
       }}>
         <DialogContent className="sm:max-w-5xl max-h-[90vh] p-0 !overflow-x-hidden flex flex-col">
-          <DialogHeader className="bg-white border-b px-6 py-4 shrink-0">
-            <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
-              <span>Job #{selectedJob?.job_number}</span>
+          {/* Sticky header — title + status badge inline.
+              Actions (Print / Edit) move to the right of the title; Save +
+              Close + per-document buttons live in the sticky footer below. */}
+          <DialogHeader className="bg-white border-b px-6 py-3 shrink-0">
+            <DialogTitle className="text-xl text-navy-800 flex items-center justify-between gap-4">
+              <span className="flex items-center gap-3 min-w-0">
+                <span className="truncate">Job #{selectedJob?.job_number}</span>
+                {selectedJob && <span className="flex-shrink-0">{getStatusBadge(selectedJob.status)}</span>}
+                {selectedJob && editMode && (
+                  <Select
+                    value={editFormData.status}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}
+                  >
+                    <SelectTrigger className="h-7 w-44 ml-2" data-testid="edit-status-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="stones_accepted">Stones Accepted</SelectItem>
+                      <SelectItem value="sent_to_lab">Sent to Lab</SelectItem>
+                      <SelectItem value="verbal_uploaded">Verbal Uploaded</SelectItem>
+                      <SelectItem value="stones_returned">Stones Returned</SelectItem>
+                      <SelectItem value="cert_uploaded">Cert. Uploaded</SelectItem>
+                      <SelectItem value="cert_returned">Cert. Returned</SelectItem>
+                      <SelectItem value="done">Done</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </span>
               {selectedJob && (
-                <div className="flex gap-2">
+                <span className="flex gap-2 flex-shrink-0">
                   <Button
                     variant="outline"
                     size="sm"
@@ -1353,7 +1380,7 @@ function JobsPageContent() {
                       {editMode ? 'Cancel Edit' : 'Edit'}
                     </Button>
                   )}
-                </div>
+                </span>
               )}
             </DialogTitle>
           </DialogHeader>
@@ -1367,7 +1394,6 @@ function JobsPageContent() {
                 editMode={editMode}
                 editFormData={editFormData}
                 setEditFormData={setEditFormData}
-                getStatusBadge={getStatusBadge}
               />
 
               {/* Two-column layout: Stones (left) + Actions sidebar (right) */}
@@ -1637,29 +1663,9 @@ function JobsPageContent() {
                   </Table>
                 </div>
 
-                {/* Actions */}
-                <div className="border-t border-navy-200 pt-4 mt-4">
-                  <Label className="text-sm font-semibold text-navy-700 mb-3 block">Actions</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {/* Signed Memo + Client Invoice + Lab Invoice */}
-                  <JobDocumentsRow
-                    job={selectedJob}
-                    isAdmin={isAdmin}
-                    memoInputRef={fileInputRef}
-                    uploadingMemo={uploading}
-                    onMemoChange={handleMemoUpload}
-                    onViewMemo={() => setViewMemoOpen(true)}
-                    generatingInvoice={generatingInvoice}
-                    onGenerateInvoice={handleGenerateInvoice}
-                    onViewInvoice={() => setViewInvoiceOpen(true)}
-                    labInvoiceInputRef={labInvoiceInputRef}
-                    uploadingLabInvoice={uploadingLabInvoice}
-                    onLabInvoiceChange={handleLabInvoiceUpload}
-                    onViewLabInvoice={() => setViewLabInvoiceOpen(true)}
-                  />
-
-                  {/* Payment */}
-                  {isAdmin && (
+                {/* Payment + Notifications — stays in the scroll body */}
+                {isAdmin && selectedJob && (
+                  <div className="border-t border-navy-200 pt-4 mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <JobPaymentCard
                       job={selectedJob}
                       adjustmentMode={adjustmentMode}
@@ -1672,12 +1678,6 @@ function JobsPageContent() {
                       onGeneratePaymentLink={handleGeneratePaymentLink}
                       onCopyPaymentLink={handleCopyPaymentLink}
                     />
-                  )}
-
-                  {/* Lab Invoice — moved into JobDocumentsRow above */}
-
-                  {/* Notifications */}
-                  {isAdmin && (
                     <JobNotificationsCard
                       jobStatus={selectedJob.status}
                       loading={loadingNotifications}
@@ -1686,13 +1686,35 @@ function JobsPageContent() {
                       onPreview={handlePreviewNotification}
                       onSendSms={handleSendSms}
                     />
-                  )}
-                </div>
-              </div>
+                  </div>
+                )}
             </div>
             </div>
           )}
           </div>
+
+          {/* Sticky compact actions strip — sits just above the dialog footer.
+              Document upload/view buttons (Memo, Client Invoice, Lab Invoice)
+              live here so the user can act on the job without scrolling. */}
+          {selectedJob && (
+            <div className="bg-white border-t px-6 py-2 shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+              <JobDocumentsRow
+                job={selectedJob}
+                isAdmin={isAdmin}
+                memoInputRef={fileInputRef}
+                uploadingMemo={uploading}
+                onMemoChange={handleMemoUpload}
+                onViewMemo={() => setViewMemoOpen(true)}
+                generatingInvoice={generatingInvoice}
+                onGenerateInvoice={handleGenerateInvoice}
+                onViewInvoice={() => setViewInvoiceOpen(true)}
+                labInvoiceInputRef={labInvoiceInputRef}
+                uploadingLabInvoice={uploadingLabInvoice}
+                onLabInvoiceChange={handleLabInvoiceUpload}
+                onViewLabInvoice={() => setViewLabInvoiceOpen(true)}
+              />
+            </div>
+          )}
 
           <DialogFooter className="bg-white border-t px-6 py-3 shrink-0 gap-2">
             {editMode && (
