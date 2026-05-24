@@ -5,6 +5,30 @@
 
 ---
 
+## Feb 24, 2026 — Bug fix: idle session showed empty dashboards instead of redirecting to /login
+
+User reported that leaving the app idle overnight resulted in every dashboard table (jobs, branches, clients, pricing) rendering as empty, instead of being kicked back to the login screen. Console showed `403 Forbidden` from every `/api/...` call.
+
+**Root cause.** FastAPI's default `HTTPBearer()` security dep returns **403** (not 401) when the `Authorization` header is missing/malformed. The axios response interceptor in `lib/api.ts` only redirected on 401 — so 403s from a dropped session were silently swallowed by each page's `Promise.all` catch block, leaving `useState` arrays at `[]` and every table empty.
+
+**Fix:**
+- **`backend/auth.py` — new `JWTBearer` class.** Subclasses `HTTPBearer(auto_error=False)` and raises `401 "Not authenticated"` on missing creds (instead of the default 403), and `401 "Invalid authentication scheme"` on a non-Bearer scheme. Semantic 403s for *authenticated-but-no-permission* (admin/super-admin checks) are preserved.
+- **`frontend/src/lib/api.ts` — broadened interceptor.** Now bounces to `/login?reason=expired` on **either** 401 or 403-with-an-auth-shaped detail (`/not authenticated|invalid authentication|missing|token/i`). Legitimate role-based 403s pass through so the calling page can show its own error.
+- **`frontend/src/app/login/page.tsx` — session-expired banner.** A `useEffect` reads `?reason=expired` on mount, shows an amber `data-testid="session-expired-banner"` ("Your session expired. Please sign in again."), and uses `history.replaceState` to strip the query so a manual refresh doesn't re-show it.
+- **Defensive: `dashboard/{jobs,shipments,clients,stones}/page.tsx`** — switched fetch blocks from `Promise.all` to `Promise.allSettled`. One flaky endpoint (a transient 502 from Cloudflare, etc.) now no longer wipes the whole dashboard — failed slices are logged, successful ones still render.
+
+**Verification:**
+- curl smoke: missing-auth, malformed scheme, bad bearer, expired JWT → all return **401** (was 403/401 mixed). Valid admin JWT → 200. Customer JWT hitting super-admin endpoint → 403 with `"admin"` in the detail (preserved).
+- pytest: 7 new tests in `backend/tests/test_auth_401_flow.py` + 15 pre-existing in `test_jobs_helpers.py` = 22/22 pass.
+- Playwright: `/login?reason=expired` renders the amber banner with the expected text and strips the query from the URL; `/login` (no query) does NOT show the banner.
+- Testing agent (iteration_27): all 8 scenarios PASS, `retest_needed: false`.
+
+**Side notes (out of scope, flagged for later):**
+- `JWT_SECRET` in `backend/.env` is 30 bytes (< 32). PyJWT emits an `InsecureKeyLengthWarning` on encode/decode. Rotate to a longer secret on the next deploy.
+- Cloudinary / Tranzila / Resend / SMS4Free / Turnstile secrets are committed in plaintext `.env` files. Worth moving to a secret manager before any external code share.
+
+---
+
 ## Feb 19, 2026 — Bug fix: SearchableSelect dropdown layout broken inside modals
 
 User screenshot showed the verbal-findings dropdown rendering with the search bar visually overlapping the first option ("NATURAL RUBY" was clipped behind the search input). Root cause was twofold:

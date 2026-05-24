@@ -20,7 +20,7 @@ _None currently._
 
 - [ ] **Finalise prices** (books, layouts).
 - [ ] **Mobile responsive audit** across all pages.
-- [ ] **Session-expired toast** on `/login` when redirected from a protected route (`?reason=expired` query param). Small UX win to explain to users why they were bounced.
+- [x] **Session-expired toast on `/login`** when redirected from a protected route (`?reason=expired` query param). _Done Feb 24, 2026 — amber banner on /login renders when Axios interceptor bounces an idle session. See CHANGELOG._
 - [ ] **Notify client on stone cancellation** (email + SMS) for traceability.
 - [ ] **In-job "Cancelled stones" panel** — admins can see cancelled stones inline and uncancel without leaving the job dialog.
 
