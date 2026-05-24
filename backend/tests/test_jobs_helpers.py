@@ -70,11 +70,21 @@ def test_sum_values_basic():
 def test_recompute_totals_simple():
     stones = [_stone(value=1000, fee=100), _stone(value=2000, fee=150)]
     totals = recompute_job_totals(stones)
-    assert totals == {"total_stones": 2, "total_value": 3000.0, "total_fee": 250.0}
+    assert totals == {
+        "total_stones": 2,
+        "total_certificates": 2,
+        "total_value": 3000.0,
+        "total_fee": 250.0,
+    }
 
 
 def test_recompute_totals_empty():
-    assert recompute_job_totals([]) == {"total_stones": 0, "total_value": 0.0, "total_fee": 0.0}
+    assert recompute_job_totals([]) == {
+        "total_stones": 0,
+        "total_certificates": 0,
+        "total_value": 0.0,
+        "total_fee": 0.0,
+    }
 
 
 def test_recompute_totals_dedupes_mounted_fee_within_a_group():

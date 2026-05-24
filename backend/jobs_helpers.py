@@ -10,11 +10,39 @@ stone's fee/value back into the job (and at one point into the amount the
 customer was charged on Tranzila). Every route that touches job totals or
 customer-payable amounts should call into this module instead of rolling
 its own sum.
+
+Parcels (Feb 25, 2026):
+A stone row with `kind == "parcel"` represents N physical stones rolled up
+under one certificate. `stone_count` holds N (>=2). `weight` / `value` are
+totals. For job-level counts we surface BOTH "physical stones" (sum of
+stone_count) and "certificates" (row count) — the dashboard wants
+"8 stones, 4 certificates" when a parcel is involved.
 """
 
 from __future__ import annotations
 
 from typing import Any, Iterable, Optional
+
+
+def is_parcel(stone: dict) -> bool:
+    """True if this row is a parcel (one cert covering N stones)."""
+    return stone.get("kind") == "parcel"
+
+
+def physical_stone_count(stone: dict) -> int:
+    """Number of physical stones this row represents.
+
+    Single stones count as 1. Parcels count as their `stone_count`. Missing
+    or invalid `stone_count` on a parcel row degrades gracefully to 1 so we
+    can never silently halve a customer's totals.
+    """
+    if is_parcel(stone):
+        try:
+            n = int(stone.get("stone_count") or 1)
+        except (TypeError, ValueError):
+            n = 1
+        return max(1, n)
+    return 1
 
 
 def active_stones(job_or_stones: Any) -> list[dict]:
@@ -48,7 +76,14 @@ def recompute_job_totals(
     *,
     mounted_fee: Optional[float] = None,
 ) -> dict[str, float]:
-    """Build the `{total_stones, total_value, total_fee}` set for a job.
+    """Build the `{total_stones, total_certificates, total_value, total_fee}`
+    set for a job.
+
+    - `total_stones` counts **physical** stones (parcels contribute their
+      `stone_count`, single stones contribute 1). This is what the user
+      thinks of as "how many gems were processed".
+    - `total_certificates` is the row count (parcels and singles each count
+      as one) — i.e. how many certificates the job will produce.
 
     The caller is responsible for passing **active stones only** (use
     `active_stones(job)`). Doing the filter in here would make the
@@ -58,7 +93,8 @@ def recompute_job_totals(
     `mounted_fee` (optional): when provided, deducts duplicate mounted
     surcharges for stones that share a certificate group — the existing
     behaviour of `update_stone_fees` where the mounted fee is paid once
-    per group, regardless of how many stones are mounted within it.
+    per group, regardless of how many stones are mounted within it. Parcels
+    are never grouped, so the dedup logic does not affect them.
     """
     stones_list = list(stones)
     total_fee = sum(float(s.get("fee", 0) or 0) for s in stones_list)
@@ -74,7 +110,8 @@ def recompute_job_totals(
                 total_fee -= (count - 1) * mounted_fee
 
     return {
-        "total_stones": len(stones_list),
+        "total_stones": sum(physical_stone_count(s) for s in stones_list),
+        "total_certificates": len(stones_list),
         "total_value": sum_values(stones_list),
         "total_fee": total_fee,
     }

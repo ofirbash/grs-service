@@ -13,9 +13,15 @@ from models import (
     StoneGroupUpdate, StoneUngroupUpdate, MemoUpload, AddStoneRequest,
     VerbalFindingCreate
 )
-from pricing import get_pricing_brackets_from_db, get_color_stability_fee_from_db, calculate_stone_fee_from_brackets
+from pricing import (
+    get_pricing_brackets_from_db,
+    get_color_stability_fee_from_db,
+    get_mounted_fee_from_db,
+    calculate_stone_fee_from_brackets,
+    calculate_parcel_fee_from_brackets,
+)
 from utils import generate_sku
-from jobs_helpers import active_stones, recompute_job_totals
+from jobs_helpers import active_stones, recompute_job_totals, is_parcel, physical_stone_count
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 
@@ -90,6 +96,7 @@ async def build_job_response(job: dict) -> JobResponse:
         verbal_findings=[VerbalFindingResponse(**vf) for vf in job.get("verbal_findings", [])],
         notification_log=[NotificationLog(**nl) for nl in job.get("notification_log", [])],
         total_stones=job["total_stones"],
+        total_certificates=job.get("total_certificates", len(job.get("stones", []))),
         total_value=job["total_value"],
         total_fee=job["total_fee"],
         discount=job.get("discount"),
@@ -141,12 +148,17 @@ def _build_stones_for_create(
     service_type: str,
     db_brackets: list,
     cs_fee: float,
+    mounted_fee: float,
 ) -> tuple[list[dict], float, float]:
     """Build the `stones` subdocs for a brand-new job.
 
     Returns `(stones, total_value, total_fee)`. Each stone gets a fresh UUID,
     deterministic SKU (`<TYPE><CT00><JOB><POS>`), and starts in the partial-
     return lifecycle at `stone_status=at_office, cert_status=pending`.
+
+    Parcel rows (`is_parcel=True`, `stone_count>=2`) get `kind="parcel"`
+    and use the parcel pricing helper instead of the per-stone bracket
+    lookup.
     """
     stones: list[dict] = []
     position = 1
@@ -157,30 +169,55 @@ def _build_stones_for_create(
             sku = generate_sku(
                 stone_data.stone_type, stone_data.weight, job_number, position
             )
-            fee = calculate_stone_fee_from_brackets(
-                stone_data.value,
-                service_type,
-                stone_data.color_stability_test,
-                db_brackets,
-                cs_fee,
-            )
-            stones.append(
-                {
-                    "id": str(uuid.uuid4()),
-                    "sku": sku,
-                    "stone_type": stone_data.stone_type,
-                    "weight": stone_data.weight,
-                    "shape": stone_data.shape,
-                    "value": stone_data.value,
-                    "color_stability_test": stone_data.color_stability_test,
-                    "fee": fee,
-                    "position": position,
-                    "certificate_scan": None,
-                    # Every new stone starts at the office, cert not yet issued.
-                    "stone_status": "at_office",
-                    "cert_status": "pending",
-                }
-            )
+            parcel = bool(getattr(stone_data, "is_parcel", False))
+            count = int(getattr(stone_data, "stone_count", 0) or 0)
+            mounted_flag = bool(getattr(stone_data, "mounted", False))
+            if parcel:
+                if count < 2:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Parcel rows require stone_count >= 2.",
+                    )
+                fee = calculate_parcel_fee_from_brackets(
+                    stone_data.value,
+                    count,
+                    service_type,
+                    stone_data.color_stability_test,
+                    mounted_flag,
+                    db_brackets,
+                    cs_fee,
+                    mounted_fee,
+                )
+            else:
+                fee = calculate_stone_fee_from_brackets(
+                    stone_data.value,
+                    service_type,
+                    stone_data.color_stability_test,
+                    db_brackets,
+                    cs_fee,
+                )
+                if mounted_flag:
+                    fee += mounted_fee
+            stone_doc = {
+                "id": str(uuid.uuid4()),
+                "sku": sku,
+                "stone_type": stone_data.stone_type,
+                "weight": stone_data.weight,
+                "shape": stone_data.shape,
+                "value": stone_data.value,
+                "color_stability_test": stone_data.color_stability_test,
+                "mounted": mounted_flag,
+                "fee": fee,
+                "position": position,
+                "certificate_scan": None,
+                # Every new stone starts at the office, cert not yet issued.
+                "stone_status": "at_office",
+                "cert_status": "pending",
+            }
+            if parcel:
+                stone_doc["kind"] = "parcel"
+                stone_doc["stone_count"] = count
+            stones.append(stone_doc)
             total_value += stone_data.value
             total_fee += fee
             position += 1
@@ -199,6 +236,7 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
 
     db_brackets = await get_pricing_brackets_from_db()
     cs_fee = await get_color_stability_fee_from_db()
+    mounted_fee = await get_mounted_fee_from_db()
 
     stones, total_value, total_fee = _build_stones_for_create(
         job.certificate_units,
@@ -206,7 +244,11 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
         service_type=job.service_type,
         db_brackets=db_brackets,
         cs_fee=cs_fee,
+        mounted_fee=mounted_fee,
     )
+
+    total_stones_physical = sum(physical_stone_count(s) for s in stones)
+    total_certificates = len(stones)
 
     job_doc = {
         "job_number": job_number,
@@ -219,7 +261,8 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
         "verbal_findings": [],
         "notification_log": [],
         "documents": [],
-        "total_stones": len(stones),
+        "total_stones": total_stones_physical,
+        "total_certificates": total_certificates,
         "total_value": total_value,
         "total_fee": total_fee,
         "created_by": str(user["_id"]),
@@ -243,7 +286,8 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
         stones=[StoneResponse(**s) for s in stones],
         verbal_findings=[],
         notification_log=[],
-        total_stones=len(stones),
+        total_stones=total_stones_physical,
+        total_certificates=total_certificates,
         total_value=total_value,
         total_fee=total_fee,
         created_at=job_doc["created_at"],
@@ -316,7 +360,13 @@ async def update_job_status(job_id: str, status_update: JobStatusUpdate, user: d
 
 @router.put("/jobs/{job_id}/group-stones")
 async def group_stones_for_certificate(job_id: str, group_update: StoneGroupUpdate, user: dict = Depends(require_admin)):
-    """Group stones together for a single certificate (max 30 per group)"""
+    """Group stones together for a single certificate (max 30 per group).
+
+    Parcels cannot be grouped — a parcel already represents one certificate
+    covering N stones, so combining it with anything else would be a
+    contradiction. We reject the whole call with a clear error rather than
+    silently skip the offending rows.
+    """
     if len(group_update.stone_ids) > 30:
         raise HTTPException(status_code=400, detail="Maximum 30 stones per certificate group")
 
@@ -325,6 +375,16 @@ async def group_stones_for_certificate(job_id: str, group_update: StoneGroupUpda
         raise HTTPException(status_code=404, detail="Job not found")
 
     stones = job.get("stones", [])
+    target_skus = []
+    for stone in stones:
+        if stone["id"] in group_update.stone_ids and is_parcel(stone):
+            target_skus.append(stone.get("sku") or stone["id"])
+    if target_skus:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Parcels cannot be added to a certificate group: {', '.join(target_skus)}",
+        )
+
     for stone in stones:
         if stone["id"] in group_update.stone_ids:
             stone["certificate_group"] = group_update.group_number
@@ -399,7 +459,7 @@ async def upload_lab_invoice(job_id: str, memo: MemoUpload, user: dict = Depends
 
 @router.post("/jobs/{job_id}/stones")
 async def add_stone_to_job(job_id: str, stone: AddStoneRequest, user: dict = Depends(require_admin)):
-    """Add a new stone to an existing job"""
+    """Add a new stone (or parcel) to an existing job."""
     job = await db.jobs.find_one({"_id": ObjectId(job_id)})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -409,7 +469,26 @@ async def add_stone_to_job(job_id: str, stone: AddStoneRequest, user: dict = Dep
 
     db_brackets = await get_pricing_brackets_from_db()
     cs_fee = await get_color_stability_fee_from_db()
-    fee = calculate_stone_fee_from_brackets(stone.value, job.get("service_type", "Normal"), stone.color_stability_test, db_brackets, cs_fee)
+    mounted_fee = await get_mounted_fee_from_db()
+    service_type = job.get("service_type", "Normal")
+
+    is_p = bool(stone.is_parcel)
+    count = int(stone.stone_count or 0)
+    if is_p and count < 2:
+        raise HTTPException(status_code=400, detail="Parcel rows require stone_count >= 2.")
+    if is_p:
+        fee = calculate_parcel_fee_from_brackets(
+            stone.value, count, service_type,
+            stone.color_stability_test, stone.mounted,
+            db_brackets, cs_fee, mounted_fee,
+        )
+    else:
+        fee = calculate_stone_fee_from_brackets(
+            stone.value, service_type, stone.color_stability_test,
+            db_brackets, cs_fee,
+        )
+        if stone.mounted:
+            fee += mounted_fee
 
     sku = generate_sku(stone.stone_type, stone.weight, job["job_number"], next_position)
 
@@ -421,25 +500,27 @@ async def add_stone_to_job(job_id: str, stone: AddStoneRequest, user: dict = Dep
         "shape": stone.shape,
         "value": stone.value,
         "color_stability_test": stone.color_stability_test,
+        "mounted": stone.mounted,
         "fee": fee,
         "position": next_position,
-        "certificate_group": None
+        "certificate_group": None,
     }
+    if is_p:
+        new_stone["kind"] = "parcel"
+        new_stone["stone_count"] = count
 
+    # Push the new row, then recompute the job totals from scratch to keep
+    # physical-stone count and certificate count correctly in sync (a $inc
+    # of 1 would wrongly increment total_stones for parcels).
     await db.jobs.update_one(
         {"_id": ObjectId(job_id)},
-        {
-            "$push": {"stones": new_stone},
-            "$inc": {
-                "total_stones": 1,
-                "total_value": stone.value,
-                "total_fee": fee
-            },
-            "$set": {"updated_at": datetime.utcnow()}
-        }
+        {"$push": {"stones": new_stone}, "$set": {"updated_at": datetime.utcnow()}},
     )
+    refreshed = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    totals = recompute_job_totals(active_stones(refreshed), mounted_fee=mounted_fee)
+    await db.jobs.update_one({"_id": ObjectId(job_id)}, {"$set": totals})
 
-    return {"message": "Stone added successfully", "stone": new_stone}
+    return {"message": "Stone added successfully", "stone": new_stone, **totals}
 
 
 @router.delete("/jobs/{job_id}/stones/{stone_id}")

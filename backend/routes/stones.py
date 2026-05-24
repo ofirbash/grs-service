@@ -115,7 +115,13 @@ async def update_stone_verbal(stone_id: str, data: VerbalFindingsUpdate, user: d
 
 @router.put("/stones/{stone_id}/fees")
 async def update_stone_fees(stone_id: str, data: StoneFeeUpdate, user: dict = Depends(require_admin)):
-    """Update actual fee, color stability test, and/or mounted status for a stone"""
+    """Update actual fee, color stability test, and/or mounted status for a stone (or parcel).
+
+    Parcels behave differently for CS: the charge is `cs_fee * stone_count`
+    (per-parcel toggle applied N times). Mounted on a parcel is a single
+    charge (`mounted_fee`), same as a non-grouped single stone. Parcels are
+    never in a certificate_group, so the group-mounted-dedup logic is skipped.
+    """
     job = await db.jobs.find_one({"stones.id": stone_id})
     if not job:
         raise HTTPException(status_code=404, detail="Stone not found")
@@ -126,44 +132,52 @@ async def update_stone_fees(stone_id: str, data: StoneFeeUpdate, user: dict = De
 
     cs_fee = await get_color_stability_fee_from_db()
     mounted_fee = await get_mounted_fee_from_db()
+    stone_is_parcel = stone.get("kind") == "parcel"
+    parcel_count = max(1, int(stone.get("stone_count") or 1)) if stone_is_parcel else 1
 
     update_data = {"updated_at": datetime.utcnow()}
 
-    # Handle color stability test toggle
+    # Handle color stability test toggle. Parcels are charged `cs_fee * N`.
     if data.color_stability_test is not None:
         update_data["stones.$.color_stability_test"] = data.color_stability_test
         current_cst = stone.get('color_stability_test', False)
+        cs_delta = cs_fee * parcel_count
         if data.color_stability_test and not current_cst:
-            update_data["stones.$.fee"] = stone.get('fee', 0) + cs_fee
+            update_data["stones.$.fee"] = stone.get('fee', 0) + cs_delta
         elif not data.color_stability_test and current_cst:
-            update_data["stones.$.fee"] = max(0, stone.get('fee', 0) - cs_fee)
+            update_data["stones.$.fee"] = max(0, stone.get('fee', 0) - cs_delta)
 
-    # Handle mounted toggle — propagates to ALL stones in the same certificate group
+    # Handle mounted toggle. Parcels: single charge, no group propagation.
     if data.mounted is not None:
         current_mounted = stone.get('mounted', False)
         cert_group = stone.get('certificate_group')
 
         if data.mounted != current_mounted:
-            # Determine which stones to update
-            if cert_group is not None:
-                group_stones = [s for s in job.get('stones', []) if s.get('certificate_group') == cert_group]
+            if stone_is_parcel or cert_group is None:
+                # No group propagation: apply once to this row only.
+                base_fee = update_data.get("stones.$.fee", stone.get('fee', 0))
+                if data.mounted:
+                    update_data["stones.$.fee"] = base_fee + mounted_fee
+                else:
+                    update_data["stones.$.fee"] = max(0, base_fee - mounted_fee)
+                update_data["stones.$.mounted"] = data.mounted
             else:
-                group_stones = [stone]
+                group_stones = [s for s in job.get('stones', []) if s.get('certificate_group') == cert_group]
 
-            # Check if the group already had the mounted fee applied
-            group_already_mounted = any(s.get('mounted', False) for s in group_stones)
+                # Check if the group already had the mounted fee applied
+                group_already_mounted = any(s.get('mounted', False) for s in group_stones)
 
-            # Update mounted flag AND fee on ALL stones in the group
-            for s in group_stones:
-                stone_update = {"stones.$.mounted": data.mounted}
-                if data.mounted and not group_already_mounted:
-                    stone_update["stones.$.fee"] = s.get('fee', 0) + mounted_fee
-                elif not data.mounted and group_already_mounted:
-                    stone_update["stones.$.fee"] = max(0, s.get('fee', 0) - mounted_fee)
-                await db.jobs.update_one(
-                    {"_id": job["_id"], "stones.id": s["id"]},
-                    {"$set": stone_update}
-                )
+                # Update mounted flag AND fee on ALL stones in the group
+                for s in group_stones:
+                    stone_update = {"stones.$.mounted": data.mounted}
+                    if data.mounted and not group_already_mounted:
+                        stone_update["stones.$.fee"] = s.get('fee', 0) + mounted_fee
+                    elif not data.mounted and group_already_mounted:
+                        stone_update["stones.$.fee"] = max(0, s.get('fee', 0) - mounted_fee)
+                    await db.jobs.update_one(
+                        {"_id": job["_id"], "stones.id": s["id"]},
+                        {"$set": stone_update}
+                    )
 
     # Handle actual fee
     if data.actual_fee is not None:

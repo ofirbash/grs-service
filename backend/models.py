@@ -116,6 +116,14 @@ class StoneCreate(BaseModel):
     shape: str = "Other"
     value: float
     color_stability_test: bool = False
+    # Parcel support (Feb 25, 2026). When `is_parcel=True`, this row will
+    # be stored as a single document with `kind="parcel"` and `stone_count`
+    # set to N. `weight` and `value` are then TOTALS across the N physical
+    # stones, and the fee is calculated using parcel pricing
+    # (avg-value × N + CS×N + mounted-once).
+    is_parcel: bool = False
+    stone_count: Optional[int] = None
+    mounted: bool = False
 
 
 class StoneResponse(BaseModel):
@@ -145,6 +153,11 @@ class StoneResponse(BaseModel):
     cancelled: Optional[bool] = None
     cancelled_at: Optional[datetime] = None
     cancelled_by: Optional[str] = None
+    # Parcel support: kind defaults to "stone". When "parcel", stone_count
+    # is the number of physical stones rolled up under one cert. Legacy
+    # docs without this field are treated as kind="stone".
+    kind: Optional[str] = None
+    stone_count: Optional[int] = None
 
 
 # Verbal Findings Models
@@ -175,6 +188,11 @@ class StructuredVerbalFindings(BaseModel):
     color: Optional[str] = None
     origin: Optional[str] = None
     comment: Optional[str] = None
+    # For parcels: one cert_id at the top, then a per-stone list of the
+    # other fields. When this is set, the row-level certificate_id is the
+    # shared one; per_stone[i] holds {weight, identification, color, origin,
+    # comment} for the i-th physical stone in the parcel.
+    per_stone: Optional[List[Dict[str, Any]]] = None
 
 
 class VerbalFindingsUpdate(BaseModel):
@@ -234,6 +252,7 @@ class JobResponse(BaseModel):
     verbal_findings: List[VerbalFindingResponse]
     notification_log: List[NotificationLog]
     total_stones: int
+    total_certificates: Optional[int] = None
     total_value: float
     total_fee: float
     discount: Optional[float] = None
@@ -273,6 +292,11 @@ class AddStoneRequest(BaseModel):
     shape: str = "Other"
     value: float
     color_stability_test: bool = False
+    # Parcel support (Feb 25, 2026): when adding a parcel via the
+    # in-job "Add stone" affordance, frontend passes is_parcel + stone_count.
+    is_parcel: bool = False
+    stone_count: Optional[int] = None
+    mounted: bool = False
 
 
 # Document Upload Model

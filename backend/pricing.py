@@ -83,3 +83,56 @@ def calculate_stone_fee_from_brackets(value: float, service_type: str, color_sta
 def calculate_stone_fee(value: float, service_type: str, color_stability_test: bool) -> float:
     """Legacy sync fallback using hardcoded defaults"""
     return calculate_stone_fee_from_brackets(value, service_type, color_stability_test, PRICING_BRACKETS, COLOR_STABILITY_FEE)
+
+
+def _lookup_bracket_fee(value: float, service_type: str, brackets: list) -> float:
+    """Bracket lookup without any add-ons. Internal helper for parcel pricing."""
+    for bracket in brackets:
+        b = normalize_bracket(bracket)
+        min_val = b.get("min_value", b.get("min", 0))
+        max_val = b.get("max_value", b.get("max", 0))
+        if min_val <= value <= max_val:
+            fees = b.get("fees", {})
+            fee = fees.get(service_type, 0)
+            if fee == 0:
+                for k, v in fees.items():
+                    if k.lower() == service_type.lower():
+                        fee = v
+                        break
+            return float(fee)
+    return 0.0
+
+
+def calculate_parcel_fee_from_brackets(
+    value_total: float,
+    stone_count: int,
+    service_type: str,
+    color_stability_test: bool,
+    mounted: bool,
+    brackets: list,
+    color_stability_fee: float = 50,
+    mounted_fee: float = 50,
+) -> float:
+    """Fee for a parcel (one cert covering N physical stones).
+
+    Pricing rule (per the user's spec):
+      1. Compute per-stone fee = bracket-lookup at `value_total / stone_count`.
+      2. Base parcel fee = per_stone_fee * stone_count.
+      3. Color stability is per-parcel-toggle but charged *per stone*:
+         + cs_fee * stone_count when on.
+      4. Mounted fee is per-parcel-toggle and charged *once*:
+         + mounted_fee when on.
+
+    Example: parcel of 2 stones, total value $15,000, Express service.
+      avg = $7,500 → Express bracket fee for $7,500 = $X.
+      base = $X * 2. (E.g. $450 * 2 = $900.)
+    """
+    n = max(1, int(stone_count or 1))
+    avg_value = float(value_total or 0) / n
+    per_stone_fee = _lookup_bracket_fee(avg_value, service_type, brackets)
+    fee = per_stone_fee * n
+    if color_stability_test:
+        fee += color_stability_fee * n
+    if mounted:
+        fee += mounted_fee
+    return fee
