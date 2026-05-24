@@ -5,6 +5,39 @@
 
 ---
 
+## Feb 25, 2026 — Parcels Phases 3 + 4 complete
+
+Phase 3 (StoneEditDialog) and Phase 4 (memo / invoice / shipment picker) shipped in the same session as P1+P2. The parcel feature is now end-to-end.
+
+### Phase 3 — Stone edit dialog for parcels
+When the user opens a stone row that has `kind === 'parcel'`, the modal now renders:
+- A compact info strip with `PARCEL · N stones` and labels switched to "Total wt" / "Total value"
+- ONE shared `Certificate ID` input at the top (full-width, with microcopy "shared across all N stones")
+- N amber cards (`Stone 1 of N`, `Stone 2 of N`, …) each with its own weight input + identification / color / origin / comment SearchableSelects (testids: `parcel-stone-card-{i}`, `parcel-stone-weight-{i}`, etc.)
+- A **"Copy row 1 → all"** helper that propagates identification/color/origin/comment (but NOT weight) from the first card to every other card. Big time-saver for high-N parcels where the only per-stone difference is weight.
+- Fee preview math reflects `cs_fee × stone_count` when Color Stability is on — the toggle label reads `+$50 × 3 = $150` for a parcel-of-3.
+
+The single-stone verbal grid is suppressed for parcels so the user can't accidentally fill in conflicting top-level + per-stone data. `hasUnsavedStoneChanges` was extended with per-stone array diffing so the unsaved-changes guard works for parcels too.
+
+### Phase 4 — Memo / invoice / shipment picker
+- **Job memo** (`buildJobMemoHtml`): parcel rows render as `<TYPE> · parcel of N` in the Type column and `<weight> ct (total)` in the Weight column. Footer "Total — N stones · M certificates" now counts PHYSICAL stones (sums `stone_count` for parcels + 1 for singles).
+- **Shipment memo** (`buildShipmentJobMemoHtml`): same parcel-row format for the printable shipment job memo.
+- **Backend PDF** (`routes/pdf.py`): both `memo-in` and `invoice` table rows label parcels as `· parcel of N` and weight as `(total)`. Confirmed via pypdf text extraction in the new `test_parcel_pdf.py`.
+- **Partial-shipment picker** (`PartialStonesPicker.tsx`): parcels render as ONE atomic checkbox per parcel inside the partial-return picker, labeled `Parcel of N · <SKU>` (instead of the generic `Ungrouped · <SKU>`).
+
+### Backend tests
+- `test_parcel_verbal_findings_persist_per_stone_array` — full round-trip through `PUT /api/stones/{id}/verbal` for a parcel of 3, asserting the `per_stone` list of 3 entries comes back with weights, comments, and origins intact.
+- `test_parcel_pdf.py` (new, 2 tests) — `GET /api/jobs/{id}/pdf/memo-in` and `/invoice` return >1KB PDFs whose extracted text contains "parcel of 3" and "(total)".
+
+### Verification
+- pytest: **46/46 pass** (15 jobs_helpers + 14 parcels + 8 parcels_api + 2 parcel_pdf + 7 auth_401).
+- Testing agent iteration_29: end-to-end frontend walkthrough covering the entire parcel dialog interaction, including the CS-fee `+$50 × 3 = $150` math display and the Copy-row-1-to-all button. All Phase 3 + Phase 4 criteria pass — `retest_needed: false, should_main_agent_self_test: false`.
+
+### Side note
+The testing agent used Playwright with a `page.route('**/api/**')` redirect to bypass the localhost-vs-K8s-ingress quirk that makes direct localhost:3000 tests fail (because the static export's NEXT_PUBLIC_API_URL is `/api`, which only proxies in the ingress environment). Recording this here in case future agents hit the same wall.
+
+---
+
 ## Feb 25, 2026 — Parcels (Phase 1 backend + Phase 2 create-job UI)
 
 A *parcel* is a stone row that represents **N physical stones rolled up under one certificate**. It coexists with the existing "certificate group" feature (where N independent stone records share a cert), but a parcel cannot be combined with anything — it IS its own cert.

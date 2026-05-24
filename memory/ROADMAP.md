@@ -10,8 +10,8 @@ _None currently._
 
 ## P1 — High Priority
 
-- [ ] **Parcels — Phase 3 (view & edit dialog).** Render N per-stone weight/identification/color/origin/comment cards in `StoneEditDialog` for parcels, with one shared `certificate_id` at the top. Display the fee formula as `$X × N + CS×N + mounted-once`. Backend already accepts the `per_stone` array via `StructuredVerbalFindings.per_stone`.
-- [ ] **Parcels — Phase 4 (memo / invoice / shipments).** Memo & invoice line format: `<TYPE> parcel of N · <TotalCt> ct · $TotalValue · $TotalFee`. Shipment partial-stones picker should treat each parcel as one atomic checkbox (no per-sub-stone selection).
+- [x] **Parcels — Phase 3 (view & edit dialog).** _Done Feb 25, 2026 — N per-stone cards with shared cert_id, fee math `$X × N + CS×N + mounted-once`, and "Copy row 1 → all" helper._
+- [x] **Parcels — Phase 4 (memo / invoice / shipments).** _Done Feb 25, 2026 — parcel rows show `<TYPE> · parcel of N` and `(total)` weight; shipment picker labels parcels as `Parcel of N · SKU` and treats them as atomic checkboxes._
 - [ ] **Bulk notify clients per shipment.** Admin action: pick a shipment → send the same notification (intake / dispatched / delivered) to every client whose jobs are contained in it. One click instead of N. Backend endpoint can probably reuse existing per-job notifications loop; frontend needs a dialog with a per-client checkbox grid + result summary.
 - [ ] **"Same as previous row / pre-fill stone type" in Create Job dialog.** Faster bulk stone entry: when the user adds row N+1, pre-fill stone type from row N (and maybe shape too) with an obvious "different" override. Possibly extend with a "duplicate row" affordance.
 - [ ] **Domain verification for Resend email** (production). The free tier sends from `onboarding@resend.dev` and is restricted to the account owner. Verify a sending domain at resend.com/domains so production emails reach real clients.
