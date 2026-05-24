@@ -10,13 +10,16 @@ _None currently._
 
 ## P1 — High Priority
 
-- [x] **Parcels — Phase 3 (view & edit dialog).** _Done Feb 25, 2026 — N per-stone cards with shared cert_id, fee math `$X × N + CS×N + mounted-once`, and "Copy row 1 → all" helper._
-- [x] **Parcels — Phase 4 (memo / invoice / shipments).** _Done Feb 25, 2026 — parcel rows show `<TYPE> · parcel of N` and `(total)` weight; shipment picker labels parcels as `Parcel of N · SKU` and treats them as atomic checkboxes._
-- [ ] **Bulk notify clients per shipment.** Admin action: pick a shipment → send the same notification (intake / dispatched / delivered) to every client whose jobs are contained in it. One click instead of N. Backend endpoint can probably reuse existing per-job notifications loop; frontend needs a dialog with a per-client checkbox grid + result summary.
-- [ ] **"Same as previous row / pre-fill stone type" in Create Job dialog.** Faster bulk stone entry: when the user adds row N+1, pre-fill stone type from row N (and maybe shape too) with an obvious "different" override. Possibly extend with a "duplicate row" affordance.
-- [ ] **Domain verification for Resend email** (production). The free tier sends from `onboarding@resend.dev` and is restricted to the account owner. Verify a sending domain at resend.com/domains so production emails reach real clients.
+- [ ] **Refactor: consolidate duplicate dialogs.** User-flagged Feb 25 2026 — multiple copies of the same UI cause feature drift (e.g. parcels worked on /dashboard/jobs but not /dashboard/stones). Sequence:
+  1. `<StoneVerbalSection>` ✅ done (used by both stone modals)
+  2. `<StoneEditDialog>` — full stone modal extraction. Currently jobs/page.tsx and stones/page.tsx each have their own ~600 and ~280-line inline copy. Wraps `<StoneVerbalSection>` + the compact info strip + CS/Mounted toggles + Cert scan upload + cancel button + footer.
+  3. `<JobDetailDialog>` — currently inlined in jobs/page.tsx and re-implemented inside shipments/page.tsx. Should accept a `mode: 'admin' | 'shipment-view'` prop to handle the two contexts.
+  4. `<ShipmentDetailDialog>` — already mostly extracted but lives inside the 850-line shipments/page.tsx. Move to its own file.
+- [ ] **Bulk notify clients per shipment.** Admin action: pick a shipment → send the same notification (intake / dispatched / delivered) to every client whose jobs are contained in it.
+- [ ] **"Same as previous row / pre-fill stone type" in Create Job dialog.** Faster bulk stone entry: when the user adds row N+1, pre-fill stone type from row N (and maybe shape too).
+- [ ] **Domain verification for Resend email** (production).
 - [ ] **Legacy data migration from CSV/database** (if/when source data is available).
-- [ ] **Printable shipment document** (similar to job memo) — covers the lifecycle handover doc for jewellers/couriers.
+- [ ] **Printable shipment document** (similar to job memo).
 
 ## P2 — Medium Priority
 

@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { DoubleConfirmDialog } from '@/components/DoubleConfirmDialog';
+import { StoneVerbalSection, seedStructuredFindings } from '@/components/StoneVerbalSection';
 
 interface StructuredVerbalFindings {
   certificate_id?: string;
@@ -55,6 +56,14 @@ interface StructuredVerbalFindings {
   color?: string;
   origin?: string;
   comment?: string;
+  // Parcel-only: per-stone findings sharing the parent certificate_id.
+  per_stone?: Array<{
+    weight?: number;
+    identification?: string;
+    color?: string;
+    origin?: string;
+    comment?: string;
+  }>;
 }
 
 interface Stone {
@@ -77,6 +86,10 @@ interface Stone {
   client_name?: string;
   branch_name?: string;
   cancelled?: boolean;
+  // Parcel support: when kind === 'parcel', this row represents N
+  // physical stones rolled up under one certificate (stone_count holds N).
+  kind?: 'stone' | 'parcel';
+  stone_count?: number;
 }
 
 interface DropdownOption {
@@ -178,26 +191,19 @@ export default function StonesPage() {
 
   const handleOpenDetails = (stone: Stone) => {
     setSelectedStone(stone);
-    
-    // Initialize structured findings from stone data
-    const vf = stone.verbal_findings;
-    const findings = (vf && typeof vf === 'object') ? vf as StructuredVerbalFindings : null;
-    setStructuredFindings({
-      certificate_id: findings?.certificate_id || '',
-      weight: findings?.weight || stone.weight,
-      identification: findings?.identification || '',
-      color: findings?.color || '',
-      origin: findings?.origin || '',
-      comment: findings?.comment || ''
-    });
-    
+
+    // Initialise structured findings via the shared seeder so parcels get
+    // their N empty per_stone cards and singles get the legacy top-level
+    // shape. Identical to what the jobs page does.
+    setStructuredFindings(seedStructuredFindings(stone));
+
     // Initialize fee fields
     setColorStabilityTest(stone.color_stability_test || false);
     setStoneMounted(stone.mounted || false);
-    
+
     // Always start in locked mode - user must click "Edit" to modify
     setVerbalEditMode(false);
-    
+
     setDetailsOpen(true);
   };
 
@@ -396,8 +402,23 @@ export default function StonesPage() {
                       <span className="text-navy-400 text-sm ml-2">({stone.client_name})</span>
                     )}
                   </TableCell>
-                  <TableCell>{stone.stone_type}</TableCell>
-                  <TableCell>{stone.weight} ct</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span>{stone.stone_type}</span>
+                      {stone.kind === 'parcel' && (
+                        <span
+                          className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full border font-medium bg-amber-100 text-amber-900 border-amber-300"
+                          data-testid={`stone-list-parcel-badge-${stone.sku}`}
+                        >
+                          Parcel of {stone.stone_count || 0}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {stone.weight} ct
+                    {stone.kind === 'parcel' && <span className="text-[10px] text-navy-400 ml-1">(total)</span>}
+                  </TableCell>
                   <TableCell>{stone.shape}</TableCell>
                   <TableCell>${stone.value.toLocaleString()}</TableCell>
                   <TableCell>
@@ -485,19 +506,25 @@ export default function StonesPage() {
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-3 py-2 bg-navy-50 rounded-md text-sm">
                 <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Type</span><span className="font-medium text-navy-900">{selectedStone.stone_type}</span></span>
                 <span className="text-navy-200">|</span>
-                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Weight</span><span className="font-medium text-navy-900">{selectedStone.weight} ct</span></span>
+                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">{selectedStone.kind === 'parcel' ? 'Total wt' : 'Weight'}</span><span className="font-medium text-navy-900">{selectedStone.weight} ct</span></span>
                 <span className="text-navy-200">|</span>
                 <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Shape</span><span className="font-medium text-navy-900">{selectedStone.shape}</span></span>
                 <span className="text-navy-200">|</span>
-                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Value</span><span className="font-medium text-navy-900">${selectedStone.value.toLocaleString()}</span></span>
+                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">{selectedStone.kind === 'parcel' ? 'Total value' : 'Value'}</span><span className="font-medium text-navy-900">${selectedStone.value.toLocaleString()}</span></span>
+                {selectedStone.kind === 'parcel' && (
+                  <>
+                    <span className="text-navy-200">|</span>
+                    <span><span className="text-amber-700 text-xs uppercase tracking-wide mr-1.5">Parcel</span><span className="font-medium text-amber-900">{selectedStone.stone_count} stones</span></span>
+                  </>
+                )}
                 <span className="text-navy-200">|</span>
                 <span>
                   <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Fee</span>
                   <span className="font-medium text-navy-900">
                     ${(verbalEditMode
                       ? selectedStone.fee
-                        + (colorStabilityTest && !selectedStone.color_stability_test ? csFeeCost : 0)
-                        - (!colorStabilityTest && selectedStone.color_stability_test ? csFeeCost : 0)
+                        + ((colorStabilityTest && !selectedStone.color_stability_test ? csFeeCost : 0) * (selectedStone.kind === 'parcel' ? (selectedStone.stone_count || 1) : 1))
+                        - ((!colorStabilityTest && selectedStone.color_stability_test ? csFeeCost : 0) * (selectedStone.kind === 'parcel' ? (selectedStone.stone_count || 1) : 1))
                         + (stoneMounted && !selectedStone.mounted ? mountedFeeCost : 0)
                         - (!stoneMounted && selectedStone.mounted ? mountedFeeCost : 0)
                       : selectedStone.fee
@@ -525,10 +552,18 @@ export default function StonesPage() {
                           className="scale-75"
                           data-testid="color-stability-switch"
                         />
-                        <span className="text-xs text-navy-600">{colorStabilityTest ? `+$${csFeeCost}` : 'No'}</span>
+                        <span className="text-xs text-navy-600">
+                          {colorStabilityTest
+                            ? `+$${csFeeCost}${selectedStone.kind === 'parcel' && (selectedStone.stone_count || 1) > 1 ? ` × ${selectedStone.stone_count} = $${csFeeCost * (selectedStone.stone_count || 1)}` : ''}`
+                            : 'No'}
+                        </span>
                       </>
                     ) : (
-                      <span className="font-medium text-navy-900">{selectedStone.color_stability_test ? `Yes (+$${csFeeCost})` : 'No'}</span>
+                      <span className="font-medium text-navy-900">
+                        {selectedStone.color_stability_test
+                          ? `Yes (+$${csFeeCost}${selectedStone.kind === 'parcel' && (selectedStone.stone_count || 1) > 1 ? ` × ${selectedStone.stone_count}` : ''})`
+                          : 'No'}
+                      </span>
                     )}
                   </span>
                   <span className="text-navy-200">|</span>
@@ -575,109 +610,13 @@ export default function StonesPage() {
                   </div>
                 )}
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Certificate ID */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">
-                      Certificate ID
-                    </Label>
-                    <Input
-                      placeholder="Enter certificate ID..."
-                      value={structuredFindings.certificate_id || ''}
-                      onChange={(e) => setStructuredFindings(prev => ({ ...prev, certificate_id: e.target.value }))}
-                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-200 text-gray-600 cursor-not-allowed opacity-70' : 'bg-white'}`}
-                      disabled={!verbalEditMode}
-                      data-testid="verbal-certificate-id"
-                    />
-                  </div>
-                  
-                  {/* Weight */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Weight (ct)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Weight..."
-                      value={structuredFindings.weight || ''}
-                      onChange={(e) => setStructuredFindings(prev => ({ ...prev, weight: parseFloat(e.target.value) || 0 }))}
-                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-200 text-gray-600 cursor-not-allowed opacity-70' : 'bg-white'}`}
-                      disabled={!verbalEditMode}
-                      data-testid="verbal-weight"
-                    />
-                  </div>
-                  
-                  {/* Identification */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Identification</Label>
-                    <SearchableSelect
-                      value={structuredFindings.identification || ''}
-                      onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, identification: value }))}
-                      disabled={!verbalEditMode}
-                      options={filterOptionsForStone(
-                        dropdownSettings.identification,
-                        selectedStone.stone_type,
-                        structuredFindings.identification || '',
-                      )}
-                      placeholder="Select identification..."
-                      searchPlaceholder="Search identification..."
-                      data-testid="verbal-identification"
-                    />
-                  </div>
-                  
-                  {/* Color */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Color</Label>
-                    <SearchableSelect
-                      value={structuredFindings.color || ''}
-                      onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, color: value }))}
-                      disabled={!verbalEditMode}
-                      options={filterOptionsForStone(
-                        dropdownSettings.color,
-                        selectedStone.stone_type,
-                        structuredFindings.color || '',
-                      )}
-                      placeholder="Select color..."
-                      searchPlaceholder="Search color..."
-                      data-testid="verbal-color"
-                    />
-                  </div>
-                  
-                  {/* Origin */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Origin</Label>
-                    <SearchableSelect
-                      value={structuredFindings.origin || ''}
-                      onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, origin: value }))}
-                      disabled={!verbalEditMode}
-                      options={filterOptionsForStone(
-                        dropdownSettings.origin,
-                        selectedStone.stone_type,
-                        structuredFindings.origin || '',
-                      )}
-                      placeholder="Select origin..."
-                      searchPlaceholder="Search origin..."
-                      data-testid="verbal-origin"
-                    />
-                  </div>
-                  
-                  {/* Comment */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Comment</Label>
-                    <SearchableSelect
-                      value={structuredFindings.comment || ''}
-                      onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, comment: value }))}
-                      disabled={!verbalEditMode}
-                      options={filterOptionsForStone(
-                        dropdownSettings.comment,
-                        selectedStone.stone_type,
-                        structuredFindings.comment || '',
-                      )}
-                      placeholder="Select comment..."
-                      searchPlaceholder="Search comment..."
-                      data-testid="verbal-comment"
-                    />
-                  </div>
-                </div>
+                <StoneVerbalSection
+                  stone={selectedStone}
+                  structuredFindings={structuredFindings}
+                  setStructuredFindings={setStructuredFindings}
+                  dropdownSettings={dropdownSettings}
+                  editMode={verbalEditMode}
+                />
                 
                 {isAdmin && verbalEditMode && (
                 <Button

@@ -5,6 +5,32 @@
 
 ---
 
+## Feb 25, 2026 — Shared `<StoneVerbalSection>` extracted (de-dup the stone modal)
+
+User reported (rightly!) that the stone modal on `/dashboard/stones` was missing the parcel-aware verbal UI that I'd shipped on `/dashboard/jobs` the same day. Root cause: the verbal-findings block was a ~120-line inline copy in BOTH pages. Phase 3 only touched the jobs-page copy.
+
+### Fix
+Extracted a single shared component at `/app/frontend/src/components/StoneVerbalSection.tsx`:
+- One source of truth for: shared cert ID input, single-stone grid (cert ID / weight / id / color / origin / comment), parcel N-card layout with shared cert ID + per-stone weight + 4 SearchableSelects, and the "Copy row 1 → all" helper.
+- Exports `seedStructuredFindings(stone)` for parents to initialise their `structuredFindings` state correctly for both single stones and parcels.
+- Pure presentational — owns no persistence, no async work.
+
+### Replaced
+- `dashboard/jobs/page.tsx`: removed 238 lines of inline verbal UI + 9-line `updateParcelStone` helper → swapped for one `<StoneVerbalSection>` invocation. File dropped 2487 → 2217 LOC.
+- `dashboard/stones/page.tsx`: removed 103 lines of inline single-stone-only verbal UI → swapped for `<StoneVerbalSection>`. Parcels now editable from `/dashboard/stones` for the first time. File dropped 856 → 780 LOC.
+- Stones page now also shows the amber `Parcel of N` badge on the type column + `(total)` microcopy on the weight cell, matching the jobs page.
+- Stones page compact info strip: parcel-aware labels (`Total wt`, `Total value`, `PARCEL · N stones`) and CS fee math `+$50 × N = $X` to match.
+- `lib/api.ts`: `stonesApi.updateStructuredVerbal` TS signature gained `per_stone[]` so TypeScript doesn't strip the parcel payload on save.
+
+### Verification
+- 46/46 backend pytests still pass (incl. the round-trip `test_parcel_verbal_findings_persist_per_stone_array` which exercises the exact same endpoint both pages now call).
+- Frontend build clean. Bundle for `/dashboard/jobs` shrank from ~50 kB to 29.1 kB; `/dashboard/stones` from ~12 kB to 8.87 kB.
+
+### Honest note on duplication still in the codebase
+The user flagged broader duplication: job detail dialogs, shipment dialogs, stone modals all have multiple copies. This consolidation only addressed the verbal-findings block (the smallest unit that was actively breaking). Remaining work is logged in ROADMAP as P1 refactor.
+
+---
+
 ## Feb 25, 2026 — Parcels Phases 3 + 4 complete
 
 Phase 3 (StoneEditDialog) and Phase 4 (memo / invoice / shipment picker) shipped in the same session as P1+P2. The parcel feature is now end-to-end.

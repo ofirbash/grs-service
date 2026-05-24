@@ -359,6 +359,15 @@ export const stonesApi = {
     color?: string;
     origin?: string;
     comment?: string;
+    // Parcels: per-stone findings sharing one cert ID. The backend
+    // `StructuredVerbalFindings` model accepts this list of dicts.
+    per_stone?: Array<{
+      weight?: number;
+      identification?: string;
+      color?: string;
+      origin?: string;
+      comment?: string;
+    }>;
   }) => {
     const response = await api.put(`/stones/${id}/verbal`, { structured_findings });
     return response.data;

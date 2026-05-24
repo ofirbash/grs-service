@@ -55,10 +55,11 @@ import {
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
+import { StoneVerbalSection, seedStructuredFindings } from '@/components/StoneVerbalSection';
+
 // Types, constants and sub-components extracted into sibling files
 import type {
   StructuredVerbalFindings,
-  ParcelStoneFinding,
   Stone,
   DropdownSettings,
   Job,
@@ -442,41 +443,11 @@ function JobsPageContent() {
 
   const openStoneDialog = (stone: Stone) => {
     setViewingStone(stone);
-    
-    // Initialize structured findings from stone data
-    // verbal_findings can be: undefined, null, string, or object
-    const vf = stone.verbal_findings;
-    const findings = (vf && typeof vf === 'object') ? vf as StructuredVerbalFindings : null;
 
-    // Parcels render N per-stone cards sharing one certificate_id.
-    // If the parcel already has saved per_stone data, reuse it; otherwise
-    // initialise an empty card per physical stone so the user can fill in N
-    // entries. Single stones use the legacy top-level shape.
-    if (stone.kind === 'parcel') {
-      const n = Math.max(1, stone.stone_count || 1);
-      const existing = (findings?.per_stone && Array.isArray(findings.per_stone)) ? findings.per_stone : [];
-      const seeded: ParcelStoneFinding[] = Array.from({ length: n }, (_, i) => ({
-        weight: existing[i]?.weight ?? undefined,
-        identification: existing[i]?.identification ?? '',
-        color: existing[i]?.color ?? '',
-        origin: existing[i]?.origin ?? '',
-        comment: existing[i]?.comment ?? '',
-      }));
-      setStructuredFindings({
-        certificate_id: findings?.certificate_id || '',
-        per_stone: seeded,
-      });
-    } else {
-      setStructuredFindings({
-        certificate_id: findings?.certificate_id || '',
-        weight: findings?.weight || stone.weight,  // Default to stone's weight
-        identification: findings?.identification || '',
-        color: findings?.color || '',
-        origin: findings?.origin || '',
-        comment: findings?.comment || ''
-      });
-    }
-    
+    // Initialize structured findings — shared logic handles both single
+    // stones and parcels (parcels get N empty per_stone entries).
+    setStructuredFindings(seedStructuredFindings(stone));
+
     // Initialize fee fields
     setStoneColorStability(stone.color_stability_test || false);
     setStoneMounted(stone.mounted || false);
@@ -485,16 +456,6 @@ function JobsPageContent() {
     setVerbalEditMode(false);
     
     setStoneDialogOpen(true);
-  };
-
-  // Helper used by the parcel verbal cards: update one per-stone entry in
-  // structuredFindings.per_stone immutably.
-  const updateParcelStone = (index: number, field: keyof ParcelStoneFinding, value: string | number | undefined) => {
-    setStructuredFindings(prev => {
-      const next = [...(prev.per_stone || [])];
-      next[index] = { ...(next[index] || {}), [field]: value };
-      return { ...prev, per_stone: next };
-    });
   };
 
   const hasUnsavedStoneChanges = (): boolean => {
@@ -2026,244 +1987,13 @@ function JobsPageContent() {
                   </div>
                 )}
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Certificate ID — shared for both singles and parcels */}
-                  <div className={`space-y-1 ${viewingStone.kind === 'parcel' ? 'sm:col-span-2' : ''}`}>
-                    <Label className="text-sm text-navy-600">
-                      Certificate ID
-                      {viewingStone.kind === 'parcel' && (
-                        <span className="ml-2 text-xs text-amber-700 font-normal">(shared across all {viewingStone.stone_count || 0} stones)</span>
-                      )}
-                    </Label>
-                    <Input
-                      placeholder="Enter certificate ID..."
-                      value={structuredFindings.certificate_id || ''}
-                      onChange={(e) => setStructuredFindings(prev => ({ ...prev, certificate_id: e.target.value }))}
-                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-200 text-gray-600 cursor-not-allowed opacity-70' : 'bg-white'}`}
-                      disabled={!verbalEditMode}
-                      data-testid="verbal-certificate-id"
-                    />
-                  </div>
-
-                  {viewingStone.kind !== 'parcel' && (
-                    <>
-                  {/* Weight */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Weight (ct)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="Weight..."
-                      value={structuredFindings.weight || ''}
-                      onChange={(e) => setStructuredFindings(prev => ({ ...prev, weight: parseFloat(e.target.value) || 0 }))}
-                      className={`border-navy-200 ${!verbalEditMode ? 'bg-gray-200 text-gray-600 cursor-not-allowed opacity-70' : 'bg-white'}`}
-                      disabled={!verbalEditMode}
-                      data-testid="verbal-weight"
-                    />
-                  </div>
-                  
-                  {/* Identification */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Identification</Label>
-                    <SearchableSelect
-                      value={structuredFindings.identification || ''}
-                      onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, identification: value }))}
-                      disabled={!verbalEditMode}
-                      options={filterOptionsForStone(
-                        dropdownSettings.identification,
-                        viewingStone.stone_type,
-                        structuredFindings.identification || '',
-                      )}
-                      placeholder="Select identification..."
-                      searchPlaceholder="Search identification..."
-                      data-testid="verbal-identification"
-                    />
-                  </div>
-                  
-                  {/* Color */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Color</Label>
-                    <SearchableSelect
-                      value={structuredFindings.color || ''}
-                      onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, color: value }))}
-                      disabled={!verbalEditMode}
-                      options={filterOptionsForStone(
-                        dropdownSettings.color,
-                        viewingStone.stone_type,
-                        structuredFindings.color || '',
-                      )}
-                      placeholder="Select color..."
-                      searchPlaceholder="Search color..."
-                      data-testid="verbal-color"
-                    />
-                  </div>
-                  
-                  {/* Origin */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Origin</Label>
-                    <SearchableSelect
-                      value={structuredFindings.origin || ''}
-                      onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, origin: value }))}
-                      disabled={!verbalEditMode}
-                      options={filterOptionsForStone(
-                        dropdownSettings.origin,
-                        viewingStone.stone_type,
-                        structuredFindings.origin || '',
-                      )}
-                      placeholder="Select origin..."
-                      searchPlaceholder="Search origin..."
-                      data-testid="verbal-origin"
-                    />
-                  </div>
-                  
-                  {/* Comment */}
-                  <div className="space-y-1">
-                    <Label className="text-sm text-navy-600">Comment</Label>
-                    <SearchableSelect
-                      value={structuredFindings.comment || ''}
-                      onValueChange={(value) => setStructuredFindings(prev => ({ ...prev, comment: value }))}
-                      disabled={!verbalEditMode}
-                      options={filterOptionsForStone(
-                        dropdownSettings.comment,
-                        viewingStone.stone_type,
-                        structuredFindings.comment || '',
-                      )}
-                      placeholder="Select comment..."
-                      searchPlaceholder="Search comment..."
-                      data-testid="verbal-comment"
-                    />
-                  </div>
-                    </>
-                  )}
-                </div>
-
-                {viewingStone.kind === 'parcel' && (
-                  <div className="space-y-3" data-testid="parcel-per-stone-section">
-                    <div className="flex items-center justify-between border-b border-amber-200 pb-1.5 mt-2">
-                      <Label className="text-sm font-semibold text-amber-900 inline-flex items-center gap-2">
-                        Per-stone findings ({(structuredFindings.per_stone || []).length} stones)
-                      </Label>
-                      {verbalEditMode && (structuredFindings.per_stone || []).length >= 2 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs border-amber-300 text-amber-800 hover:bg-amber-50"
-                          onClick={() => {
-                            // Copy row 1's identification/color/origin/comment to all
-                            // other rows. Common case: a high-N parcel where all stones
-                            // share the same findings except weight. Weight is left
-                            // alone so each stone keeps its individual measurement.
-                            const first = (structuredFindings.per_stone || [])[0];
-                            if (!first) return;
-                            setStructuredFindings(prev => ({
-                              ...prev,
-                              per_stone: (prev.per_stone || []).map((s, idx) => idx === 0 ? s : ({
-                                ...s,
-                                identification: first.identification ?? '',
-                                color: first.color ?? '',
-                                origin: first.origin ?? '',
-                                comment: first.comment ?? '',
-                              })),
-                            }));
-                          }}
-                          data-testid="parcel-copy-row-1-to-all"
-                        >
-                          Copy row 1 → all
-                        </Button>
-                      )}
-                    </div>
-                    {(structuredFindings.per_stone || []).map((ps: ParcelStoneFinding, i: number) => (
-                      <div
-                        key={i}
-                        className="border border-amber-200 rounded-md p-3 bg-amber-50/30 space-y-2"
-                        data-testid={`parcel-stone-card-${i}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-amber-900 uppercase tracking-wide">
-                            Stone {i + 1} of {(structuredFindings.per_stone || []).length}
-                          </span>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="Weight (ct)"
-                            value={ps.weight ?? ''}
-                            onChange={(e) => updateParcelStone(i, 'weight', e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                            className={`border-amber-300 h-7 w-32 text-xs ${!verbalEditMode ? 'bg-gray-200 text-gray-600 cursor-not-allowed opacity-70' : 'bg-white'}`}
-                            disabled={!verbalEditMode}
-                            data-testid={`parcel-stone-weight-${i}`}
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-xs text-navy-600">Identification</Label>
-                            <SearchableSelect
-                              value={ps.identification || ''}
-                              onValueChange={(value) => updateParcelStone(i, 'identification', value)}
-                              disabled={!verbalEditMode}
-                              options={filterOptionsForStone(
-                                dropdownSettings.identification,
-                                viewingStone.stone_type,
-                                ps.identification || '',
-                              )}
-                              placeholder="Select identification..."
-                              searchPlaceholder="Search identification..."
-                              data-testid={`parcel-stone-identification-${i}`}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-navy-600">Color</Label>
-                            <SearchableSelect
-                              value={ps.color || ''}
-                              onValueChange={(value) => updateParcelStone(i, 'color', value)}
-                              disabled={!verbalEditMode}
-                              options={filterOptionsForStone(
-                                dropdownSettings.color,
-                                viewingStone.stone_type,
-                                ps.color || '',
-                              )}
-                              placeholder="Select color..."
-                              searchPlaceholder="Search color..."
-                              data-testid={`parcel-stone-color-${i}`}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-navy-600">Origin</Label>
-                            <SearchableSelect
-                              value={ps.origin || ''}
-                              onValueChange={(value) => updateParcelStone(i, 'origin', value)}
-                              disabled={!verbalEditMode}
-                              options={filterOptionsForStone(
-                                dropdownSettings.origin,
-                                viewingStone.stone_type,
-                                ps.origin || '',
-                              )}
-                              placeholder="Select origin..."
-                              searchPlaceholder="Search origin..."
-                              data-testid={`parcel-stone-origin-${i}`}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-navy-600">Comment</Label>
-                            <SearchableSelect
-                              value={ps.comment || ''}
-                              onValueChange={(value) => updateParcelStone(i, 'comment', value)}
-                              disabled={!verbalEditMode}
-                              options={filterOptionsForStone(
-                                dropdownSettings.comment,
-                                viewingStone.stone_type,
-                                ps.comment || '',
-                              )}
-                              placeholder="Select comment..."
-                              searchPlaceholder="Search comment..."
-                              data-testid={`parcel-stone-comment-${i}`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <StoneVerbalSection
+                  stone={viewingStone}
+                  structuredFindings={structuredFindings}
+                  setStructuredFindings={setStructuredFindings}
+                  dropdownSettings={dropdownSettings}
+                  editMode={verbalEditMode}
+                />
               </div>
             </div>
           )}
