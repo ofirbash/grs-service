@@ -5,6 +5,56 @@
 
 ---
 
+## Feb 25, 2026 — Parcels (Phase 1 backend + Phase 2 create-job UI)
+
+A *parcel* is a stone row that represents **N physical stones rolled up under one certificate**. It coexists with the existing "certificate group" feature (where N independent stone records share a cert), but a parcel cannot be combined with anything — it IS its own cert.
+
+### Why
+Some lots get certified as a batch — e.g. a parcel of small commercial-grade stones — without each one needing its own line item or verbal entry. The user's request: enter total weight, total value, count; charge based on the AVERAGE per-stone value × N; verbal findings have one shared certificate ID at the top and per-stone entries underneath.
+
+### Pricing rule
+```
+per_stone_fee = bracket_lookup(value_total / stone_count, service)
+base          = per_stone_fee × stone_count
++ cs_fee × stone_count   if color_stability_test (per-parcel toggle, charged ×N)
++ mounted_fee            if mounted              (per-parcel toggle, charged once)
+```
+Canonical case from the spec: parcel of 2, total value $15,000, Express service → avg $7,500 → bracket fee $450 → base $900. With the production DB pricing brackets, a parcel of 3 @ $15k Express → $1,350. Both verified end-to-end with curl.
+
+### Phase 1 — Backend foundation
+**Data model.** Extend the existing `stones` array on jobs with a `kind` discriminator (`"stone"` | `"parcel"`) and `stone_count`. No new collection — same lifecycle (SKU, hard-delete, shipments, memos, invoices). Legacy docs without `kind` are treated as singles.
+
+- `backend/models.py`: `StoneCreate` / `AddStoneRequest` got `is_parcel`, `stone_count`, `mounted`. `StoneResponse` got `kind`, `stone_count`. `JobResponse` got `total_certificates`. `StructuredVerbalFindings` got `per_stone` (list of per-stone findings within a parcel).
+- `backend/pricing.py`: new `calculate_parcel_fee_from_brackets()` + `_lookup_bracket_fee` helper.
+- `backend/jobs_helpers.py`: new `is_parcel()`, `physical_stone_count()`. `recompute_job_totals()` now returns BOTH `total_stones` (physical: sum of `stone_count` for parcels + 1 for singles) AND `total_certificates` (row count).
+- `backend/routes/jobs.py`: `_build_stones_for_create` handles parcels; `create_job` + `build_job_response` write/return `total_certificates`; `group_stones_for_certificate` rejects parcels with HTTP 400 "Parcels cannot be added to a certificate group: SKU"; `add_stone_to_job` accepts parcels and recomputes totals (vs the old `$inc` which would have miscounted physical stones for parcels).
+- `backend/routes/stones.py`: `update_stone_fees` charges `cs_fee × N` on parcels and treats mounted as a single-row toggle (no group propagation — parcels never have a `certificate_group`).
+
+### Phase 2 — Create-job UI
+- `frontend/src/app/dashboard/jobs/_components/CreateJobDialog.tsx`: new "Kind" column with a Switch (Single ↔ Parcel) and new "Count" column. When parcel is on: count field pre-fills to 2, weight/value microcopy reads "total if parcel", and the row gets an amber tint. Mobile layout switches to "Total wt" / "Total $" labels and a 3-column grid that includes `# Stones`.
+- `frontend/src/app/dashboard/jobs/page.tsx`: stone state extended with `is_parcel`/`stone_count`, `handleStoneChange` clears the count on toggle-off, `handleCreateJob` forwards the new fields, validation rejects parcels with count < 2, "Group" button now hidden when any selected row is a parcel (replaced by an inline hint).
+- `frontend/src/app/dashboard/jobs/_components/StoneStatusBadges.tsx`: amber `Parcel of N` pill on the per-stone status row.
+- Dashboard tweak: the jobs table now shows "X stones · Y certs" when they differ (mobile card and desktop table cell). Single-stone jobs stay clean — the certs sub-line only appears when there's at least one parcel.
+- `frontend/src/lib/api.ts`: `jobsApi.create` and `addStone` signatures extended.
+- `frontend/src/app/dashboard/jobs/_types.ts`: `Stone` got `kind` + `stone_count`; `Job` got `total_certificates`.
+
+### Hard rules enforced
+1. Parcels cannot be added to a certificate group. Backend rejects (HTTP 400); frontend hides the "Group" button + shows a hint.
+2. A parcel is atomic — hard-delete the whole row, ship the whole row.
+3. CS fee on a parcel = `cs_fee × stone_count`. Mounted fee on a parcel = `mounted_fee` once.
+
+### Verification
+- pytest: **36/36 pass** (15 jobs_helpers + 14 new parcels + 7 auth_401).
+- Testing agent iteration_28: backend covered end-to-end with a new 7-test HTTP suite (`/app/backend/tests/test_parcels_api.py`). All scenarios pass — `retest_needed: false`.
+- Curl walkthrough: create job → group rejection → CS toggle ×N → mounted once → parcel deletion → add parcel via `/jobs/{id}/stones` all return the correct totals.
+- Smoke screenshot of the new Create Job dialog renders the Kind/Count columns, microcopy, and amber tint correctly.
+
+### Remaining work for follow-up phases
+- **Phase 3 — View & edit dialog** (StoneEditDialog): show the N per-stone weight/identification/color/origin/comment cards with one shared certificate_id; display the fee formula as `$X × N + CS×N + mounted-once`.
+- **Phase 4 — Memo / invoice / shipments**: line format "<TYPE> parcel of N · <TotalCt> ct · $TotalValue · $TotalFee"; shipment picker treats each parcel as one atom.
+
+---
+
 ## Feb 24, 2026 — Bug fix: idle session showed empty dashboards instead of redirecting to /login
 
 User reported that leaving the app idle overnight resulted in every dashboard table (jobs, branches, clients, pricing) rendering as empty, instead of being kicked back to the login screen. Console showed `403 Forbidden` from every `/api/...` call.

@@ -4,31 +4,58 @@ JobCreate schema uses:
   client_id, branch_id, service_type, certificate_units:[{stones:[StoneCreate]}]
 Each certificate_unit = 1 logical certificate. A parcel is a single StoneCreate
 inside one certificate_unit with is_parcel=true and stone_count>=2.
+
+These tests mint a JWT directly using the JWT_SECRET from backend/.env so they
+don't depend on Turnstile being blanked. Skipped if requests or pymongo is not
+available, or if MongoDB is unreachable.
 """
+import datetime as _dt
 import os
+
 import pytest
-import requests
+
+requests = pytest.importorskip("requests")
+jwt = pytest.importorskip("jwt")
+pymongo = pytest.importorskip("pymongo")
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001").rstrip("/")
 
 
+def _read_env_var(name: str, default: str = "") -> str:
+    """Read a value out of /app/backend/.env without requiring python-dotenv."""
+    env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+    try:
+        with open(env_path) as f:
+            for line in f:
+                if line.startswith(f"{name}="):
+                    val = line.split("=", 1)[1].strip()
+                    return val.strip('"').strip("'")
+    except FileNotFoundError:
+        pass
+    return os.environ.get(name, default)
+
+
 def _get_token() -> str:
-    r = requests.post(
-        f"{BASE_URL}/api/auth/login",
-        json={
-            "email": "admin@bashari.com",
-            "password": "admin123",
-            "website": "",
-            "turnstile_token": "x",
+    """Mint an admin JWT directly — bypasses Turnstile so these tests run in
+    any env where MongoDB is reachable, not just one with the bot check off."""
+    secret = _read_env_var("JWT_SECRET", "bashari-secret-key-2024-secure")
+    mongo_url = _read_env_var("MONGO_URL", "mongodb://localhost:27017")
+    db_name = _read_env_var("DB_NAME", "bashari_erp")
+    try:
+        client = pymongo.MongoClient(mongo_url, serverSelectionTimeoutMS=2000)
+        admin = client[db_name].users.find_one({"email": "admin@bashari.com"})
+    except Exception as exc:  # noqa: BLE001
+        pytest.skip(f"mongo unreachable: {exc}")
+    if not admin:
+        pytest.skip("admin@bashari.com not seeded")
+    token = jwt.encode(
+        {
+            "sub": str(admin["_id"]),
+            "exp": _dt.datetime.utcnow() + _dt.timedelta(hours=1),
         },
-        timeout=10,
+        secret,
+        algorithm="HS256",
     )
-    assert r.status_code == 200, f"login failed: {r.status_code} {r.text}"
-    body = r.json()
-    if body.get("requires_2fa"):
-        pytest.skip("admin requires 2FA")
-    token = body.get("token") or body.get("access_token")
-    assert token, body
     return token
 
 
