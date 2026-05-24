@@ -147,18 +147,24 @@ export default function StonesPage() {
   const fetchStones = async () => {
     try {
       const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
-      const [stonesData, dropdownData, pricingData] = await Promise.all([
+      // allSettled so one flaky endpoint doesn't blank the whole stones
+      // page; session-expired (401/403) is handled by the global interceptor.
+      const [stonesR, dropdownR, pricingR] = await Promise.allSettled([
         stonesApi.getAll(branchParam),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
         settingsApi.getPricing().catch(() => ({})),
       ]);
-      setStones(stonesData);
-      setDropdownSettings(dropdownData);
-      if (pricingData.color_stability_fee != null) setCsFeeCost(pricingData.color_stability_fee);
-      if (pricingData.mounted_jewellery_fee != null) setMountedFeeCost(pricingData.mounted_jewellery_fee);
-      
+      if (stonesR.status === 'fulfilled') setStones(stonesR.value);
+      else console.error('Failed to load stones', stonesR.reason);
+      if (dropdownR.status === 'fulfilled') setDropdownSettings(dropdownR.value);
+      if (pricingR.status === 'fulfilled') {
+        const pricingData = pricingR.value;
+        if (pricingData.color_stability_fee != null) setCsFeeCost(pricingData.color_stability_fee);
+        if (pricingData.mounted_jewellery_fee != null) setMountedFeeCost(pricingData.mounted_jewellery_fee);
+      }
+
       // Initialize dropdowns if empty
-      if (!dropdownData.identification?.length) {
+      if (dropdownR.status === 'fulfilled' && !dropdownR.value.identification?.length) {
         settingsApi.initializeDropdowns().then(() => {
           settingsApi.getDropdowns().then(setDropdownSettings);
         });

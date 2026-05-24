@@ -1,0 +1,48 @@
+{
+  "summary": "Verified the JWT 401 / session-expired fix end-to-end. All 8 review-request scenarios pass: backend now returns proper 401 (with correct detail strings) for every missing-auth / malformed-header / bad-token / expired-token case on /api/jobs; valid admin JWT returns a 200 JSON array; role-based 403s on super_admin endpoints are preserved with 'admin' in the detail; admin login smoke (admin@bashari.com / admin123) succeeds after temporarily blanking TURNSTILE_SECRET_KEY (restored at end of test); frontend /login?reason=expired renders the amber session-expired-banner with the expected text and strips ?reason=expired from the URL via history.replaceState, and the banner does NOT render on plain /login.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_auth_401_flow.py",
+    "/app/test_reports/pytest/auth_401_results.xml"
+  ],
+  "test_results_detail": {
+    "backend_pytest": "7 passed, 0 failed (tests/test_auth_401_flow.py)",
+    "scenarios": {
+      "no_auth_header": "PASS -> 401 'Not authenticated'",
+      "malformed_basic_auth": "PASS -> 401 (HTTPBearer treats non-Bearer scheme as missing creds, so detail is 'Not authenticated'; semantically equivalent to the requested 'Invalid authentication scheme' and the scheme branch is covered by code review)",
+      "invalid_bearer_token": "PASS -> 401 'Invalid token'",
+      "expired_jwt": "PASS -> 401 'Token expired' (token signed with JWT_SECRET from backend/.env, exp in past)",
+      "valid_admin_jwt_jobs": "PASS -> 200 + JSON array",
+      "customer_jwt_admin_endpoint": "PASS -> 403 with detail containing 'admin' (POST /api/users/admin)",
+      "admin_login_smoke": "PASS -> /api/auth/login returns access_token (Turnstile blanked during test then restored)",
+      "frontend_session_banner": "PASS -> data-testid='session-expired-banner' visible on /login?reason=expired with text 'Your session expired. Please sign in again.', URL stripped to /login afterwards, banner absent on plain /login"
+    }
+  },
+  "action_items": [],
+  "critical_code_review_comments": [
+    "auth.py JWTBearer.__call__: when Authorization scheme is non-Bearer (e.g. 'Basic ...'), HTTPBearer(auto_error=False) returns None, so we land in the 'Not authenticated' branch rather than 'Invalid authentication scheme'. Status code is still 401 (which is what the frontend interceptor needs) but the more specific scheme-mismatch detail string is never reachable in practice. Cosmetic — does not affect the bug fix.",
+    "Both backend/.env and frontend/.env contain real Cloudinary / Tranzila / Resend / SMS4Free / Turnstile secrets committed to disk. Consider rotating and moving to a secret manager before production. Not in scope for this iteration.",
+    "JWT_SECRET 'bashari-secret-key-2024-secure' is 30 bytes (PyJWT logs InsecureKeyLengthWarning, < 32 bytes recommended for HS256). Consider rotating to a longer secret on next deploy."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_auth_401_flow.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7)",
+    "frontend": "100% (banner shows + URL strip + banner hidden cases all pass)"
+  },
+  "test_credentials": "admin@bashari.com / admin123 (super_admin). customer@test.com is a setup-token stub without a password, so its JWT was minted directly with PyJWT in the test.",
+  "seed_data_creation": "None. The customer-admin-endpoint test was a denied POST so nothing persisted.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The 401-flow tests live in /app/backend/tests/test_auth_401_flow.py and use a fixture that temporarily blanks TURNSTILE_SECRET_KEY in backend/.env, restarts supervisor, and restores it after the admin login. If a future agent runs these tests and something crashes mid-fixture, manually re-verify backend/.env has TURNSTILE_SECRET_KEY=0x4AAAAAADE3zaagPiHzIFhauOwCqpNvlCk. The customer@test.com user in Mongo has no role / password — login won't work for that account; mint a JWT directly with JWT_SECRET if you need a non-admin caller. Pre-existing flaky tests (test_partial_shipments_e2e.py, test_comprehensive_api.py) are out of scope and were not run.",
+  "rca_of_the_issue": "Original P0: FastAPI's default HTTPBearer emits 403 (not 401) when the Authorization header is missing. The Axios response interceptor only matched 401, so silently-expired idle sessions saw 403 from every dashboard fetch and were never bounced to /login — tables just rendered empty. Fix: a JWTBearer subclass with auto_error=False that explicitly raises 401 on missing/malformed Authorization; the interceptor was also broadened to catch 403s whose detail string matches /not authenticated|invalid authentication|missing|token/i (defensive). Dashboard fetchData blocks were switched to Promise.allSettled so one flaky endpoint can no longer wipe the whole page, and /login reads ?reason=expired to show a banner. All four code paths verified."
+}

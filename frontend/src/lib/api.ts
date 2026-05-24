@@ -20,29 +20,48 @@ api.interceptors.request.use((config) => {
 });
 
 // Response interceptor to handle auth errors.
-// On a 401 we kick the user back to /login — but ONLY when the failure
-// represents an expired/invalid session, never when the login attempt itself
-// is what failed. Without this guard, a wrong-password attempt would trigger
-// a full page reload that wipes the "Invalid email or password" error message
-// before the user can read it.
+// On an expired/missing-token failure we kick the user back to /login —
+// but ONLY when the failure represents a session problem, never when the
+// login attempt itself is what failed (otherwise a wrong-password attempt
+// would trigger a full page reload that wipes the inline error message
+// before the user can read it).
+//
+// We catch BOTH:
+//   - 401 Unauthorized (issued by backend's JWTBearer for missing/expired
+//     tokens and by routes/auth_routes.py for invalid token / user not found)
+//   - 403 Forbidden when the detail string indicates an auth problem
+//     (defensive — covers any middleware path that might still emit 403
+//     for a missing Authorization header instead of 401)
+//
+// Legitimate role-based 403s (e.g. "Admin access required" when a customer
+// hits an admin endpoint) are left alone so the calling page can show its
+// own error.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
-      const requestUrl: string = error.config?.url || '';
-      const isAuthEndpoint =
-        requestUrl.includes('/auth/login') ||
-        requestUrl.includes('/auth/forgot-password') ||
-        requestUrl.includes('/auth/setup-password') ||
-        requestUrl.includes('/auth/setup-info') ||
-        requestUrl.includes('/access-requests/send-otp') ||
-        requestUrl.includes('/access-requests/verify-and-submit');
-      const onLoginPage = window.location.pathname.startsWith('/login');
+    if (typeof window === 'undefined') return Promise.reject(error);
 
-      if (!isAuthEndpoint && !onLoginPage) {
-        clearToken();
-        window.location.href = '/login';
-      }
+    const status: number | undefined = error.response?.status;
+    const detail: string = error.response?.data?.detail || '';
+    const requestUrl: string = error.config?.url || '';
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/forgot-password') ||
+      requestUrl.includes('/auth/setup-password') ||
+      requestUrl.includes('/auth/setup-info') ||
+      requestUrl.includes('/access-requests/send-otp') ||
+      requestUrl.includes('/access-requests/verify-and-submit');
+    const onLoginPage = window.location.pathname.startsWith('/login');
+
+    const looksLikeMissingAuth =
+      status === 401 ||
+      (status === 403 &&
+        /not authenticated|invalid authentication|missing|token/i.test(detail));
+
+    if (looksLikeMissingAuth && !isAuthEndpoint && !onLoginPage) {
+      clearToken();
+      // Tell the login page why the user got bounced so it can show a banner.
+      window.location.href = '/login?reason=expired';
     }
     return Promise.reject(error);
   }

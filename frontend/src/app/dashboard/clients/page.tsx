@@ -196,12 +196,16 @@ export default function ClientsPage() {
 
   const fetchData = async () => {
     try {
-      const [clientsData, branchesData] = await Promise.all([
+      // allSettled so one flaky endpoint doesn't blank the whole clients
+      // page; session-expired (401/403) is handled by the global interceptor.
+      const [clientsR, branchesR] = await Promise.allSettled([
         clientsApi.getAll(selectedBranchId || undefined),
         branchesApi.getAll(),
       ]);
-      setClients(clientsData);
-      setBranches(branchesData);
+      if (clientsR.status === 'fulfilled') setClients(clientsR.value);
+      else console.error('Failed to load clients', clientsR.reason);
+      if (branchesR.status === 'fulfilled') setBranches(branchesR.value);
+      else console.error('Failed to load branches', branchesR.reason);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {

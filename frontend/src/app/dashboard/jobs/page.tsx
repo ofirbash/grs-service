@@ -315,28 +315,42 @@ function JobsPageContent() {
   const fetchData = async () => {
     try {
       const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
-      const [jobsData, clientsData, branchesData, dropdownData, pricingData] = await Promise.all([
+      // Use allSettled so a single flaky endpoint (e.g. transient 502) does
+      // not blank out the entire dashboard. Failed slices are logged and
+      // skipped; the rest still render. Session-expired (401/403) is handled
+      // by the global axios interceptor in lib/api.ts → redirect to /login.
+      const results = await Promise.allSettled([
         jobsApi.getAll(branchParam),
         clientsApi.getAll(selectedBranchId || undefined),
         branchesApi.getAll(),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
         settingsApi.getPricing().catch(() => ({ service_types: ['Express', 'Normal', 'Recheck'] })),
       ]);
-      setJobs(jobsData);
-      setClients(clientsData);
-      setBranches(branchesData);
-      setDropdownSettings(dropdownData);
-      if (pricingData.service_types?.length) {
-        setServiceTypes(pricingData.service_types);
+      const [jobsR, clientsR, branchesR, dropdownR, pricingR] = results;
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          const labels = ['jobs', 'clients', 'branches', 'dropdowns', 'pricing'];
+          console.error(`fetchData: failed to load ${labels[i]}`, r.reason);
+        }
+      });
+      if (jobsR.status === 'fulfilled') setJobs(jobsR.value);
+      if (clientsR.status === 'fulfilled') setClients(clientsR.value);
+      if (branchesR.status === 'fulfilled') setBranches(branchesR.value);
+      if (dropdownR.status === 'fulfilled') setDropdownSettings(dropdownR.value);
+      if (pricingR.status === 'fulfilled') {
+        const pricingData = pricingR.value;
+        if (pricingData.service_types?.length) {
+          setServiceTypes(pricingData.service_types);
+        }
+        if (pricingData.color_stability_fee != null) setCsFeeCost(pricingData.color_stability_fee);
+        if (pricingData.mounted_jewellery_fee != null) setMountedFeeCost(pricingData.mounted_jewellery_fee);
+        if (pricingData.stone_types?.length) setStoneTypes(pricingData.stone_types);
+        if (pricingData.shapes?.length) setShapes(pricingData.shapes);
+        if (pricingData.payment_destinations?.length) setPaymentDestinations(pricingData.payment_destinations);
       }
-      if (pricingData.color_stability_fee != null) setCsFeeCost(pricingData.color_stability_fee);
-      if (pricingData.mounted_jewellery_fee != null) setMountedFeeCost(pricingData.mounted_jewellery_fee);
-      if (pricingData.stone_types?.length) setStoneTypes(pricingData.stone_types);
-      if (pricingData.shapes?.length) setShapes(pricingData.shapes);
-      if (pricingData.payment_destinations?.length) setPaymentDestinations(pricingData.payment_destinations);
-      
+
       // Initialize dropdowns if empty
-      if (!dropdownData.identification?.length) {
+      if (dropdownR.status === 'fulfilled' && !dropdownR.value.identification?.length) {
         settingsApi.initializeDropdowns().then(() => {
           settingsApi.getDropdowns().then(setDropdownSettings);
         });

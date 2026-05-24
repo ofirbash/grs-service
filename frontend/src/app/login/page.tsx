@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { authApi } from '@/lib/api';
@@ -21,6 +21,10 @@ export default function LoginPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  // When the Axios interceptor redirects an idle/expired session back here
+  // it appends ?reason=expired so we can show a clear notice instead of
+  // leaving the user wondering why they got bounced from the dashboard.
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
@@ -33,6 +37,21 @@ export default function LoginPage() {
   const [turnstileToken, setTurnstileToken] = useState('');
   const [step, setStep] = useState<'login' | '2fa'>('login');
   const [totpCode, setTotpCode] = useState('');
+
+  // Read `?reason=expired` on mount (set by the Axios interceptor when an
+  // idle session 401s out) and strip it from the URL so the banner doesn't
+  // re-appear on subsequent navigations within /login.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('reason') === 'expired') {
+      setSessionExpired(true);
+      params.delete('reason');
+      const cleanQuery = params.toString();
+      const cleanUrl = window.location.pathname + (cleanQuery ? `?${cleanQuery}` : '');
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  }, []);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,6 +211,15 @@ export default function LoginPage() {
                     onExpire={() => setTurnstileToken('')}
                     options={{ theme: 'light', size: 'flexible' }}
                   />
+                </div>
+              )}
+
+              {sessionExpired && !error && (
+                <div
+                  className="bg-amber-50 border border-amber-200 rounded-md p-2.5 text-xs text-amber-800"
+                  data-testid="session-expired-banner"
+                >
+                  Your session expired. Please sign in again.
                 </div>
               )}
 

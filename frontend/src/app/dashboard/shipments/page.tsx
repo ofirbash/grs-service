@@ -183,7 +183,9 @@ export default function ShipmentsPage() {
   const fetchData = async () => {
     try {
       const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
-      const [shipmentsData, jobsData, optionsData, dropdownData, branchesData, addressesData] = await Promise.all([
+      // allSettled so one flaky endpoint doesn't blank the whole shipments
+      // page; session-expired (401/403) is handled by the global interceptor.
+      const results = await Promise.allSettled([
         shipmentsApi.getAll(branchParam),
         jobsApi.getAll(branchParam),
         shipmentsApi.getOptions(),
@@ -191,12 +193,23 @@ export default function ShipmentsPage() {
         branchesApi.getAll(),
         addressesApi.getAll().catch(() => [] as Array<{ name: string; address?: string }>),
       ]);
-      setShipments(shipmentsData);
-      // Hide finished + cancelled jobs from the "Add jobs to shipment"
-      // picker — only live jobs are eligible for new shipments.
-      setAvailableJobs(jobsData.filter((j: Job) => j.status !== 'done' && j.status !== 'cancelled'));
-      setOptions(optionsData);
-      setDropdownSettings(dropdownData);
+      const [shipmentsR, jobsR, optionsR, dropdownR, branchesR, addressesR] = results;
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') {
+          const labels = ['shipments', 'jobs', 'options', 'dropdowns', 'branches', 'addresses'];
+          console.error(`fetchData: failed to load ${labels[i]}`, r.reason);
+        }
+      });
+      if (shipmentsR.status === 'fulfilled') setShipments(shipmentsR.value);
+      if (jobsR.status === 'fulfilled') {
+        // Hide finished + cancelled jobs from the "Add jobs to shipment"
+        // picker — only live jobs are eligible for new shipments.
+        setAvailableJobs(jobsR.value.filter((j: Job) => j.status !== 'done' && j.status !== 'cancelled'));
+      }
+      if (optionsR.status === 'fulfilled') setOptions(optionsR.value);
+      if (dropdownR.status === 'fulfilled') setDropdownSettings(dropdownR.value);
+      const branchesData = branchesR.status === 'fulfilled' ? branchesR.value : [];
+      const addressesData = addressesR.status === 'fulfilled' ? addressesR.value : [];
 
       // Build the short-label → "Address line, Phone" lookup for shipment
       // memos. The memo intentionally omits the branch/address *name* and
@@ -214,15 +227,15 @@ export default function ShipmentsPage() {
         if (a?.name) book[a.name] = joinAddressPhone(a.address, a.phone) || a.name;
       }
       setAddressBook(book);
-      
+
       // Set user's branch name for default source address
-      if (user?.branch_id) {
+      if (user?.branch_id && branchesData.length) {
         const branch = branchesData.find((b: { id: string; name: string }) => b.id === user.branch_id);
         if (branch) setUserBranchName(branch.name);
       }
-      
+
       // Initialize dropdowns if empty
-      if (!dropdownData.identification?.length) {
+      if (dropdownR.status === 'fulfilled' && !dropdownR.value.identification?.length) {
         settingsApi.initializeDropdowns().then(() => {
           settingsApi.getDropdowns().then(setDropdownSettings);
         });

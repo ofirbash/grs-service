@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -10,7 +10,32 @@ import os
 from database import db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
+
+
+class JWTBearer(HTTPBearer):
+    """HTTPBearer that returns 401 (not the default 403) when the
+    Authorization header is missing or malformed. This is the semantically
+    correct status — 401 means "you are not authenticated", 403 means
+    "you are authenticated but lack permission". It also lets the frontend
+    Axios interceptor treat a missing/expired token uniformly (always 401)
+    and bounce the user back to /login. Before this, idle sessions where
+    the token had been dropped from sessionStorage would return 403 from
+    every dashboard fetch, which the interceptor ignored — resulting in
+    silent empty tables instead of a redirect."""
+
+    def __init__(self) -> None:
+        super().__init__(auto_error=False)
+
+    async def __call__(self, request: Request) -> HTTPAuthorizationCredentials:  # type: ignore[override]
+        credentials = await super().__call__(request)
+        if credentials is None or not credentials.credentials:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        if credentials.scheme.lower() != "bearer":
+            raise HTTPException(status_code=401, detail="Invalid authentication scheme")
+        return credentials
+
+
+security = JWTBearer()
 JWT_SECRET = os.environ.get('JWT_SECRET', 'bashari-secret-key-2024-secure')
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
