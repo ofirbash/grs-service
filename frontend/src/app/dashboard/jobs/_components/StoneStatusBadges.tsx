@@ -4,15 +4,20 @@ import type { Stone } from '../_types';
 type ExtStone = Stone & {
   stone_status?: string;
   cert_status?: string;
+  kind?: string;
+  stone_count?: number;
 };
 
 /**
  * Compact per-stone status pills used in the View Job dialog.
  * Only renders when the stone carries the new `stone_status` / `cert_status`
- * fields (legacy stones show nothing, preserving the old UI).
+ * fields (legacy stones show nothing, preserving the old UI). Parcels also
+ * surface a "Parcel of N" amber pill so admins can spot them at a glance.
  */
 export const StoneStatusBadges: React.FC<{ stone: ExtStone }> = ({ stone }) => {
-  const hasTracking = stone.stone_status || stone.cert_status;
+  const isParcel = stone.kind === 'parcel';
+  const parcelCount = isParcel ? (stone.stone_count ?? 1) : 0;
+  const hasTracking = stone.stone_status || stone.cert_status || isParcel;
   if (!hasTracking) return null;
 
   const stoneLabel: Record<string, { text: string; cls: string }> = {
@@ -33,6 +38,14 @@ export const StoneStatusBadges: React.FC<{ stone: ExtStone }> = ({ stone }) => {
       className="inline-flex flex-wrap gap-1 ml-2"
       data-testid={`stone-status-${stone.id}`}
     >
+      {isParcel && (
+        <span
+          className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full border font-medium bg-amber-100 text-amber-900 border-amber-300"
+          data-testid={`stone-parcel-badge-${stone.id}`}
+        >
+          Parcel of {parcelCount}
+        </span>
+      )}
       {s && (
         <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${s.cls}`}>
           {s.text}

@@ -164,6 +164,8 @@ function JobsPageContent() {
     shape: string;
     value: string;
     color_stability_test: boolean;
+    is_parcel?: boolean;
+    stone_count?: string;
   }>>([{ _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
@@ -412,6 +414,11 @@ function JobsPageContent() {
   const handleStoneChange = (index: number, field: string, value: string | boolean) => {
     const newStones = [...stones];
     newStones[index] = { ...newStones[index], [field]: value };
+    // When a row flips OFF parcel, clear the count so it doesn't ride along
+    // as a stale string.
+    if (field === 'is_parcel' && value === false) {
+      newStones[index].stone_count = '';
+    }
     setStones(newStones);
   };
 
@@ -556,6 +563,15 @@ function JobsPageContent() {
         if (!stone.value) {
           errors.push(`Stone ${index + 1}: Value is required`);
         }
+        // Parcel-specific: stone_count >= 2 is required.
+        if (stone.is_parcel) {
+          const n = parseInt(stone.stone_count || '0', 10);
+          if (!stone.stone_count) {
+            errors.push(`Stone ${index + 1}: Parcel requires a stone count`);
+          } else if (Number.isNaN(n) || n < 2) {
+            errors.push(`Stone ${index + 1}: Parcel must have at least 2 stones`);
+          }
+        }
       }
     });
 
@@ -576,6 +592,9 @@ function JobsPageContent() {
             shape: s.shape || 'Other', // Default to 'Other' if not specified
             value: parseFloat(s.value),
             color_stability_test: s.color_stability_test,
+            ...(s.is_parcel
+              ? { is_parcel: true, stone_count: parseInt(s.stone_count || '0', 10) }
+              : {}),
           })),
         }],
       });
@@ -758,6 +777,15 @@ function JobsPageContent() {
     if (!selectedJob || selectedStones.length === 0) return false;
     const selectedStoneObjects = selectedJob.stones.filter(s => selectedStones.includes(s.id));
     return selectedStoneObjects.some(s => s.certificate_group !== undefined && s.certificate_group !== null);
+  };
+
+  // Parcels cannot be combined into a certificate group (a parcel already IS
+  // its own certificate). Hide the "Group" affordance whenever any parcel is
+  // selected so the user can't even try.
+  const anySelectedStoneIsParcel = () => {
+    if (!selectedJob || selectedStones.length === 0) return false;
+    const selectedStoneObjects = selectedJob.stones.filter(s => selectedStones.includes(s.id));
+    return selectedStoneObjects.some(s => s.kind === 'parcel');
   };
 
   const handleAddStoneToJob = async () => {
@@ -1197,7 +1225,13 @@ function JobsPageContent() {
                   </div>
                   <div className="text-sm text-navy-600 mb-1">{job.client_name || 'N/A'} &middot; {job.branch_name || 'N/A'}</div>
                   <div className="flex items-center justify-between text-xs text-navy-500">
-                    <span>{job.total_stones} stones &middot; {job.service_type}</span>
+                    <span>
+                      {job.total_stones} {job.total_stones === 1 ? 'stone' : 'stones'}
+                      {job.total_certificates != null && job.total_certificates !== job.total_stones && (
+                        <span className="text-navy-400"> &middot; {job.total_certificates} cert{job.total_certificates === 1 ? '' : 's'}</span>
+                      )}
+                      &nbsp;&middot; {job.service_type}
+                    </span>
                     <div className="text-right">
                       <span className="font-medium text-navy-900">${job.total_fee.toLocaleString()}</span>
                       {job.discount ? (
@@ -1270,7 +1304,12 @@ function JobsPageContent() {
                         {job.service_type}
                       </TableCell>
                       <TableCell className="text-navy-600 text-center" onClick={() => openJobDetails(job)}>
-                        {job.total_stones}
+                        <div className="leading-tight">
+                          <div className="font-medium text-navy-900">{job.total_stones}</div>
+                          {job.total_certificates != null && job.total_certificates !== job.total_stones && (
+                            <div className="text-[10px] text-navy-500">{job.total_certificates} cert{job.total_certificates === 1 ? '' : 's'}</div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-navy-600" onClick={() => openJobDetails(job)}>
                         <div className="leading-tight">
@@ -1447,7 +1486,7 @@ function JobsPageContent() {
                         Ungroup {selectedStones.length} Stone{selectedStones.length > 1 ? 's' : ''}
                       </Button>
                     )}
-                    {isAdmin && selectedStones.length >= 2 && !anySelectedStoneGrouped() && (
+                    {isAdmin && selectedStones.length >= 2 && !anySelectedStoneGrouped() && !anySelectedStoneIsParcel() && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1457,6 +1496,11 @@ function JobsPageContent() {
                         <Link2 className="h-4 w-4 mr-1" />
                         Group {selectedStones.length} Stones for Certificate
                       </Button>
+                    )}
+                    {isAdmin && selectedStones.length >= 2 && anySelectedStoneIsParcel() && (
+                      <p className="text-xs text-amber-700 italic" data-testid="parcel-group-hint">
+                        Parcels can&apos;t be combined into a certificate group.
+                      </p>
                     )}
                   </div>
                 </div>

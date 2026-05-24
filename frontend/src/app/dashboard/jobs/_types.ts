@@ -31,6 +31,10 @@ export interface Stone {
   cancelled?: boolean;
   cancelled_at?: string;
   cancelled_by?: string;
+  // Parcel support — when kind === 'parcel', this row represents N physical
+  // stones rolled up under one certificate (stone_count holds N).
+  kind?: 'stone' | 'parcel';
+  stone_count?: number;
 }
 
 export interface DropdownOption {
@@ -83,6 +87,7 @@ export interface Job {
     sent_by?: string;
   }>;
   total_stones: number;
+  total_certificates?: number;
   total_value: number;
   total_fee: number;
   discount?: number;

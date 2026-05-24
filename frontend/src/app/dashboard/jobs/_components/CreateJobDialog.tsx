@@ -9,7 +9,8 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Plus, Trash2, Loader2, Package, Gem } from 'lucide-react';
 import type { Client, Branch } from '../_types';
 
 export interface JobFormData {
@@ -25,6 +26,11 @@ export interface StoneInput {
   weight: string;
   shape: string;
   value: string;
+  // Parcel support (Feb 25, 2026). When `is_parcel` is true, this row
+  // represents N physical stones rolled up under a single certificate;
+  // `stone_count` holds N (>=2), weight/value are TOTALS.
+  is_parcel?: boolean;
+  stone_count?: string;
 }
 
 interface CreateJobDialogProps {
@@ -39,7 +45,7 @@ interface CreateJobDialogProps {
   stoneTypes: string[];
   shapes: string[];
   stones: StoneInput[];
-  onStoneChange: (index: number, field: keyof StoneInput, value: string) => void;
+  onStoneChange: (index: number, field: keyof StoneInput, value: string | boolean) => void;
   onAddStone: () => void;
   onRemoveStone: (index: number) => void;
   creating: boolean;
@@ -144,7 +150,10 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <Label className="text-base font-semibold">Stones <span className="text-red-500">*</span></Label>
-              <p className="text-xs text-navy-500 mt-1">At least one stone required. Shape is optional.</p>
+              <p className="text-xs text-navy-500 mt-1">
+                At least one stone required. Shape is optional. Toggle <strong>Parcel</strong> to
+                combine multiple stones under a single certificate (weight &amp; value become totals).
+              </p>
             </div>
             <Button
               type="button"
@@ -162,21 +171,48 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
           {/* Mobile: stacked cards. Desktop: dense grid (≥ sm) */}
           <div className="border border-navy-200 rounded-lg overflow-hidden">
             {/* Desktop column headers */}
-            <div className="hidden sm:grid grid-cols-[1fr,80px,100px,100px,auto] gap-2 p-3 bg-navy-50 text-sm font-medium text-navy-700">
+            <div className="hidden sm:grid grid-cols-[110px,1fr,90px,100px,90px,110px,auto] gap-2 p-3 bg-navy-50 text-sm font-medium text-navy-700">
+              <div>Kind</div>
               <div>Type <span className="text-red-500">*</span></div>
-              <div>Weight <span className="text-red-500">*</span></div>
+              <div>
+                Weight <span className="text-red-500">*</span>
+                <span className="text-[10px] font-normal text-navy-500 block">total if parcel</span>
+              </div>
               <div>Shape</div>
-              <div>Value <span className="text-red-500">*</span></div>
+              <div>Count</div>
+              <div>
+                Value <span className="text-red-500">*</span>
+                <span className="text-[10px] font-normal text-navy-500 block">total if parcel</span>
+              </div>
               <div></div>
             </div>
 
-            {stones.map((stone, index) => (
+            {stones.map((stone, index) => {
+              const isParcel = Boolean(stone.is_parcel);
+              return (
               <div
                 key={stone._uid}
-                className="border-t border-navy-200 first:border-t-0 sm:first:border-t"
+                className={`border-t border-navy-200 first:border-t-0 sm:first:border-t ${isParcel ? 'bg-amber-50/40' : ''}`}
+                data-testid={`create-job-stone-row-${index}`}
               >
                 {/* Desktop row */}
-                <div className="hidden sm:grid grid-cols-[1fr,80px,100px,100px,auto] gap-2 p-3">
+                <div className="hidden sm:grid grid-cols-[110px,1fr,90px,100px,90px,110px,auto] gap-2 p-3 items-center">
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Switch
+                      checked={isParcel}
+                      onCheckedChange={(checked) => {
+                        onStoneChange(index, 'is_parcel', checked);
+                        if (checked && !stone.stone_count) {
+                          onStoneChange(index, 'stone_count', '2');
+                        }
+                      }}
+                      className="scale-90"
+                      data-testid={`stone-parcel-toggle-${index}`}
+                    />
+                    <span className={`inline-flex items-center gap-1 font-medium ${isParcel ? 'text-amber-700' : 'text-navy-600'}`}>
+                      {isParcel ? <><Package className="h-3 w-3" /> Parcel</> : <><Gem className="h-3 w-3" /> Single</>}
+                    </span>
+                  </div>
                   <Select
                     value={stone.stone_type}
                     onValueChange={(value) => onStoneChange(index, 'stone_type', value)}
@@ -212,6 +248,20 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
+                  {isParcel ? (
+                    <Input
+                      type="number"
+                      step="1"
+                      min="2"
+                      placeholder="≥2"
+                      value={stone.stone_count || ''}
+                      onChange={(e) => onStoneChange(index, 'stone_count', e.target.value)}
+                      className="border-navy-200"
+                      data-testid={`stone-count-${index}`}
+                    />
+                  ) : (
+                    <span className="text-xs text-navy-300 text-center">—</span>
+                  )}
                   <Input
                     type="number"
                     step="0.01"
@@ -237,19 +287,33 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                 <div className="sm:hidden p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold uppercase tracking-wide text-navy-500">
-                      Stone {index + 1}
+                      {isParcel ? `Parcel ${index + 1}` : `Stone ${index + 1}`}
                     </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onRemoveStone(index)}
-                      disabled={stones.length === 1}
-                      className="text-red-500 hover:text-red-600 h-7 w-7"
-                      data-testid={`remove-stone-mobile-${index}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wide text-navy-500">Parcel</span>
+                      <Switch
+                        checked={isParcel}
+                        onCheckedChange={(checked) => {
+                          onStoneChange(index, 'is_parcel', checked);
+                          if (checked && !stone.stone_count) {
+                            onStoneChange(index, 'stone_count', '2');
+                          }
+                        }}
+                        className="scale-75"
+                        data-testid={`stone-parcel-toggle-mobile-${index}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onRemoveStone(index)}
+                        disabled={stones.length === 1}
+                        className="text-red-500 hover:text-red-600 h-7 w-7"
+                        data-testid={`remove-stone-mobile-${index}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Type <span className="text-red-500">*</span></Label>
@@ -267,9 +331,24 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className={`grid gap-2 ${isParcel ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                    {isParcel && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs"># Stones <span className="text-red-500">*</span></Label>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="2"
+                          placeholder="≥2"
+                          value={stone.stone_count || ''}
+                          onChange={(e) => onStoneChange(index, 'stone_count', e.target.value)}
+                          className="border-navy-200"
+                          data-testid={`stone-count-mobile-${index}`}
+                        />
+                      </div>
+                    )}
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Weight (ct) <span className="text-red-500">*</span></Label>
+                      <Label className="text-xs">{isParcel ? 'Total wt (ct)' : 'Weight (ct)'} <span className="text-red-500">*</span></Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -281,7 +360,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Value (USD) <span className="text-red-500">*</span></Label>
+                      <Label className="text-xs">{isParcel ? 'Total $' : 'Value (USD)'} <span className="text-red-500">*</span></Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -311,7 +390,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                   </div>
                 </div>
               </div>
-            ))}
+            );})}
           </div>
         </div>
       </div>
