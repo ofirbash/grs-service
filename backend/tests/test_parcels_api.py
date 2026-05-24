@@ -316,3 +316,62 @@ def test_get_job_returns_total_certificates(ids, auth_headers):
         assert body["total_certificates"] == 1
     finally:
         _del(job["id"], auth_headers)
+
+
+def test_parcel_verbal_findings_persist_per_stone_array(ids, auth_headers):
+    """Phase 3 contract: saving a parcel's verbal findings with a `per_stone`
+    array round-trips through `update_stone_verbal` and is present on the
+    next GET of the job. The shared certificate_id sits at the top, and each
+    physical stone has its own {weight, identification, color, origin,
+    comment} entry."""
+    parcel = {
+        "stone_type": "Ruby",
+        "weight": 5.0,
+        "shape": "Oval",
+        "value": 9000,
+        "is_parcel": True,
+        "stone_count": 3,
+    }
+    payload = _make_payload(ids, [{"stones": [parcel]}])
+    r = requests.post(
+        f"{BASE_URL}/api/jobs", headers=auth_headers, json=payload, timeout=15
+    )
+    assert r.status_code in (200, 201), r.text
+    job = r.json()
+    try:
+        parcel_stone = next(s for s in job["stones"] if s.get("kind") == "parcel")
+        sid = parcel_stone["id"]
+        body = {
+            "structured_findings": {
+                "certificate_id": "BL-PARCEL-001",
+                "per_stone": [
+                    {"weight": 1.6, "identification": "Natural Ruby", "color": "Red", "origin": "Burma", "comment": ""},
+                    {"weight": 1.7, "identification": "Natural Ruby", "color": "Red", "origin": "Burma", "comment": "Slightly included"},
+                    {"weight": 1.7, "identification": "Natural Ruby", "color": "Red", "origin": "Burma", "comment": ""},
+                ],
+            }
+        }
+        r2 = requests.put(
+            f"{BASE_URL}/api/stones/{sid}/verbal",
+            headers=auth_headers, json=body, timeout=10,
+        )
+        assert r2.status_code == 200, r2.text
+
+        g = requests.get(
+            f"{BASE_URL}/api/jobs/{job['id']}", headers=auth_headers, timeout=10
+        )
+        assert g.status_code == 200
+        refreshed = g.json()
+        ps = next(s for s in refreshed["stones"] if s["id"] == sid)
+        vf = ps["verbal_findings"]
+        assert isinstance(vf, dict), f"expected dict, got {type(vf)}: {vf}"
+        assert vf.get("certificate_id") == "BL-PARCEL-001"
+        per_stone = vf.get("per_stone") or []
+        assert len(per_stone) == 3, f"expected 3 per_stone entries, got {len(per_stone)}"
+        assert per_stone[1]["comment"] == "Slightly included"
+        assert per_stone[0]["origin"] == "Burma"
+        # Weights should round-trip as floats
+        weights = [entry.get("weight") for entry in per_stone]
+        assert weights == [1.6, 1.7, 1.7], weights
+    finally:
+        _del(job["id"], auth_headers)

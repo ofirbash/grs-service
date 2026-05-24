@@ -59,11 +59,19 @@ async def generate_memo_in_pdf(job_id: str, user: dict = Depends(get_current_use
 
     table_data = [['#', 'SKU', 'Type', 'Weight (ct)', 'Shape', 'Value (USD)']]
     for i, stone in enumerate([s for s in job.get('stones', []) if not s.get('cancelled')], 1):
+        _is_parcel = stone.get('kind') == 'parcel'
+        _type_label = (
+            f"{stone['stone_type']} · parcel of {stone.get('stone_count') or 0}"
+            if _is_parcel else stone['stone_type']
+        )
+        _weight_label = (
+            f"{stone['weight']:.3f} (total)" if _is_parcel else f"{stone['weight']:.3f}"
+        )
         table_data.append([
             str(i),
             stone['sku'],
-            stone['stone_type'],
-            f"{stone['weight']:.3f}",
+            _type_label,
+            _weight_label,
             stone['shape'],
             f"${stone['value']:,.2f}"
         ])
@@ -281,11 +289,23 @@ def _build_invoice_pdf_buffer(job: dict, client: dict, branch: dict, payment_url
         total_value += stone_value
         total_fee += fee
         weight = _coerce_float(stone.get('weight'))
+        is_parcel = stone.get('kind') == 'parcel'
+        # On invoices, surface the parcel-ness in the STONE TYPE column so the
+        # customer sees exactly how the certificate was structured. Weight is
+        # already a TOTAL for parcels (the doc stores totals, not per-stone).
+        type_cell = (
+            f"{stone.get('stone_type', '')} · parcel of {stone.get('stone_count') or 0}"
+            if is_parcel else str(stone.get('stone_type', ''))
+        )
+        weight_cell = (
+            f"{weight:.2f} (total)" if weight and is_parcel
+            else (f"{weight:.2f}" if weight else '—')
+        )
         rows.append([
             str(i),
             str(stone.get('sku', '')),
-            str(stone.get('stone_type', '')),
-            f"{weight:.2f}" if weight else '—',
+            type_cell,
+            weight_cell,
             _format_money(stone_value),
             _format_money(fee),
         ])
@@ -549,11 +569,19 @@ async def generate_shipment_pdf(job_id: str, user: dict = Depends(require_admin)
 
     table_data = [['#', 'SKU', 'Type', 'Weight (ct)', 'Shape', 'Value (USD)']]
     for i, stone in enumerate([s for s in job.get('stones', []) if not s.get('cancelled')], 1):
+        _is_parcel = stone.get('kind') == 'parcel'
+        _type_label = (
+            f"{stone['stone_type']} · parcel of {stone.get('stone_count') or 0}"
+            if _is_parcel else stone['stone_type']
+        )
+        _weight_label = (
+            f"{stone['weight']:.3f} (total)" if _is_parcel else f"{stone['weight']:.3f}"
+        )
         table_data.append([
             str(i),
             stone['sku'],
-            stone['stone_type'],
-            f"{stone['weight']:.3f}",
+            _type_label,
+            _weight_label,
             stone['shape'],
             f"${stone['value']:,.2f}"
         ])

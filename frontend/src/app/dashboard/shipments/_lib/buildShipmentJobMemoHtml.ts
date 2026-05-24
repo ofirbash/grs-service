@@ -30,20 +30,24 @@ export function buildShipmentJobMemoHtml(job: Job): string {
           </thead>
           <tbody>
             ${activeStones
-              .map(
-                (stone, idx) => `
+              .map((stone, idx) => {
+                const isParcel = stone.kind === "parcel";
+                const typeCell = isParcel
+                  ? `${esc(stone.stone_type)} <span style="color:#a16207;font-weight:600;">· parcel of ${stone.stone_count || 0}</span>`
+                  : esc(stone.stone_type);
+                return `
               <tr>
                 <td>${idx + 1}</td>
                 <td>${esc(stone.sku)}</td>
-                <td>${esc(stone.stone_type)}</td>
-                <td>${stone.weight} ct</td>
+                <td>${typeCell}</td>
+                <td>${stone.weight} ct${isParcel ? ` <span style="color:#71717a;font-size:9px;">(total)</span>` : ""}</td>
                 <td>${esc(stone.shape)}</td>
                 <td>$${stone.value.toLocaleString()}</td>
                 <td>$${stone.fee.toLocaleString()}</td>
                 <td>${stone.certificate_group ? `Cert ${stone.certificate_group}` : "-"}</td>
               </tr>
-            `,
-              )
+            `;
+              })
               .join("")}
           </tbody>
         </table>

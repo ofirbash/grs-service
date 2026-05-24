@@ -7,6 +7,8 @@ import type { Job, Stone } from '../_types';
 type ExtendedStone = Stone & {
   stone_status?: string;
   cert_status?: string;
+  kind?: string;
+  stone_count?: number;
 };
 
 interface PartialStonesPickerProps {
@@ -50,10 +52,16 @@ export const PartialStonesPicker: React.FC<PartialStonesPickerProps> = ({
 
     const groupsMap = new Map<string, { label: string; stones: ExtendedStone[] }>();
     eligible.forEach((s) => {
+      const isParcel = s.kind === 'parcel';
       const key = s.certificate_group != null ? `cert-${s.certificate_group}` : `solo-${s.id}`;
+      // Parcels are atomic: they never join a certificate_group, so they
+      // always land in their own `solo-*` bucket. Surface that in the label
+      // so admins know they're shipping a whole parcel, not a single stone.
       const label = s.certificate_group != null
         ? `Cert. Group ${s.certificate_group}`
-        : `Ungrouped · ${s.sku}`;
+        : isParcel
+          ? `Parcel of ${s.stone_count || 0} · ${s.sku}`
+          : `Ungrouped · ${s.sku}`;
       if (!groupsMap.has(key)) groupsMap.set(key, { label, stones: [] });
       groupsMap.get(key)!.stones.push(s);
     });

@@ -45,6 +45,11 @@ export interface Stone {
   // Soft-cancellation — cancelled stones stay on the job for audit but are
   // hidden from active views.
   cancelled?: boolean;
+  // Parcel support — when kind === 'parcel', this row represents N physical
+  // stones rolled up under one certificate (stone_count holds N). The row's
+  // weight and value fields are TOTALS, not per-stone.
+  kind?: 'stone' | 'parcel';
+  stone_count?: number;
 }
 
 export interface Job {

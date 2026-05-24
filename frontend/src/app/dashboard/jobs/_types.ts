@@ -1,5 +1,13 @@
 // Shared type definitions for the Jobs page and its subcomponents.
 
+export interface ParcelStoneFinding {
+  weight?: number;
+  identification?: string;
+  color?: string;
+  origin?: string;
+  comment?: string;
+}
+
 export interface StructuredVerbalFindings {
   certificate_id?: string;
   weight?: number;
@@ -7,6 +15,10 @@ export interface StructuredVerbalFindings {
   color?: string;
   origin?: string;
   comment?: string;
+  // Parcel-only: per-stone verbal entries that all share the parent
+  // `certificate_id`. When populated, the per-stone fields above are
+  // ignored — each element of this list owns its own findings.
+  per_stone?: ParcelStoneFinding[];
 }
 
 export interface Stone {

@@ -43,12 +43,19 @@ const stoneRow = (
   if (stone.color_stability_test) flags.push("CS");
   if (stone.mounted) flags.push("Mtd");
   const flagsStr = flags.length > 0 ? flags.join(", ") : "—";
+  const isParcel = stone.kind === "parcel";
+  // Parcels render as a single line: "<TYPE> parcel of N". Type column
+  // carries the "parcel of N" hint; weight/value are already TOTALS in the
+  // stone document so they print as-is. SKU is unchanged.
+  const typeCell = isParcel
+    ? `${esc(stone.stone_type)} <span style="color:#a16207;font-weight:600;">· parcel of ${stone.stone_count || 0}</span>`
+    : esc(stone.stone_type);
   return `
-    <tr class="${isGrouped ? "grouped-row" : ""}">
+    <tr class="${isGrouped ? "grouped-row" : ""}${isParcel ? " parcel-row" : ""}">
       <td>${index}</td>
       <td>${esc(stone.sku)}</td>
-      <td>${esc(stone.stone_type)}</td>
-      <td>${esc(String(stone.weight))} ct</td>
+      <td>${typeCell}</td>
+      <td>${esc(String(stone.weight))} ct${isParcel ? ` <span style="color:#71717a;font-size:9px;">(total)</span>` : ""}</td>
       <td>${esc(stone.shape)}</td>
       <td class="flags">${flagsStr}</td>
       <td>$${fmt(stone.value || 0)}</td>
@@ -130,10 +137,18 @@ export function buildJobMemoHtml({
   const hasDiscount = (job.discount || 0) > 0;
 
   // Footer totals (active stones only — cancelled excluded above).
+  // For parcels, weight & value fields ARE already totals (one row = N physical
+  // stones rolled up), so summing the row values is correct. "Total stones" on
+  // the footer is the PHYSICAL count: sum stone_count for parcels, 1 each for
+  // singles. "Total certificates" stays as (groups + ungrouped lines) — a
+  // parcel is one cert.
   const totalWeight = activeStones.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
   const totalValueAll = activeStones.reduce((sum, s) => sum + (s.value || 0), 0);
   const totalFeeAll = activeStones.reduce((sum, s) => sum + (s.fee || 0), 0);
-  const totalStonesCount = activeStones.length;
+  const totalStonesCount = activeStones.reduce(
+    (sum, s) => sum + (s.kind === "parcel" ? (s.stone_count || 1) : 1),
+    0,
+  );
 
   const absoluteLogo = COMPANY_INFO.logoUrl.startsWith("http")
     ? COMPANY_INFO.logoUrl
