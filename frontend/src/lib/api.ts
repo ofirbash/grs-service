@@ -500,9 +500,23 @@ export const settingsApi = {
     payment_destinations?: string[];
     stone_types?: string[];
     shapes?: string[];
+    couriers?: string[];
+    recheck_reasons?: string[];
   }) => {
     const response = await api.put('/pricing', data);
     return response.data;
+  },
+  // Rename a service type everywhere it's used (pricing config + every job
+  // currently tagged with the old name). The chip-delete UI hides the `×`
+  // for service types with existing jobs, so this is the only way to fold
+  // a typo'd or legacy service type (e.g. "Recheck Type") into the
+  // canonical one ("Recheck"). Returns { jobs_updated: number }.
+  renameServiceType: async (oldName: string, newName: string) => {
+    const response = await api.post('/pricing/rename-service-type', {
+      old_name: oldName,
+      new_name: newName,
+    });
+    return response.data as { message: string; service_types: string[]; jobs_updated: number };
   },
 };
 

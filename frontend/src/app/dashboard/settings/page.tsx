@@ -461,6 +461,38 @@ export default function SettingsPage() {
     });
   };
 
+  // Rename a service type. Uses the backend rename endpoint which atomically
+  // updates pricing_config.service_types, every bracket's fees dict, AND
+  // every job whose service_type matches the old name. This is the only way
+  // to fold a typo'd or legacy service type into the canonical one once
+  // jobs have already been created under it.
+  const handleRenameServiceType = async (oldName: string) => {
+    const newName = prompt(`Rename service type "${oldName}" to:`, oldName);
+    if (newName === null) return; // user cancelled
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return;
+    if (pricingForm.service_types.some(t => t.toLowerCase() === trimmed.toLowerCase() && t !== oldName)) {
+      const ok = confirm(
+        `"${trimmed}" already exists. Merging "${oldName}" into "${trimmed}" — ` +
+        `all jobs currently tagged "${oldName}" will be re-tagged. Continue?`
+      );
+      if (!ok) return;
+    }
+    try {
+      const res = await settingsApi.renameServiceType(oldName, trimmed);
+      alert(
+        `Renamed "${oldName}" → "${trimmed}".` +
+        (res.jobs_updated ? `\n${res.jobs_updated} job${res.jobs_updated === 1 ? '' : 's'} re-tagged.` : '')
+      );
+      // Refresh state from the server so the chip list, brackets, and
+      // any view of jobs immediately reflect the rename.
+      await fetchAllData();
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e?.response?.data?.detail || 'Failed to rename service type');
+    }
+  };
+
   // ============== ADDRESS HANDLERS ==============
   const openAddressDialog = (addr?: Address) => {
     if (addr) {
@@ -1408,12 +1440,22 @@ export default function SettingsPage() {
                   {(editingPricing ? pricingForm.service_types : pricing.service_types).map((type) => (
                     <Badge key={type} className="bg-navy-800 text-white flex items-center gap-1">
                       {type}
+                      {editingPricing && (
+                        <button
+                          onClick={() => handleRenameServiceType(type)}
+                          className="ml-1 hover:text-amber-300"
+                          title={`Rename ${type}`}
+                          data-testid={`rename-service-type-${type.toLowerCase().replace(/\s+/g, '-')}`}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                      )}
                       {editingPricing && !usedServiceTypes.has(type) && (
                         <button
                           onClick={() => handleDeleteServiceType(type)}
                           className="ml-1 hover:text-red-300"
                           title={`Remove ${type}`}
-                          data-testid={`delete-service-type-${type.toLowerCase()}`}
+                          data-testid={`delete-service-type-${type.toLowerCase().replace(/\s+/g, '-')}`}
                         >
                           <X className="h-3 w-3" />
                         </button>
