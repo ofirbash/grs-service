@@ -565,15 +565,16 @@ export default function ShipmentsPage() {
   };
 
   /** Matches a shipment against the status pill. "active" = pending +
-   * in_transit only (the everyday working view). "all" still includes
-   * delivered + cancelled for historical lookups. When `showCompleted`
-   * is on, the "active" and "delivered" buckets also reveal `completed`
-   * rows so the operator can audit recently-closed work without losing
-   * the live queue. */
+   * in_transit + delivered (the everyday working view — operators want
+   * to see freshly-delivered work alongside in-flight shipments). "all"
+   * still includes cancelled + completed for historical lookups. When
+   * `showCompleted` is on, the "active" and "delivered" buckets also
+   * reveal `completed` rows so the operator can audit recently-closed
+   * work without losing the live queue. */
   const matchesStatusFilter = (status: string): boolean => {
     if (statusFilter === 'all') return true;
     if (statusFilter === 'active') {
-      if (status === 'pending' || status === 'in_transit') return true;
+      if (status === 'pending' || status === 'in_transit' || status === 'delivered') return true;
       return showCompleted && status === 'completed';
     }
     if (statusFilter === 'delivered') {
@@ -813,7 +814,7 @@ export default function ShipmentsPage() {
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">Active (Pending + In Transit)</SelectItem>
+                <SelectItem value="active">Active (Pending + In Transit + Delivered)</SelectItem>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="in_transit">In Transit</SelectItem>
@@ -1210,7 +1211,7 @@ export default function ShipmentsPage() {
                       Add Jobs
                     </Button>
                   )}
-                  {selectedShipment.status !== 'delivered' && selectedShipment.status !== 'cancelled' && (
+                  {selectedShipment.status !== 'cancelled' && selectedShipment.status !== 'completed' && (
                     <Button
                       variant="outline"
                       size="sm"
