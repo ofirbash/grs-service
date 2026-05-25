@@ -9,6 +9,14 @@ from pricing import normalize_bracket, PRICING_BRACKETS, COLOR_STABILITY_FEE
 DEFAULT_STONE_TYPES = ['Ruby', 'Sapphire', 'Emerald', 'Diamond', 'Alexandrite', 'Spinel', 'Padparadscha', 'Paraiba', 'Tanzanite', 'Other']
 DEFAULT_SHAPES = ['Round', 'Oval', 'Cushion', 'Pear', 'Heart', 'Marquise', 'Princess', 'Emerald Cut', 'Cabochon', 'Other']
 
+# Recheck reasons (Feb 25, 2026). When a job's service_type is "Recheck",
+# the user must pick one or more of these reasons to document why the
+# stone(s) are being re-examined. Admins can edit the list via
+# Settings → Recheck Reasons. Defaults mirror the four verbal-finding fields
+# that are typically the subject of a recheck.
+DEFAULT_RECHECK_REASONS = ["Origin", "Color", "Identification", "Comment"]
+
+
 router = APIRouter()
 
 
@@ -50,6 +58,7 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
             "shapes": pricing.get("shapes", DEFAULT_SHAPES),
             "payment_destinations": pricing.get("payment_destinations", DEFAULT_PAYMENT_DESTINATIONS),
             "couriers": pricing.get("couriers", DEFAULT_COURIERS),
+            "recheck_reasons": pricing.get("recheck_reasons", DEFAULT_RECHECK_REASONS),
         }
 
     brackets = [normalize_bracket(b) for b in PRICING_BRACKETS]
@@ -62,6 +71,7 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
         "shapes": DEFAULT_SHAPES,
         "payment_destinations": DEFAULT_PAYMENT_DESTINATIONS,
         "couriers": DEFAULT_COURIERS,
+        "recheck_reasons": DEFAULT_RECHECK_REASONS,
     }
 
 
@@ -83,6 +93,8 @@ async def update_pricing_config(data: PricingUpdateRequest, user: dict = Depends
         update_data["payment_destinations"] = data.payment_destinations
     if data.couriers is not None:
         update_data["couriers"] = data.couriers
+    if data.recheck_reasons is not None:
+        update_data["recheck_reasons"] = data.recheck_reasons
 
     await db.pricing_config.update_one(
         {"type": "pricing"},

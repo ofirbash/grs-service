@@ -126,6 +126,12 @@ function JobsPageContent() {
     }
   }, [searchParams]);
   const [serviceTypes, setServiceTypes] = useState<string[]>(['Express', 'Normal', 'Recheck']);
+  // Configurable list of recheck reasons surfaced when the user picks
+  // service_type === "Recheck" in the Create Job dialog. Populated from
+  // pricing_config.recheck_reasons; admins edit it via Settings.
+  const [recheckReasonOptions, setRecheckReasonOptions] = useState<string[]>([
+    'Origin', 'Color', 'Identification', 'Comment',
+  ]);
   const [paymentDestinations, setPaymentDestinations] = useState<string[]>([]);
 
   // Manual payment dialog state
@@ -153,11 +159,18 @@ function JobsPageContent() {
   // Create job dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    client_id: string;
+    branch_id: string;
+    service_type: string;
+    notes: string;
+    recheck_reasons: string[];
+  }>({
     client_id: '',
     branch_id: '',
     service_type: '',
     notes: '',
+    recheck_reasons: [],
   });
   const [stones, setStones] = useState<Array<{
     _uid: string;
@@ -182,7 +195,9 @@ function JobsPageContent() {
   const isFormValid = (): boolean => {
     const hasRequiredFields = Boolean(formData.client_id && formData.branch_id && formData.service_type);
     const hasValidStone = stones.some(s => Boolean(s.stone_type && s.weight && s.value));
-    return hasRequiredFields && hasValidStone;
+    // Recheck jobs additionally require at least one reason selected.
+    const recheckOk = formData.service_type !== 'Recheck' || (formData.recheck_reasons && formData.recheck_reasons.length > 0);
+    return hasRequiredFields && hasValidStone && Boolean(recheckOk);
   };
 
   // Handle dialog close with unsaved changes warning
@@ -195,7 +210,7 @@ function JobsPageContent() {
     if (!open) {
       // Reset form when closing
       setValidationErrors([]);
-      setFormData({ client_id: '', branch_id: '', service_type: '', notes: '' });
+      setFormData({ client_id: '', branch_id: '', service_type: '', notes: '', recheck_reasons: [] });
       setStones([{ _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
     }
   };
@@ -351,6 +366,7 @@ function JobsPageContent() {
         if (pricingData.stone_types?.length) setStoneTypes(pricingData.stone_types);
         if (pricingData.shapes?.length) setShapes(pricingData.shapes);
         if (pricingData.payment_destinations?.length) setPaymentDestinations(pricingData.payment_destinations);
+        if (pricingData.recheck_reasons?.length) setRecheckReasonOptions(pricingData.recheck_reasons);
       }
 
       // Initialize dropdowns if empty
@@ -566,6 +582,10 @@ function JobsPageContent() {
     if (!formData.service_type) {
       errors.push('Service type is required');
     }
+    // Recheck-only: must have at least one reason. Match backend rule.
+    if (formData.service_type === 'Recheck' && (!formData.recheck_reasons || formData.recheck_reasons.length === 0)) {
+      errors.push('Recheck jobs require at least one reason');
+    }
 
     // Validate stones - at least one stone with required fields (shape is optional)
     const validStones = stones.filter(s => s.stone_type && s.weight && s.value);
@@ -608,7 +628,15 @@ function JobsPageContent() {
     setCreating(true);
     try {
       await jobsApi.create({
-        ...formData,
+        client_id: formData.client_id,
+        branch_id: formData.branch_id,
+        service_type: formData.service_type,
+        notes: formData.notes,
+        // Only send recheck_reasons for Recheck jobs; backend silently drops
+        // it for other service types anyway, but cleaner to not send it.
+        ...(formData.service_type === 'Recheck' && formData.recheck_reasons.length > 0
+          ? { recheck_reasons: formData.recheck_reasons }
+          : {}),
         certificate_units: [{
           stones: validStones.map(s => ({
             stone_type: s.stone_type,
@@ -624,7 +652,7 @@ function JobsPageContent() {
       });
       // Close dialog and reset form (handleCreateDialogClose handles cleanup)
       setCreateDialogOpen(false);
-      setFormData({ client_id: '', branch_id: '', service_type: '', notes: '' });
+      setFormData({ client_id: '', branch_id: '', service_type: '', notes: '', recheck_reasons: [] });
       setStones([{ _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
       setValidationErrors([]);
       fetchData();
@@ -1255,6 +1283,9 @@ function JobsPageContent() {
                         <span className="text-navy-400"> &middot; {job.total_certificates} cert{job.total_certificates === 1 ? '' : 's'}</span>
                       )}
                       &nbsp;&middot; {job.service_type}
+                      {job.service_type === 'Recheck' && job.recheck_reasons && job.recheck_reasons.length > 0 && (
+                        <span className="text-amber-700 font-medium"> ({job.recheck_reasons.join(', ')})</span>
+                      )}
                     </span>
                     <div className="text-right">
                       <span className="font-medium text-navy-900">${job.total_fee.toLocaleString()}</span>
@@ -1325,7 +1356,18 @@ function JobsPageContent() {
                         <div className="truncate text-[11px] text-navy-500">{job.branch_name || '—'}</div>
                       </TableCell>
                       <TableCell className="text-navy-600 truncate" onClick={() => openJobDetails(job)}>
-                        {job.service_type}
+                        <div className="leading-tight">
+                          <div>{job.service_type}</div>
+                          {job.service_type === 'Recheck' && job.recheck_reasons && job.recheck_reasons.length > 0 && (
+                            <div
+                              className="text-[10px] text-amber-700 font-medium truncate"
+                              title={`Recheck reasons: ${job.recheck_reasons.join(', ')}`}
+                              data-testid={`recheck-reasons-cell-${job.job_number}`}
+                            >
+                              {job.recheck_reasons.join(', ')}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-navy-600 text-center" onClick={() => openJobDetails(job)}>
                         <div className="leading-tight">
@@ -1385,6 +1427,7 @@ function JobsPageContent() {
         clients={clients}
         branches={branches}
         serviceTypes={serviceTypes}
+        recheckReasonOptions={recheckReasonOptions}
         stoneTypes={stoneTypes}
         shapes={shapes}
         stones={stones}
@@ -1867,6 +1910,11 @@ function JobsPageContent() {
             </DialogTitle>
             <DialogDescription>
               Job #{selectedJob?.job_number} | {viewingStone?.stone_type} | {viewingStone?.weight} ct
+              {selectedJob?.service_type === 'Recheck' && selectedJob?.recheck_reasons && selectedJob.recheck_reasons.length > 0 && (
+                <span className="ml-2 text-amber-700 font-medium" data-testid="stone-dialog-recheck-reasons">
+                  · Recheck: {selectedJob.recheck_reasons.join(', ')}
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
 

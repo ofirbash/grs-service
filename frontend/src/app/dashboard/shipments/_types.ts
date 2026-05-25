@@ -58,6 +58,7 @@ export interface Job {
   client_name?: string;
   branch_name?: string;
   service_type?: string;
+  recheck_reasons?: string[];
   status: string;
   notes?: string;
   total_stones: number;

@@ -99,7 +99,11 @@ export function buildShipmentJobMemoHtml(job: Job): string {
           </div>
           <div class="field">
             <div class="label">Service Type</div>
-            <div class="value">${esc(job.service_type || "N/A")}</div>
+            <div class="value">${esc(job.service_type || "N/A")}${
+              job.service_type === "Recheck" && job.recheck_reasons && job.recheck_reasons.length > 0
+                ? ` <span style="color:#a16207;font-weight:600;font-size:11px;">(${esc(job.recheck_reasons.join(", "))})</span>`
+                : ""
+            }</div>
           </div>
           <div class="field">
             <div class="label">Status</div>

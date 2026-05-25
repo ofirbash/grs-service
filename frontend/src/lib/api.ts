@@ -282,6 +282,7 @@ export const jobsApi = {
     branch_id: string;
     service_type: string;
     notes?: string;
+    recheck_reasons?: string[];
     certificate_units: Array<{ stones: Array<{ stone_type: string; weight: number; shape: string; value: number; color_stability_test?: boolean; is_parcel?: boolean; stone_count?: number; mounted?: boolean }> }>;
   }) => {
     const response = await api.post('/jobs', data);

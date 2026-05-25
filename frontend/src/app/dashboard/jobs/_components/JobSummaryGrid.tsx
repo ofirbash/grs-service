@@ -36,7 +36,18 @@ export const JobSummaryGrid: React.FC<JobSummaryGridProps> = ({
         <span className="text-navy-200">|</span>
         <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Branch</span><span className="font-medium text-navy-900">{job.branch_name || 'N/A'}</span></span>
         <span className="text-navy-200">|</span>
-        <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Service</span><span className="font-medium text-navy-900">{job.service_type}</span></span>
+        <span>
+          <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Service</span>
+          <span className="font-medium text-navy-900">{job.service_type}</span>
+          {job.service_type === 'Recheck' && job.recheck_reasons && job.recheck_reasons.length > 0 && (
+            <span
+              className="ml-2 inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full border bg-amber-100 text-amber-900 border-amber-300 font-medium"
+              data-testid="recheck-reasons-badge"
+            >
+              {job.recheck_reasons.join(' · ')}
+            </span>
+          )}
+        </span>
         <span className="text-navy-200">|</span>
         <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Value</span><span className="font-medium text-navy-900">${job.total_value.toLocaleString()}</span></span>
         <span className="text-navy-200">|</span>

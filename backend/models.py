@@ -218,6 +218,10 @@ class JobCreate(BaseModel):
     service_type: str
     notes: Optional[str] = None
     certificate_units: List[CertificateUnitCreate]
+    # Required when service_type == "Recheck": one or more reasons (Origin /
+    # Color / Identification / Comment, or whatever the admin has configured
+    # in Settings → Recheck Reasons). Ignored for non-Recheck services.
+    recheck_reasons: Optional[List[str]] = None
 
 
 class JobStatusUpdate(BaseModel):
@@ -246,6 +250,9 @@ class JobResponse(BaseModel):
     branch_id: str
     branch_name: Optional[str] = None
     service_type: str
+    # For Recheck jobs, the user-selected reasons (subset of pricing_config.
+    # recheck_reasons). Empty/None for non-Recheck services.
+    recheck_reasons: Optional[List[str]] = None
     status: str
     notes: Optional[str] = None
     stones: List[StoneResponse]
@@ -381,6 +388,7 @@ class PricingUpdateRequest(BaseModel):
     shapes: Optional[List[str]] = None
     payment_destinations: Optional[List[str]] = None
     couriers: Optional[List[str]] = None
+    recheck_reasons: Optional[List[str]] = None
 
 
 # Dropdown Settings

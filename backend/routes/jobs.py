@@ -90,6 +90,7 @@ async def build_job_response(job: dict) -> JobResponse:
         branch_id=job["branch_id"],
         branch_name=branch.get("name") if branch else None,
         service_type=job["service_type"],
+        recheck_reasons=job.get("recheck_reasons"),
         status=job["status"],
         notes=job.get("notes"),
         stones=[StoneResponse(**s) for s in job.get("stones", [])],
@@ -232,6 +233,37 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
 
     _enforce_client_branch_consistency(job, client)
 
+    # Recheck service requires one or more reasons documenting why the
+    # stone(s) are being re-examined. Other service types must NOT carry
+    # a recheck_reasons list (it would be meaningless and would confuse
+    # downstream renders like the memo / invoice).
+    recheck_reasons: Optional[List[str]] = None
+    if job.service_type == "Recheck":
+        if not job.recheck_reasons:
+            raise HTTPException(
+                status_code=400,
+                detail="Recheck jobs require at least one reason "
+                       "(e.g. Origin, Color, Identification, Comment).",
+            )
+        # Trim, drop empties, dedupe (preserve order)
+        seen: set[str] = set()
+        recheck_reasons = []
+        for r in job.recheck_reasons:
+            r2 = (r or "").strip()
+            if r2 and r2 not in seen:
+                seen.add(r2)
+                recheck_reasons.append(r2)
+        if not recheck_reasons:
+            raise HTTPException(
+                status_code=400,
+                detail="Recheck jobs require at least one non-empty reason.",
+            )
+    elif job.recheck_reasons:
+        # Don't reject — silently drop. Frontend can send a stale list when
+        # the user switches from Recheck → Express. Persisting None keeps
+        # the doc clean.
+        recheck_reasons = None
+
     job_number = await _assign_next_job_number()
 
     db_brackets = await get_pricing_brackets_from_db()
@@ -269,6 +301,8 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
     }
+    if recheck_reasons:
+        job_doc["recheck_reasons"] = recheck_reasons
 
     result = await db.jobs.insert_one(job_doc)
     branch = await db.branches.find_one({"_id": ObjectId(job.branch_id)})
@@ -281,6 +315,7 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
         branch_id=job.branch_id,
         branch_name=branch.get("name") if branch else None,
         service_type=job.service_type,
+        recheck_reasons=recheck_reasons,
         status="draft",
         notes=job.notes,
         stones=[StoneResponse(**s) for s in stones],

@@ -5,6 +5,53 @@
 
 ---
 
+## Feb 25, 2026 — Recheck reasons (4-way replacement for separate recheck service types)
+
+User asked to keep a single `Recheck` service type but require the operator to document **why** the recheck is happening — Origin, Color, Identification, Comment, or any combination. Multi-select. Admin-configurable list.
+
+### Backend
+- `models.py`:
+  - `JobCreate.recheck_reasons: Optional[List[str]]`
+  - `JobResponse.recheck_reasons: Optional[List[str]]`
+  - `PricingUpdateRequest.recheck_reasons: Optional[List[str]]`
+- `routes/jobs.py:create_job`:
+  - When `service_type == "Recheck"`: reject (HTTP 400) if `recheck_reasons` is missing/empty. Trim, drop empties, dedupe case-sensitive preserving order.
+  - When `service_type != "Recheck"`: silently drop the field (stale value from a UI switch).
+- `routes/jobs.py:build_job_response`: pass through `recheck_reasons` from the DB document.
+- `routes/pricing_routes.py`:
+  - `DEFAULT_RECHECK_REASONS = ["Origin", "Color", "Identification", "Comment"]`
+  - `GET /api/pricing` returns `recheck_reasons`
+  - `PUT /api/pricing` persists a new `recheck_reasons` list when supplied.
+
+### Frontend
+- **Create Job dialog** (`CreateJobDialog.tsx`): when the user picks "Recheck", an amber multi-select panel appears with a pill-button per configured reason. Required: at least one. Switching to another service type clears the selection.
+- **`isFormValid()`** and `validateForm()` in jobs/page.tsx enforce the Recheck-needs-≥1-reason rule client-side so the submit button stays disabled until satisfied.
+- **Display surfaces** (all four requested):
+  - `JobSummaryGrid` (top of Job detail dialog): amber pill `Origin · Color` next to the service type.
+  - Stone Edit dialog header: small amber note `· Recheck: Origin, Color`.
+  - Jobs table cells: small amber subline under "Recheck" with the reasons joined by `, `; tooltip shows the full list.
+  - Job memo HTML + shipment memo HTML + backend memo PDF: service-type cell appends `(Origin, Color)` in amber.
+- **Settings → Recheck Reasons** card: add/remove reasons, case-insensitive dedupe, save button (uses existing `settingsApi.updatePricing` round-trip).
+- `lib/api.ts` `jobsApi.create` signature extended with `recheck_reasons?: string[]`.
+- `Job` interface (jobs/_types.ts + shipments/_types.ts) gained `recheck_reasons?: string[]`.
+
+### Regression tests
+New `backend/tests/test_recheck_reasons.py` (7 tests):
+1. POST /api/jobs with Recheck + no reasons → 400
+2. POST with Recheck + all-empty-strings → 400
+3. POST with Recheck + ["Origin", "Color"] → 200, persists, GET round-trip ok
+4. Duplicates in input are deduped (order preserved)
+5. Non-Recheck job with a stray `recheck_reasons` in the body → silently dropped
+6. GET /api/pricing exposes `recheck_reasons`
+7. PUT /api/pricing persists a custom `recheck_reasons` list (and restores the original)
+
+### Verification
+- 53/53 tests pass (46 existing + 7 new).
+- Backend smoke walkthrough (curl): all 5 scenarios from the design check (no-reasons reject, with-reasons accept, GET round-trip, Express-with-stray-reasons dropped, pricing config exposes the list) confirmed.
+- Frontend build clean, no new ESLint errors.
+
+---
+
 ## Feb 25, 2026 — Shared `<StoneVerbalSection>` extracted (de-dup the stone modal)
 
 User reported (rightly!) that the stone modal on `/dashboard/stones` was missing the parcel-aware verbal UI that I'd shipped on `/dashboard/jobs` the same day. Root cause: the verbal-findings block was a ~120-line inline copy in BOTH pages. Phase 3 only touched the jobs-page copy.

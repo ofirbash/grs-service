@@ -252,7 +252,11 @@ export function buildJobMemoHtml({
         </div>
         <div class="cell">
           <span class="meta-label">Service Type</span>
-          <span class="meta-value">${esc(job.service_type)}</span>
+          <span class="meta-value">${esc(job.service_type)}${
+            job.service_type === "Recheck" && job.recheck_reasons && job.recheck_reasons.length > 0
+              ? ` <span style="color:#a16207;font-weight:600;">(${esc(job.recheck_reasons.join(", "))})</span>`
+              : ""
+          }</span>
         </div>
       </div>
 

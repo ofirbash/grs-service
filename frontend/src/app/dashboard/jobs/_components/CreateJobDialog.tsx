@@ -18,6 +18,9 @@ export interface JobFormData {
   branch_id: string;
   service_type: string;
   notes: string;
+  // Only populated when service_type === "Recheck"; cleared when the user
+  // switches to another service type.
+  recheck_reasons: string[];
 }
 
 export interface StoneInput {
@@ -42,6 +45,7 @@ interface CreateJobDialogProps {
   clients: Client[];
   branches: Branch[];
   serviceTypes: string[];
+  recheckReasonOptions: string[];
   stoneTypes: string[];
   shapes: string[];
   stones: StoneInput[];
@@ -62,6 +66,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
   clients,
   branches,
   serviceTypes,
+  recheckReasonOptions,
   stoneTypes,
   shapes,
   stones,
@@ -131,7 +136,15 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
             <Label>Service Type <span className="text-red-500">*</span></Label>
             <Select
               value={formData.service_type}
-              onValueChange={(value) => setFormData({ ...formData, service_type: value })}
+              onValueChange={(value) => {
+                // When switching away from Recheck, clear any selected
+                // reasons so they don't ride along into the payload.
+                setFormData({
+                  ...formData,
+                  service_type: value,
+                  recheck_reasons: value === 'Recheck' ? formData.recheck_reasons : [],
+                });
+              }}
             >
               <SelectTrigger data-testid="job-service-select">
                 <SelectValue placeholder="Select service" />
@@ -142,6 +155,47 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                 ))}
               </SelectContent>
             </Select>
+            {/* Recheck reasons — only shown when service_type === Recheck.
+                Multi-select: the user can pick e.g. "Origin + Color" if the
+                stone is being re-examined on more than one axis. Required:
+                backend rejects Recheck jobs with an empty list. */}
+            {formData.service_type === 'Recheck' && (
+              <div
+                className="mt-3 p-3 border border-amber-200 bg-amber-50/40 rounded-md space-y-2"
+                data-testid="recheck-reasons-block"
+              >
+                <Label className="text-sm text-amber-900 font-semibold">
+                  Recheck reason(s) <span className="text-red-500">*</span>
+                </Label>
+                <p className="text-xs text-amber-800/80">Pick one or more reasons. Admins can edit this list in Settings.</p>
+                <div className="flex flex-wrap gap-2">
+                  {recheckReasonOptions.map((reason) => {
+                    const checked = formData.recheck_reasons.includes(reason);
+                    return (
+                      <button
+                        key={reason}
+                        type="button"
+                        onClick={() => {
+                          const next = checked
+                            ? formData.recheck_reasons.filter((r) => r !== reason)
+                            : [...formData.recheck_reasons, reason];
+                          setFormData({ ...formData, recheck_reasons: next });
+                        }}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                          checked
+                            ? 'bg-amber-600 text-white border-amber-600 hover:bg-amber-700'
+                            : 'bg-white text-amber-900 border-amber-300 hover:bg-amber-100'
+                        }`}
+                        data-testid={`recheck-reason-${reason.toLowerCase()}`}
+                        aria-pressed={checked}
+                      >
+                        {checked ? '✓ ' : ''}{reason}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -54,7 +54,10 @@ async def generate_memo_in_pdf(job_id: str, user: dict = Depends(get_current_use
     elements.append(Paragraph(f"Job #{job['job_number']}", header_style))
     elements.append(Paragraph(f"Date: {job['created_at'].strftime('%Y-%m-%d %H:%M')}", header_style))
     elements.append(Paragraph(f"Client: {client['name'] if client else 'N/A'}", header_style))
-    elements.append(Paragraph(f"Service Type: {job['service_type']}", header_style))
+    _service_label = job['service_type']
+    if job.get('service_type') == 'Recheck' and job.get('recheck_reasons'):
+        _service_label += f" ({', '.join(job['recheck_reasons'])})"
+    elements.append(Paragraph(f"Service Type: {_service_label}", header_style))
     elements.append(Spacer(1, 0.3*inch))
 
     table_data = [['#', 'SKU', 'Type', 'Weight (ct)', 'Shape', 'Value (USD)']]

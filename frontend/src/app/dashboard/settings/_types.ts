@@ -37,6 +37,9 @@ export interface PricingConfig {
   shapes: string[];
   payment_destinations: string[];
   couriers: string[];
+  // Reasons surfaced when service_type === "Recheck" in Create Job. Admins
+  // edit this list in /dashboard/settings.
+  recheck_reasons: string[];
 }
 
 export const DROPDOWN_FIELDS = ['identification', 'color', 'origin', 'comment'] as const;

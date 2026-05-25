@@ -49,6 +49,7 @@ import {
   Diamond,
   CreditCard,
   Truck,
+  RotateCcw,
 } from 'lucide-react';
 
 import type {
@@ -106,6 +107,7 @@ export default function SettingsPage() {
     shapes: [],
     payment_destinations: [],
     couriers: [],
+    recheck_reasons: ['Origin', 'Color', 'Identification', 'Comment'],
   });
   const [editingPricing, setEditingPricing] = useState(false);
   const [savingPricing, setSavingPricing] = useState(false);
@@ -118,12 +120,14 @@ export default function SettingsPage() {
     shapes: [],
     payment_destinations: [],
     couriers: [],
+    recheck_reasons: [],
   });
   const [newServiceType, setNewServiceType] = useState('');
   const [newStoneType, setNewStoneType] = useState('');
   const [newShape, setNewShape] = useState('');
   const [newPaymentDestination, setNewPaymentDestination] = useState('');
   const [newCourier, setNewCourier] = useState('');
+  const [newRecheckReason, setNewRecheckReason] = useState('');
   const [usedServiceTypes, setUsedServiceTypes] = useState<Set<string>>(new Set());
 
   // Admin Users State
@@ -1558,6 +1562,110 @@ export default function SettingsPage() {
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
                   ) : (
                     <><Save className="h-4 w-4 mr-2" />Save Couriers</>
+                  )}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recheck Reasons (surfaced when service_type === "Recheck") */}
+          <Card className="border-navy-200">
+            <CardHeader>
+              <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+                <RotateCcw className="h-5 w-5" />
+                Recheck Reasons
+              </CardTitle>
+              <CardDescription>Surfaced when service type is &quot;Recheck&quot; in the Create Job dialog. The user must pick one or more.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                {(pricingForm.recheck_reasons || []).map((reason, idx) => (
+                  <div key={`${reason}-${idx}`} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
+                    <span className="text-sm text-navy-900">{reason}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPricingForm(prev => ({
+                        ...prev,
+                        recheck_reasons: (prev.recheck_reasons || []).filter((_, i) => i !== idx),
+                      }))}
+                      className="h-6 w-6 p-0 hover:bg-red-50"
+                      data-testid={`delete-recheck-reason-${idx}`}
+                    >
+                      <X className="h-3 w-3 text-red-500" />
+                    </Button>
+                  </div>
+                ))}
+                {(pricingForm.recheck_reasons || []).length === 0 && (
+                  <p className="text-xs text-navy-400 italic px-3">No reasons configured yet. Add at least one before saving.</p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newRecheckReason}
+                  onChange={(e) => setNewRecheckReason(e.target.value)}
+                  placeholder="e.g. Origin, Color..."
+                  className="text-sm border-navy-200"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newRecheckReason.trim()) {
+                      const trimmed = newRecheckReason.trim();
+                      if (!(pricingForm.recheck_reasons || []).some(r => r.toLowerCase() === trimmed.toLowerCase())) {
+                        setPricingForm(prev => ({
+                          ...prev,
+                          recheck_reasons: [...(prev.recheck_reasons || []), trimmed],
+                        }));
+                      }
+                      setNewRecheckReason('');
+                    }
+                  }}
+                  data-testid="new-recheck-reason-input"
+                />
+                <Button
+                  size="sm"
+                  disabled={!newRecheckReason.trim()}
+                  onClick={() => {
+                    const trimmed = newRecheckReason.trim();
+                    if (!trimmed) return;
+                    // Dedupe case-insensitively to avoid "Origin" + "origin".
+                    if ((pricingForm.recheck_reasons || []).some(r => r.toLowerCase() === trimmed.toLowerCase())) {
+                      setNewRecheckReason('');
+                      return;
+                    }
+                    setPricingForm(prev => ({
+                      ...prev,
+                      recheck_reasons: [...(prev.recheck_reasons || []), trimmed],
+                    }));
+                    setNewRecheckReason('');
+                  }}
+                  data-testid="add-recheck-reason-button"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {editingPricing && (
+                <Button
+                  onClick={async () => {
+                    setSavingPricing(true);
+                    try {
+                      await settingsApi.updatePricing(pricingForm);
+                      setPricing(pricingForm);
+                      alert('Recheck reasons saved');
+                    } catch (err) {
+                      console.error(err);
+                      alert('Failed to save recheck reasons');
+                    } finally {
+                      setSavingPricing(false);
+                    }
+                  }}
+                  disabled={savingPricing}
+                  size="sm"
+                  className="bg-navy-700 hover:bg-navy-800"
+                  data-testid="save-recheck-reasons-button"
+                >
+                  {savingPricing ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                  ) : (
+                    <><Save className="h-4 w-4 mr-2" />Save Recheck Reasons</>
                   )}
                 </Button>
               )}

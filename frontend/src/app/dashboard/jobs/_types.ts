@@ -75,6 +75,9 @@ export interface Job {
   branch_id: string;
   branch_name?: string;
   service_type: string;
+  // Recheck-only: one or more user-selected reasons (subset of
+  // pricing_config.recheck_reasons). null/empty for non-Recheck jobs.
+  recheck_reasons?: string[];
   status: string;
   notes?: string;
   stones: Stone[];
