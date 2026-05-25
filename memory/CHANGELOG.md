@@ -5,6 +5,29 @@
 
 ---
 
+## Feb 25, 2026 — Shipment "Completed" status (frontend wiring)
+
+Backend auto-completion for `certificates_from_lab` shipments was landed in the previous fork. This session wired the corresponding frontend UX in `dashboard/shipments/page.tsx`.
+
+### Frontend
+- `shipments/page.tsx`:
+  - Added `Switch`-based **"Show completed shipments"** toggle (`data-testid='shipments-show-completed-toggle'`). When OFF (default) the working view stays focused on pending/in_transit.
+  - Added a **completed-count pill** (`data-testid='shipments-completed-count'`) that always displays the live archived count via a background `GET /api/shipments?include_archived=true` fetch — visible even when the toggle is OFF, so the metric is discoverable.
+  - Added **"Completed"** option to the status filter dropdown alongside Cancelled / Delivered.
+  - `fetchData` now auto-sends `include_archived=true` to the API whenever the operator selects a status filter that requires archived rows (`completed`, `cancelled`, `all`) — they don't also need to flip the toggle.
+  - `matchesStatusFilter`: when the toggle is ON, both the `active` and `delivered` buckets reveal `completed` rows so the operator can audit recently-closed work without losing the live queue.
+  - Slate `completed` badge (`data-testid='shipment-status-completed-badge'`) — visually distinct from the green `delivered` badge so case-closed work doesn't look like a fresh win.
+
+### Tests
+- `/app/backend/tests/test_shipments_completed.py` — 8 pytests covering: default-list exclusion of completed+cancelled, include_archived=true behaviour, auto-promotion of `certificates_from_lab` on delivery, non-promotion for other shipment types, explicit `status=completed` filter, and the config/options endpoint exposing the new status.
+- Full UI flow verified end-to-end against the preview deployment (testing agent iter-30).
+
+### Ops note
+- The preview frontend is served via `serve build` (Next.js static export). Source changes require `cd /app/frontend && yarn build && sudo supervisorctl restart frontend` to land in the deployed artifact — there is no `next dev` hot-reload here. Documented in iter-30 report for future agents.
+
+---
+
+
 ## Feb 25, 2026 — Recheck reasons (4-way replacement for separate recheck service types)
 
 User asked to keep a single `Recheck` service type but require the operator to document **why** the recheck is happening — Origin, Color, Identification, Comment, or any combination. Multi-select. Admin-configurable list.
