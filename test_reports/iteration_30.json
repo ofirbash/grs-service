@@ -1,0 +1,30 @@
+{
+  "summary": "Validated the new 'Completed' shipment status feature end-to-end (backend + frontend). BACKEND: created /app/backend/tests/test_shipments_completed.py with 8 pytests — ALL PASS (4.08s). Coverage: (a) GET /api/shipments default filter excludes both 'completed' AND 'cancelled', (b) GET /api/shipments?include_archived=true returns terminal-state shipments, (c) PUT /api/shipments/{id}/status auto-promotes a `certificates_from_lab` shipment from 'delivered' → 'completed' (verified via GET ?include_archived=true), (d) `send_stones_to_lab` and `stones_from_lab` shipments STAY at 'delivered' on delivery (no auto-completion), (e) explicit ?status=completed returns only completed shipments, (f) /api/shipments/config/options exposes 'completed' in the statuses list. FRONTEND: had to rebuild /app/frontend (static `serve build` is NOT hot-reloading — the deployed build dir was pre-feature and lacked the new testids; `yarn build` then `supervisorctl restart frontend` picked up the latest code). After rebuild, full UI flow verified: (1) /dashboard/shipments renders cleanly, (2) `shipments-completed-count` pill shows '1 completed' even when toggle is OFF (background include_archived fetch works), (3) default card grid HIDES the completed shipment and only shows UI-PENDING, (4) flipping `shipments-show-completed-toggle` ON pulls the completed row into the grid (both UI-COMPLETED and UI-PENDING visible) and renders the slate `shipment-status-completed-badge` with label 'Completed', (5) selecting 'Completed' from the `shipments-status-filter` dropdown shows ONLY the completed shipment (UI-PENDING absent), and the dedicated 'Completed' option is exposed alongside Active/All/Pending/In Transit/Delivered/Cancelled. Type-tab counts auto-include archived too (Certificates from Lab badge correctly shows 2 with toggle on, 1 with status=Completed). TURNSTILE_SECRET_KEY was blanked for automated login and RESTORED to the original Cloudflare key at the end of the run (verified in /app/backend/.env, backend restarted).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_shipments_completed.py",
+    "/app/test_reports/pytest/pytest_iter30_shipments_completed.xml"
+  ],
+  "action_items": [
+    "Note for future iterations: the frontend is served by `serve build` (static export), not Next.js dev server, so it does NOT hot-reload. Any frontend code change requires `cd /app/frontend && yarn build && sudo supervisorctl restart frontend`. The main agent already committed correct code — only the build artifact was stale. Recommend documenting this in README or, better, swap supervisor to `yarn dev` for the preview environment so testing agents pick up changes automatically."
+  ],
+  "critical_code_review_comments": [
+    "Backend `_is_lifecycle_complete` is single-source-of-truth and is invoked in BOTH PUT /shipments/{id} and PUT /shipments/{id}/status — good, no drift possible.",
+    "Default GET /shipments uses `$nin: ['cancelled','completed']` which gracefully handles legacy docs missing the status field.",
+    "Frontend fetches the completed count via a separate request with include_archived=true on mount — pill stays accurate even while the toggle is OFF; nice UX choice.",
+    "Filter dropdown auto-sends include_archived=true when statusFilter is 'completed', 'cancelled', or 'all' — operator does not need to also flip the toggle.",
+    "Minor: there is no DELETE-related orphan cleanup, but DELETE /shipments/{id} exists and was used for test cleanup in this run (unlike the missing DELETE /jobs route flagged in iter-29)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_shipments_completed.py (NEW — 8 pytests)",
+    "/app/frontend/build (REBUILT via `yarn build` so the deployed static export contains the new toggle/count testids)"
+  ],
+  "success_rate": {"backend": "100% (8/8 pytest)", "frontend": "100% (all 7 acceptance criteria verified)"},
+  "test_credentials": "admin@bashari.com / admin123. TURNSTILE_SECRET_KEY temporarily blanked during the run and RESTORED to 0x4AAAAAADE3zaagPiHzIFhauOwCqpNvlCk afterwards.",
+  "seed_data_creation": "Two `certificates_from_lab` shipments (UI-PENDING + UI-COMPLETED) were created, exercised, and DELETED via DELETE /api/shipments/{id} — no orphans left in DB.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "CRITICAL: /app/frontend uses `serve build` (Next.js static export) which does NOT hot-reload. If you change frontend code, you MUST run `cd /app/frontend && yarn build && sudo supervisorctl restart frontend` before testing in the preview URL. Backend test regression: `cd /app/backend && python -m pytest tests/test_shipments_completed.py -v` (8 tests, ~4s). For UI tests, blank TURNSTILE_SECRET_KEY, POST /api/auth/login to mint a JWT, inject into both sessionStorage and localStorage as 'token' and 'auth-storage' ({state:{token,user,isAuthenticated:true},version:0}), then navigate. Always restore TURNSTILE_SECRET_KEY afterwards.",
+  "rca of the issue": "No bugs found. One pitfall encountered: initial frontend probe returned testid present=False for the new toggle/count pill. RCA: /app/frontend is served via `serve build` (static export), not next-dev, so the supervisor 'frontend' service was pinned to an older build artifact that pre-dated the feature. Re-running `yarn build` + supervisor restart fixed it. This is environmental, not a code defect — the source already has correct testids and behaviour."
+}

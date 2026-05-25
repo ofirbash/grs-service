@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -185,12 +186,22 @@ export default function ShipmentsPage() {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranchId, showCompleted]);
+  }, [selectedBranchId, showCompleted, statusFilter]);
 
   const fetchData = async () => {
     try {
       const branchParam: { branch_id?: string; include_archived?: boolean } = selectedBranchId ? { branch_id: selectedBranchId } : {};
-      if (showCompleted) branchParam.include_archived = true;
+      // include_archived expands the API response to also return
+      // `completed` + `cancelled` shipments. We send it when:
+      //  - the operator explicitly toggled "Show completed", OR
+      //  - they picked a status filter that *only* makes sense with
+      //    archived rows (`completed`, `cancelled`, or `all`).
+      const needsArchived =
+        showCompleted ||
+        statusFilter === 'completed' ||
+        statusFilter === 'cancelled' ||
+        statusFilter === 'all';
+      if (needsArchived) branchParam.include_archived = true;
       // Always fetch the completed/cancelled count separately so the stats
       // card has a number to display even when the main list filters them
       // out. Cheap: same endpoint, status filter, count locally.
@@ -555,10 +566,20 @@ export default function ShipmentsPage() {
 
   /** Matches a shipment against the status pill. "active" = pending +
    * in_transit only (the everyday working view). "all" still includes
-   * delivered + cancelled for historical lookups. */
+   * delivered + cancelled for historical lookups. When `showCompleted`
+   * is on, the "active" and "delivered" buckets also reveal `completed`
+   * rows so the operator can audit recently-closed work without losing
+   * the live queue. */
   const matchesStatusFilter = (status: string): boolean => {
     if (statusFilter === 'all') return true;
-    if (statusFilter === 'active') return status === 'pending' || status === 'in_transit';
+    if (statusFilter === 'active') {
+      if (status === 'pending' || status === 'in_transit') return true;
+      return showCompleted && status === 'completed';
+    }
+    if (statusFilter === 'delivered') {
+      if (status === 'delivered') return true;
+      return showCompleted && status === 'completed';
+    }
     return status === statusFilter;
   };
 
@@ -573,7 +594,7 @@ export default function ShipmentsPage() {
       return matchesSearch && matchesStatus && matchesType;
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shipments, searchTerm, statusFilter, typeFilter],
+    [shipments, searchTerm, statusFilter, typeFilter, showCompleted],
   );
 
   // Counts per type (ignores type filter but respects status + search)
@@ -594,7 +615,7 @@ export default function ShipmentsPage() {
     });
     return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shipments, searchTerm, statusFilter]);
+  }, [shipments, searchTerm, statusFilter, showCompleted]);
 
   const getStatusBadge = (status: string) => {
     // `completed` is visually distinct from `delivered` so the operator can
@@ -797,9 +818,39 @@ export default function ShipmentsPage() {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="in_transit">In Transit</SelectItem>
                 <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Show-completed toggle.
+              `certificates_from_lab` shipments auto-advance to `completed`
+              when delivered, which removes them from the default working
+              view. This switch lets the operator pull them (and any
+              manually-completed rows) back in for review. The pill on
+              the right always reflects the live total fetched in the
+              background, so the toggle is discoverable even when off. */}
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <label
+              htmlFor="show-completed-toggle"
+              className="flex items-center gap-2 cursor-pointer select-none"
+            >
+              <Switch
+                id="show-completed-toggle"
+                checked={showCompleted}
+                onCheckedChange={setShowCompleted}
+                data-testid="shipments-show-completed-toggle"
+              />
+              <span className="text-sm text-navy-700">Show completed shipments</span>
+            </label>
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium"
+              data-testid="shipments-completed-count"
+            >
+              <CheckCircle className="h-3.5 w-3.5" />
+              {completedCount} completed
+            </span>
           </div>
         </CardContent>
       </Card>
