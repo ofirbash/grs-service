@@ -175,31 +175,49 @@ export default function ShipmentsPage() {
   // function so the shipment memo shows complete street/city info.
   const [addressBook, setAddressBook] = useState<Record<string, string>>({});
   const { selectedBranchId } = useBranchFilterStore();
+  // When true, the GET /shipments call sends include_archived=true so
+  // completed + cancelled shipments are returned. False by default → the
+  // operator sees only the active queue. We still fetch a count of completed
+  // shipments separately so the stats card always shows it.
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [completedCount, setCompletedCount] = useState(0);
 
   useEffect(() => {
     fetchData();
-  }, [selectedBranchId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBranchId, showCompleted]);
 
   const fetchData = async () => {
     try {
-      const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
+      const branchParam: { branch_id?: string; include_archived?: boolean } = selectedBranchId ? { branch_id: selectedBranchId } : {};
+      if (showCompleted) branchParam.include_archived = true;
+      // Always fetch the completed/cancelled count separately so the stats
+      // card has a number to display even when the main list filters them
+      // out. Cheap: same endpoint, status filter, count locally.
+      const archivedParam: { branch_id?: string; include_archived: boolean } = { include_archived: true };
+      if (selectedBranchId) archivedParam.branch_id = selectedBranchId;
       // allSettled so one flaky endpoint doesn't blank the whole shipments
       // page; session-expired (401/403) is handled by the global interceptor.
       const results = await Promise.allSettled([
         shipmentsApi.getAll(branchParam),
-        jobsApi.getAll(branchParam),
+        jobsApi.getAll(selectedBranchId ? { branch_id: selectedBranchId } : {}),
         shipmentsApi.getOptions(),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
         branchesApi.getAll(),
         addressesApi.getAll().catch(() => [] as Array<{ name: string; address?: string }>),
+        shipmentsApi.getAll(archivedParam).catch(() => []),
       ]);
-      const [shipmentsR, jobsR, optionsR, dropdownR, branchesR, addressesR] = results;
+      const [shipmentsR, jobsR, optionsR, dropdownR, branchesR, addressesR, archivedR] = results;
       results.forEach((r, i) => {
         if (r.status === 'rejected') {
-          const labels = ['shipments', 'jobs', 'options', 'dropdowns', 'branches', 'addresses'];
+          const labels = ['shipments', 'jobs', 'options', 'dropdowns', 'branches', 'addresses', 'archived'];
           console.error(`fetchData: failed to load ${labels[i]}`, r.reason);
         }
       });
+      if (archivedR.status === 'fulfilled') {
+        const archived = archivedR.value as Array<{ status?: string }>;
+        setCompletedCount(archived.filter((s) => s.status === 'completed').length);
+      }
       if (shipmentsR.status === 'fulfilled') setShipments(shipmentsR.value);
       if (jobsR.status === 'fulfilled') {
         // Hide finished + cancelled jobs from the "Add jobs to shipment"
@@ -360,8 +378,13 @@ export default function ShipmentsPage() {
       });
       setEditingShipment(false);
       fetchData();
-      // Refresh selected shipment
-      const updatedShipments = await shipmentsApi.getAll(selectedBranchId ? { branch_id: selectedBranchId } : {});
+      // Refresh selected shipment — include archived because if the user
+      // just marked a cert-from-lab shipment as delivered, it auto-flipped
+      // to "completed" and would otherwise be hidden from the default fetch.
+      const updatedShipments = await shipmentsApi.getAll({
+        ...(selectedBranchId ? { branch_id: selectedBranchId } : {}),
+        include_archived: true,
+      });
       const updated = updatedShipments.find((s: Shipment) => s.id === selectedShipment.id);
       if (updated) setSelectedShipment(updated);
     } catch (error) {
@@ -574,6 +597,19 @@ export default function ShipmentsPage() {
   }, [shipments, searchTerm, statusFilter]);
 
   const getStatusBadge = (status: string) => {
+    // `completed` is visually distinct from `delivered` so the operator can
+    // tell at a glance that the stone lifecycle is closed. Slate/neutral
+    // colour intentionally — completion is "case closed", not a fresh win.
+    if (status === 'completed') {
+      return (
+        <Badge
+          className="bg-slate-700 text-white hover:bg-slate-700"
+          data-testid="shipment-status-completed-badge"
+        >
+          Completed
+        </Badge>
+      );
+    }
     const variants: Record<string, "default" | "secondary" | "success" | "warning" | "destructive"> = {
       pending: 'warning',
       in_transit: 'default',

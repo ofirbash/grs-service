@@ -214,7 +214,7 @@ export const usersApi = {
 
 // Shipments API
 export const shipmentsApi = {
-  getAll: async (params?: { status?: string; courier?: string; branch_id?: string }) => {
+  getAll: async (params?: { status?: string; courier?: string; branch_id?: string; include_archived?: boolean }) => {
     const response = await api.get('/shipments', { params });
     return response.data;
   },

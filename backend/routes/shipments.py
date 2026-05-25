@@ -10,7 +10,13 @@ from models import (
 )
 
 SHIPMENT_TYPES = ["send_stones_to_lab", "stones_from_lab", "certificates_from_lab"]
-SHIPMENT_STATUSES = ["pending", "in_transit", "delivered", "cancelled"]
+# "completed" is a terminal status applied automatically to `certificates_from_lab`
+# shipments when they reach `delivered`, OR set manually via the dedicated
+# `/shipments/{id}/complete` endpoint for the rare cases where a different
+# shipment type also represents end-of-lifecycle (e.g. customer abandons
+# certs after stones are returned). Visually distinct from `delivered` so the
+# operator can see at a glance which shipments still have downstream work.
+SHIPMENT_STATUSES = ["pending", "in_transit", "delivered", "completed", "cancelled"]
 JOB_STATUSES = ["draft", "stones_accepted", "sent_to_lab", "verbal_uploaded", "stones_returned", "cert_uploaded", "cert_returned", "done"]
 COURIERS = ["UPS", "FedEx", "DHL", "TNT", "Aramex", "Local Courier", "Hand Carry", "Other"]
 
@@ -29,8 +35,24 @@ _LIFECYCLE_RULES = {
     },
     "certificates_from_lab": {
         "delivered": {"cert_status": "delivered"},
+        "completed": {"cert_status": "delivered"},
     },
 }
+
+
+def _is_lifecycle_complete(shipment: dict, new_status: str) -> bool:
+    """Return True when this transition closes the stone lifecycle.
+
+    A `certificates_from_lab` shipment reaching `delivered` is the end of
+    the road: stones are with the client, certs are with the client, nothing
+    else is owed. We auto-promote it to `completed` so the default list
+    filter (which hides `completed`) clears it from the active view without
+    requiring the user to click anything extra.
+    """
+    return (
+        shipment.get("shipment_type") == "certificates_from_lab"
+        and new_status == "delivered"
+    )
 
 
 async def _apply_stone_lifecycle(shipment: dict, status: str) -> int:
@@ -218,14 +240,29 @@ async def get_shipments(
     status: Optional[str] = None,
     courier: Optional[str] = None,
     branch_id: Optional[str] = None,
+    include_archived: bool = False,
     user: dict = Depends(get_current_user)
 ):
+    """List shipments.
+
+    By default we exclude terminal/archived statuses (`cancelled`,
+    `completed`) so the operator's active queue stays clean — completed
+    shipments are kept in the DB for audit but don't clutter the table.
+    Pass `?include_archived=true` to surface them (the "Show completed"
+    toggle in the UI flips this). An explicit `?status=cancelled` (or
+    `completed`) bypasses the filter, so URL-driven dashboards can still
+    target an archived bucket directly.
+    """
     if user["role"] == "customer":
         return []
 
-    query = {}
+    query: dict = {}
     if status:
         query["status"] = status
+    elif not include_archived:
+        # Hide terminal/archived statuses by default. Mongo $nin handles
+        # legacy docs without the field gracefully (they don't match).
+        query["status"] = {"$nin": ["cancelled", "completed"]}
     if courier:
         query["courier"] = courier
 
@@ -294,6 +331,11 @@ async def update_shipment(shipment_id: str, update: ShipmentUpdate, user: dict =
     if "status" in update_data and update_data["status"] not in SHIPMENT_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {SHIPMENT_STATUSES}")
 
+    # Auto-promote `certificates_from_lab` deliveries to `completed` (lifecycle
+    # done). Single source of truth; mirrors the rule in update_shipment_status.
+    if update_data.get("status") and _is_lifecycle_complete(shipment, update_data["status"]):
+        update_data["status"] = "completed"
+
     await db.shipments.update_one(
         {"_id": ObjectId(shipment_id)},
         {"$set": update_data}
@@ -309,13 +351,22 @@ async def update_shipment_status(
     cascade_to_jobs: bool = Body(True, embed=True),
     user: dict = Depends(require_admin)
 ):
-    """Update shipment status with optional cascade to all contained jobs"""
+    """Update shipment status with optional cascade to all contained jobs.
+
+    A `certificates_from_lab` shipment reaching `delivered` is auto-promoted
+    to `completed` (end-of-lifecycle); the frontend never has to know this
+    rule. The stone lifecycle hook still runs against the effective status,
+    so `cert_status` flips to `delivered` either way.
+    """
     if status not in SHIPMENT_STATUSES:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {SHIPMENT_STATUSES}")
 
     shipment = await db.shipments.find_one({"_id": ObjectId(shipment_id)})
     if not shipment:
         raise HTTPException(status_code=404, detail="Shipment not found")
+
+    if _is_lifecycle_complete(shipment, status):
+        status = "completed"
 
     await db.shipments.update_one(
         {"_id": ObjectId(shipment_id)},
