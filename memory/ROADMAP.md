@@ -16,14 +16,12 @@ _None currently._
   3. `<JobDetailDialog>` — currently inlined in jobs/page.tsx and re-implemented inside shipments/page.tsx. Should accept a `mode: 'admin' | 'shipment-view'` prop to handle the two contexts.
   4. `<ShipmentDetailDialog>` — already mostly extracted but lives inside the 850-line shipments/page.tsx. Move to its own file.
 - [ ] **Bulk notify clients per shipment.** Admin action: pick a shipment → send the same notification (intake / dispatched / delivered) to every client whose jobs are contained in it.
-- [ ] **"Same as previous row / pre-fill stone type" in Create Job dialog.** Faster bulk stone entry: when the user adds row N+1, pre-fill stone type from row N (and maybe shape too).
 - [ ] **Domain verification for Resend email** (production).
 - [ ] **Legacy data migration from CSV/database** (if/when source data is available).
 - [ ] **Printable shipment document** (similar to job memo).
 
 ## P2 — Medium Priority
 
-- [ ] **Finalise prices** (books, layouts).
 - [ ] **Mobile responsive audit** across all pages.
 - [x] **Session-expired toast on `/login`** when redirected from a protected route (`?reason=expired` query param). _Done Feb 24, 2026 — amber banner on /login renders when Axios interceptor bounces an idle session. See CHANGELOG._
 - [ ] **Notify client on stone cancellation** (email + SMS) for traceability.
