@@ -12,9 +12,9 @@ _None currently._
 
 - [ ] **Refactor: consolidate duplicate dialogs.** User-flagged Feb 25 2026 — multiple copies of the same UI cause feature drift (e.g. parcels worked on /dashboard/jobs but not /dashboard/stones). Sequence:
   1. `<StoneVerbalSection>` ✅ done (used by both stone modals)
-  2. `<StoneEditDialog>` — full stone modal extraction. Currently jobs/page.tsx and stones/page.tsx each have their own ~600 and ~280-line inline copy. Wraps `<StoneVerbalSection>` + the compact info strip + CS/Mounted toggles + Cert scan upload + cancel button + footer.
-  3. `<JobDetailDialog>` — currently inlined in jobs/page.tsx and re-implemented inside shipments/page.tsx. Should accept a `mode: 'admin' | 'shipment-view'` prop to handle the two contexts.
-  4. `<ShipmentDetailDialog>` — already mostly extracted but lives inside the 850-line shipments/page.tsx. Move to its own file.
+  2. `<ShipmentDetailDialog>` ✅ done Feb 25 2026 — extracted to `shipments/_components/ShipmentDetailDialog.tsx` along with CreateShipmentDialog, AddJobsToShipmentDialog, BulkStatusDialog, FileViewerDialog, JobDetailDialog, StoneEditDialog. `shipments/page.tsx` dropped from 2317 → 1149 lines.
+  3. `<JobDetailDialog>` ⏳ extracted for shipments (`shipments/_components/JobDetailDialog.tsx`); jobs/page.tsx still has its own inline copy. Next step: lift the jobs version into a shared `components/dialogs/JobDetailDialog.tsx` with a `mode: 'admin' | 'shipment-view'` prop.
+  4. `<StoneEditDialog>` ⏳ extracted for shipments; same consolidation pending with jobs/page.tsx + stones/page.tsx.
 - [ ] **Bulk notify clients per shipment.** Admin action: pick a shipment → send the same notification (intake / dispatched / delivered) to every client whose jobs are contained in it.
 - [ ] **Domain verification for Resend email** (production).
 - [ ] **Legacy data migration from CSV/database** (if/when source data is available).

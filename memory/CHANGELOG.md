@@ -5,6 +5,30 @@
 
 ---
 
+## Feb 25, 2026 — Shipments monolith → 7-component extraction (P0 refactor)
+
+`shipments/page.tsx` had grown to 2317 lines with 8 inline `<Dialog>` blocks and 47 `useState` hooks — flagged as the #1 maintainability pain point. Extracted every dialog into its own presentational component under `shipments/_components/`. **Zero behaviour change**; testing agent iter-32 confirmed 100% pass on the full regression suite.
+
+### New components (all in `shipments/_components/`)
+- `FileViewerDialog.tsx` (53 lines) — generic image/PDF viewer; collapses what were two near-identical Cert + Memo dialogs.
+- `BulkStatusDialog.tsx` (95 lines)
+- `AddJobsToShipmentDialog.tsx` (96 lines)
+- `CreateShipmentDialog.tsx` (251 lines)
+- `ShipmentDetailDialog.tsx` (430 lines) — the big one (sticky totals footer, edit form, compact meta strip, jobs table).
+- `JobDetailDialog.tsx` (347 lines) — shipments-context copy; `jobs/page.tsx` still has its own inline version pending consolidation.
+- `StoneEditDialog.tsx` (273 lines) — same story as JobDetailDialog.
+
+### page.tsx
+- 2317 → **1149 lines** (-50%).
+- Extracted two inline closures into named handlers: `handleSaveStoneVerbal` and `handleStoneCertChange`.
+- Pruned 24 unused imports after extraction.
+
+### Design choice
+"Lift JSX, not state." All `useState` hooks stayed in `page.tsx`; the new components receive everything they need as props. This kept the diff mechanical (and risk-free) at the cost of fairly long prop lists — which is fine because the goal was readability of `page.tsx`, not architectural purity.
+
+---
+
+
 ## Feb 25, 2026 — Shipment "Completed" status (frontend wiring)
 
 Backend auto-completion for `certificates_from_lab` shipments was landed in the previous fork. This session wired the corresponding frontend UX in `dashboard/shipments/page.tsx`.
