@@ -62,6 +62,7 @@ export interface Job {
   status: string;
   notes?: string;
   total_stones: number;
+  total_certificates?: number;
   total_value: number;
   total_fee: number;
   shipment_ids?: string[];

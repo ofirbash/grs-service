@@ -5,6 +5,7 @@ import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesA
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { escapeHtml as esc, openPrintWindow } from '@/lib/sanitize';
 import { buildShipmentJobMemoHtml } from './_lib/buildShipmentJobMemoHtml';
+import { JobPickerRow, summariseJob } from './_components/JobPickerRow';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -1082,38 +1083,13 @@ export default function ShipmentsPage() {
               ) : (
                 <div className="border border-navy-200 rounded-lg max-h-64 overflow-y-auto">
                   {availableJobs.map((job) => (
-                    <div
+                    <JobPickerRow
                       key={job.id}
-                      className={`flex items-center justify-between p-3 hover:bg-navy-50 cursor-pointer border-b last:border-b-0 ${
-                        selectedJobs.includes(job.id) ? 'bg-navy-100' : ''
-                      }`}
-                      onClick={() => toggleJobSelection(job.id)}
-                      data-testid={`select-job-${job.job_number}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                            selectedJobs.includes(job.id)
-                              ? 'bg-navy-800 border-navy-800'
-                              : 'border-navy-300'
-                          }`}
-                        >
-                          {selectedJobs.includes(job.id) && (
-                            <CheckCircle className="h-4 w-4 text-white" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-medium text-navy-900">Job #{job.job_number}</p>
-                          <p className="text-sm text-navy-500">{job.client_name || 'N/A'}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-navy-600">{job.total_stones} stones</p>
-                        <p className="text-sm font-medium text-navy-900">
-                          ${job.total_value.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
+                      job={job}
+                      selected={selectedJobs.includes(job.id)}
+                      onToggle={() => toggleJobSelection(job.id)}
+                      testid={`select-job-${job.job_number}`}
+                    />
                   ))}
                 </div>
               )}
@@ -1167,9 +1143,9 @@ export default function ShipmentsPage() {
 
       {/* View Shipment Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-navy-800 flex items-center justify-between">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0 flex flex-col gap-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-5 pb-3 border-b border-navy-100 shrink-0">
+            <DialogTitle className="text-xl text-navy-800 flex items-center justify-between gap-3">
               <span>Shipment #{selectedShipment?.shipment_number}</span>
               {selectedShipment && (
                 <div className="flex gap-2">
@@ -1211,25 +1187,36 @@ export default function ShipmentsPage() {
                       Add Jobs
                     </Button>
                   )}
-                  {selectedShipment.status !== 'cancelled' && selectedShipment.status !== 'completed' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCancelShipmentTarget(selectedShipment)}
-                      className="border-red-200 text-red-600 hover:bg-red-50"
-                      data-testid="cancel-shipment-button"
-                    >
-                      <XCircle className="h-4 w-4 mr-1" />
-                      Cancel
-                    </Button>
-                  )}
                 </div>
               )}
             </DialogTitle>
+            {/* Compact meta strip — replaces the old 2x3 grid that pushed the
+                table below the fold. Each chip is read-only; click "Edit" to
+                modify. Stays visible while the jobs table scrolls because the
+                whole DialogHeader is outside the scroll container. */}
+            {selectedShipment && !editingShipment && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-navy-600 pt-1">
+                <span className="inline-flex items-center gap-1.5">
+                  {shipmentTypeIcon(selectedShipment.shipment_type)}
+                  <span className="font-medium text-navy-800">{formatShipmentType(selectedShipment.shipment_type)}</span>
+                </span>
+                <span>{getStatusBadge(selectedShipment.status)}</span>
+                <span><span className="text-navy-500">Courier:</span> <span className="font-medium text-navy-800">{selectedShipment.courier}</span></span>
+                {selectedShipment.tracking_number && (
+                  <span><span className="text-navy-500">Tracking:</span> <span className="font-mono font-medium text-navy-800">{selectedShipment.tracking_number}</span></span>
+                )}
+                <span><span className="text-navy-500">From:</span> <span className="font-medium text-navy-800">{selectedShipment.source_address}</span></span>
+                <span>→</span>
+                <span><span className="text-navy-500">To:</span> <span className="font-medium text-navy-800">{selectedShipment.destination_address}</span></span>
+                {selectedShipment.date_sent && (
+                  <span><span className="text-navy-500">Sent:</span> <span className="font-medium text-navy-800">{selectedShipment.date_sent}</span></span>
+                )}
+              </div>
+            )}
           </DialogHeader>
 
           {selectedShipment && (
-            <div className="space-y-4 py-4">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {editingShipment ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1288,44 +1275,30 @@ export default function ShipmentsPage() {
                       <Input value={editFormData.notes} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} className="border-navy-200" />
                     </div>
                   </div>
-                  <div className="flex justify-end">
+                  <div className="flex justify-between items-center gap-3 flex-wrap">
+                    {/* Cancel Shipment lives ONLY in edit mode now — it used to
+                        sit at the top-right of the modal which read like a
+                        close-modal button. Cancelling is a rare destructive
+                        action so it belongs alongside the other edit
+                        affordances. Hidden once the shipment is already
+                        cancelled or completed (terminal states). */}
+                    {selectedShipment.status !== 'cancelled' && selectedShipment.status !== 'completed' ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => setCancelShipmentTarget(selectedShipment)}
+                        className="border-red-200 text-red-600 hover:bg-red-50"
+                        data-testid="cancel-shipment-button"
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Cancel Shipment
+                      </Button>
+                    ) : <span />}
                     <Button onClick={handleSaveEditShipment} disabled={savingEdit} className="bg-navy-900 hover:bg-navy-800" data-testid="save-shipment-edit-button">
                       {savingEdit ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : 'Save Changes'}
                     </Button>
                   </div>
                 </div>
-              ) : (
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <Label className="text-navy-500 text-xs">Type</Label>
-                  <p className="font-medium text-navy-900 text-sm">
-                    {formatShipmentType(selectedShipment.shipment_type)}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-navy-500">Status</Label>
-                  <div className="mt-1">{getStatusBadge(selectedShipment.status)}</div>
-                </div>
-                <div>
-                  <Label className="text-navy-500">Courier</Label>
-                  <p className="font-medium text-navy-900">{selectedShipment.courier}</p>
-                </div>
-                <div>
-                  <Label className="text-navy-500">Tracking Number</Label>
-                  <p className="font-medium text-navy-800 font-mono">
-                    {selectedShipment.tracking_number || '-'}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-navy-500">From</Label>
-                  <p className="font-medium text-navy-900">{selectedShipment.source_address}</p>
-                </div>
-                <div>
-                  <Label className="text-navy-500">To</Label>
-                  <p className="font-medium text-navy-900">{selectedShipment.destination_address}</p>
-                </div>
-              </div>
-              )}
+              ) : null}
 
               {selectedShipment.notes && !editingShipment && (
                 <div>
@@ -1479,29 +1452,64 @@ export default function ShipmentsPage() {
                 )}
               </div>
 
-              {/* Summary */}
-              <div className="bg-navy-50 rounded-lg p-4 flex justify-between">
-                <div>
-                  <span className="text-navy-500">Total Jobs:</span>
-                  <span className="font-semibold text-navy-800 ml-2">{selectedShipment.total_jobs}</span>
-                </div>
-                <div>
-                  <span className="text-navy-500">Total Stones:</span>
-                  <span className="font-semibold text-navy-800 ml-2">{selectedShipment.total_stones}</span>
-                </div>
-                <div>
-                  <span className="text-navy-500">Total Value:</span>
-                  <span className="font-semibold text-navy-800 ml-2">${selectedShipment.total_value.toLocaleString()}</span>
-                </div>
-              </div>
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
+          {/* Sticky footer — aggregates the loaded jobs (so weight / certs /
+              fee reflect the same data the operator just scrolled past). The
+              older standalone "Summary" box was floating *inside* the scroll
+              region which meant operators had to scroll back down to see
+              totals after inspecting jobs. */}
+          {selectedShipment && (() => {
+            const totals = shipmentJobs.reduce(
+              (acc, j) => {
+                const s = summariseJob(j);
+                acc.stones += s.stones;
+                acc.certificates += s.certificates;
+                acc.weight += s.weightCt;
+                acc.fee += s.fee;
+                acc.value += s.value;
+                return acc;
+              },
+              { stones: 0, certificates: 0, weight: 0, fee: 0, value: 0 },
+            );
+            return (
+              <div
+                className="shrink-0 border-t border-navy-100 bg-navy-50/60 px-6 py-3 flex items-center justify-between gap-3 flex-wrap"
+                data-testid="shipment-totals-footer"
+              >
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
+                  <span>
+                    <span className="text-navy-500">Jobs</span>{' '}
+                    <span className="font-semibold text-navy-900" data-testid="totals-jobs">{shipmentJobs.length}</span>
+                  </span>
+                  <span>
+                    <span className="text-navy-500">Stones</span>{' '}
+                    <span className="font-semibold text-navy-900" data-testid="totals-stones">{totals.stones}</span>
+                  </span>
+                  <span>
+                    <span className="text-navy-500">Certificates</span>{' '}
+                    <span className="font-semibold text-navy-900" data-testid="totals-certificates">{totals.certificates}</span>
+                  </span>
+                  <span>
+                    <span className="text-navy-500">Weight</span>{' '}
+                    <span className="font-semibold text-navy-900" data-testid="totals-weight">{totals.weight.toFixed(2)} ct</span>
+                  </span>
+                  <span>
+                    <span className="text-navy-500">Fees</span>{' '}
+                    <span className="font-semibold text-navy-900" data-testid="totals-fees">${totals.fee.toLocaleString()}</span>
+                  </span>
+                  <span>
+                    <span className="text-navy-500">Value</span>{' '}
+                    <span className="font-semibold text-navy-900" data-testid="totals-value">${totals.value.toLocaleString()}</span>
+                  </span>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setViewDialogOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -1527,42 +1535,17 @@ export default function ShipmentsPage() {
             ) : (
               <div className="border border-navy-200 rounded-lg max-h-64 overflow-y-auto">
                 {filteredAvailableJobs.map((job) => (
-                  <div
+                  <JobPickerRow
                     key={job.id}
-                    className={`flex items-center justify-between p-3 hover:bg-navy-50 cursor-pointer border-b last:border-b-0 ${
-                      jobsToAdd.includes(job.id) ? 'bg-navy-100' : ''
-                    }`}
-                    onClick={() => {
+                    job={job}
+                    selected={jobsToAdd.includes(job.id)}
+                    onToggle={() => {
                       setJobsToAdd((prev) =>
                         prev.includes(job.id) ? prev.filter((id) => id !== job.id) : [...prev, job.id]
                       );
                     }}
-                    data-testid={`add-job-${job.job_number}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          jobsToAdd.includes(job.id)
-                            ? 'bg-navy-800 border-navy-800'
-                            : 'border-navy-300'
-                        }`}
-                      >
-                        {jobsToAdd.includes(job.id) && (
-                          <CheckCircle className="h-4 w-4 text-white" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-navy-900">Job #{job.job_number}</p>
-                        <p className="text-sm text-navy-500">{job.client_name || 'N/A'}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-navy-600">{job.total_stones} stones</p>
-                      <p className="text-sm font-medium text-navy-900">
-                        ${job.total_value.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
+                    testid={`add-job-${job.job_number}`}
+                  />
                 ))}
               </div>
             )}
