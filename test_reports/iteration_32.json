@@ -1,0 +1,45 @@
+{
+  "summary": "Frontend-only regression for the P0 monolith→7-component extraction in /app/frontend/src/app/dashboard/shipments. All extracted dialogs (CreateShipmentDialog, ShipmentDetailDialog, AddJobsToShipmentDialog, BulkStatusDialog, JobDetailDialog, StoneEditDialog, FileViewerDialog) render and behave identically to iter-31. Zero console errors, zero pageerrors, all critical testids present, full flow verified end-to-end (list → detail → edit → cancel double-confirm → bulk status → add jobs → nested job detail → nested stone edit).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": [
+    "Shipments list page loads; create-shipment-button, shipments-status-filter, shipments-show-completed-toggle, shipments-completed-count, shipments-search-input all present. Show-completed toggle works (1 cancelled shipment becomes visible).",
+    "Create Shipment Dialog: ALL 7 form fields render (shipment-type-select, courier-select, source-address-select, destination-address-select, tracking-number-input, date-sent-input, notes-textarea). 78 JobPickerRow rows render with full details (Job# / service / client / type / stones·certs / weight / fee / value).",
+    "Shipment Detail Dialog opens on row click. Compact header meta strip renders Courier, From → To, Sent date (Tracking pill conditionally hidden when empty - intentional). Top-right buttons: Print PDF (testid=generate-pdf-button), Edit (edit-shipment-button), Add Jobs (add-jobs-button) all present. cancel-shipment-button is NOT in top-right outside edit mode (count=0). ✓",
+    "Edit mode reveals form (Type/Courier/From/To/Tracking/Date Sent/Notes inputs all visible in screenshot). save-shipment-edit-button + RED cancel-shipment-button appear inline. ✓",
+    "Cancel Shipment click opens DoubleConfirmDialog 'Cancel shipment ?' with Keep + 'Cancel Shipment' confirm button. Confirm flow wired (would call shipmentsApi.updateStatus(id,'cancelled',true)). ✓",
+    "Sticky footer shipment-totals-footer with all 6 totals: totals-jobs=3, totals-stones=6, totals-certificates=4, totals-weight='12.00 ct', totals-fees='$900', totals-value='$25,000'. ✓",
+    "Jobs table: 3 shipment-job-row-* clickable rows; bulk-status-button + confirm-bulk-status-button both present and bulk dialog opens on select+click.",
+    "Add Jobs to Shipment Dialog: 75 add-job-* rows render with full details, confirm-add-jobs-button present.",
+    "Nested Job Detail Dialog (via shipment-job-row click): print-job-shipment-button, edit-job-shipment-button, open-job-new-tab, upload-memo-shipment-button all present. Stones table renders grouped, 1 job-stone-row-* present per stone.",
+    "Nested Stone Edit Dialog (via job-stone-row click): ALL verbal inputs present (verbal-certificate-id input, verbal-weight input, verbal-identification select, verbal-color select, verbal-origin select, verbal-comment select) + save-stone-verbal-button + Upload Scan + Close. ✓",
+    "FileViewerDialog code review: correctly renders <iframe> for data:application/pdf URLs and <img> otherwise; close button wired via onOpenChange(false). Not exercised end-to-end at runtime because seed data has no uploaded scan/memo.",
+    "Zero console errors and zero pageerrors observed across the full flow."
+  ],
+  "testid_naming_observations": [
+    "The review request's 'print-shipment-pdf-button' is actually data-testid='generate-pdf-button' in ShipmentDetailDialog.tsx (matches iter-31 - unchanged).",
+    "The review request's 'job-detail-print-button / job-detail-edit-button / job-detail-open-new-tab-button / upload-memo-button' are actually 'print-job-shipment-button / edit-job-shipment-button / open-job-new-tab / upload-memo-shipment-button' in JobDetailDialog.tsx (matches iter-31 - unchanged).",
+    "stone rows use SKU (e.g. job-stone-row-RU100J58601) not numeric index. Matches iter-31.",
+    "These are pre-existing testid names from the pre-refactor file, not regressions. Refactor preserved them exactly."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Refactor is clean: page.tsx 1149 lines (down from 2317), 7 dialog files each well below 500 lines. Components are pure presentational (props in, callbacks out). No state moved out of page.tsx as instructed.",
+    "FileViewerDialog Close button does not have a data-testid - low priority, but adding data-testid='close-file-viewer-button' would help future automation.",
+    "ShipmentDetailDialog Close footer button (label 'Close') has no data-testid - same low-priority note.",
+    "JobDetailDialog memo upload uses 'upload-memo-shipment-button' (shipment-context name). Acceptable but slightly inconsistent with FileViewerDialog naming.",
+    "No regression vs iter-31 - this is purely informational, not a fix request."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "admin@bashari.com / admin123 (used via /api/auth/login + sessionStorage('auth-storage') zustand key). TURNSTILE_SECRET_KEY was blanked in /app/backend/.env during the run and restored to '0x4AAAAAADE3zaagPiHzIFhauOwCqpNvlCk' before finishing.",
+  "seed_data_creation": "Reused iter-31 seed: Shipment #3 (pending, send_stones_to_lab, D2D, Israel Office → GRS HK Lab, 3 jobs, 6 stones, 4 certs, $25,000 value). No new seed needed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Refactor verified green. Shipment #3 (id=6a158b66f659ec22e7d8da27, pending, 3 jobs) is still the primary regression fixture. Cancelled shipment #1 (id=69ee00b297c8af423e09ae17) is hidden by default until shipments-show-completed-toggle is on. Auth uses sessionStorage 'auth-storage' (zustand persist with sessionStorage, NOT localStorage). To exercise FileViewerDialog at runtime in a future iteration, first upload a certificate scan via verbal-findings Upload Scan or a signed memo via upload-memo-shipment-button on a job, then click View Scan / View Memo."
+}
