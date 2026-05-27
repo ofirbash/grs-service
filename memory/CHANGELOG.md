@@ -5,6 +5,22 @@
 
 ---
 
+## Feb 25, 2026 — Session-expired bounce was broken (URL changed, content didn't)
+
+User reported on production: clicking around an idle dashboard would set the URL to `/login?reason=expired` but the dashboard view stayed put, showing empty data. Every API call kept returning 401 in a silent loop.
+
+### Root cause
+`lib/api.ts` interceptor cleared `sessionStorage['token']` (via `clearToken()`) but **never cleared the zustand-persisted `sessionStorage['auth-storage']`** which still held `{isAuthenticated: true, token: <stale>, user: <stale>}`. Setting `window.location.href = '/login?reason=expired'` triggered a full reload — and on reload zustand rehydrated as authenticated, so `dashboard/layout.tsx`'s auth-gate (`if (mounted && !isAuthenticated) router.replace('/login')`) skipped the redirect. The dashboard tree kept rendering while every fetch 401'd.
+
+### Fix
+- Interceptor now also calls `useAuthStore.getState().logout()` which sets `isAuthenticated: false` in the in-memory store AND persists the cleared state to `auth-storage`. Falls back to a raw `sessionStorage.removeItem('auth-storage')` if zustand isn't initialised (defensive).
+- Replaced `window.location.href = ...` with `window.location.replace(...)` so the protected URL doesn't sit in browser history — no back-button trap into the now-unauthorized page.
+
+Verified end-to-end by testing agent iter-33.
+
+---
+
+
 ## Feb 25, 2026 — Shipments monolith → 7-component extraction (P0 refactor)
 
 `shipments/page.tsx` had grown to 2317 lines with 8 inline `<Dialog>` blocks and 47 `useState` hooks — flagged as the #1 maintainability pain point. Extracted every dialog into its own presentational component under `shipments/_components/`. **Zero behaviour change**; testing agent iter-32 confirmed 100% pass on the full regression suite.
