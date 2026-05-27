@@ -1,0 +1,25 @@
+{
+  "summary": "Verified the session-expired interceptor fix in /app/frontend/src/lib/api.ts. After tampering the JWT token while zustand auth-storage remained authenticated, navigation to /dashboard/jobs now (a) full-redirects to /login (URL + visible content), (b) clears the 'token' sessionStorage key, (c) writes isAuthenticated:false into auth-storage, and (d) renders the session-expired-banner. Regression: normal login still navigates to dashboard & renders sidebar; plain /login shows no banner.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "api.ts interceptor now correctly calls useAuthStore.getState().logout() before window.location.replace('/login?reason=expired') — both sessionStorage 'token' and zustand 'auth-storage' isAuthenticated flag get reset, eliminating the rehydration loop that caused the bug.",
+    "Using window.location.replace() (instead of href =) avoids leaving the protected route in browser history — back button no longer returns user to the now-unauthorized dashboard. Good fix.",
+    "Consider de-duping concurrent 401s with a module-level boolean (e.g., 'isRedirecting') so that multiple in-flight requests don't each fire logout()+replace() — currently logout() is idempotent so it's fine, but the multiple replace() calls show up in browser dev tools as noise.",
+    "The looksLikeMissingAuth guard (treat 403 only when detail matches /not authenticated|invalid authentication|missing|token/i) correctly avoids redirect on role-based 403s like 'Admin access required'. Code-verified, not runtime-verified (would require a non-admin user)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% on bug-fix verification (10/11 assertions; the 1 failing assertion was a test pre-condition check on auth-storage serialization format, not the fix itself — actual post-redirect state was correct)"},
+  "test_credentials": "admin@bashari.com / admin123 (super_admin). TURNSTILE_SECRET_KEY was temporarily blanked in /app/backend/.env during the run and RESTORED to 0x4AAAAAADE3zaagPiHzIFhauOwCqpNvlCk afterward (verified).",
+  "seed_data_creation": "None. Used in-browser fetch() to /api/auth/login to obtain a real JWT, then seeded sessionStorage with token + a zustand-persist-shaped 'auth-storage' object containing isAuthenticated:true to exactly reproduce the production bug scenario. Then tampered the token and navigated to /dashboard/jobs.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Frontend login is gated by Cloudflare Turnstile which does NOT auto-resolve in headless playwright. To login programmatically: (1) blank TURNSTILE_SECRET_KEY in /app/backend/.env + restart backend, (2) inside the browser context call fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,website:''})}) to obtain access_token, (3) seed sessionStorage.token plus sessionStorage['auth-storage']=JSON.stringify({state:{token,user,isAuthenticated:true},version:0}), (4) navigate. ALWAYS restore TURNSTILE_SECRET_KEY afterward (value: 0x4AAAAAADE3zaagPiHzIFhauOwCqpNvlCk).",
+  "rca_of_the_issue": "BUG RCA — original interceptor in /app/frontend/src/lib/api.ts only called clearToken() which removes sessionStorage['token'], but the zustand persist key 'auth-storage' (sessionStorage) still held {isAuthenticated:true,...}. window.location.href='/login?reason=expired' triggered a full reload; on reload zustand rehydrated from stale auth-storage as authenticated, so dashboard/layout.tsx's auth-gate (`if (mounted && !isAuthenticated) router.replace('/login')`) skipped the redirect. Meanwhile Next.js soft-routing already had the user on /dashboard component tree which kept rendering but every API call returned 401 → 'empty dashboard, URL says /login' symptom. FIX — interceptor now calls useAuthStore.getState().logout() (which sets isAuthenticated:false in the store AND persists to auth-storage) BEFORE window.location.replace('/login?reason=expired'). The replace() (vs href=) also removes the protected URL from browser history. Verified working: post-fix auth-storage = {state:{token:null,user:null,isAuthenticated:false},version:0}, login card visible, sidebar NOT visible, session-expired-banner visible."
+}

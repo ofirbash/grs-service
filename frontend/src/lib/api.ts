@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getToken, clearToken } from './tokenStorage';
+import { useAuthStore } from './store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -59,9 +60,33 @@ api.interceptors.response.use(
         /not authenticated|invalid authentication|missing|token/i.test(detail));
 
     if (looksLikeMissingAuth && !isAuthEndpoint && !onLoginPage) {
+      // Clear BOTH layers of auth state.
+      //
+      // - `clearToken()` wipes the raw `'token'` key from sessionStorage
+      //   (used by the request interceptor's `getToken()`).
+      // - `useAuthStore.getState().logout()` resets the in-memory zustand
+      //   store AND its persisted `'auth-storage'` copy in sessionStorage —
+      //   which is what `DashboardLayout` reads from to decide whether to
+      //   redirect to `/login`. Forgetting this step leaves the dashboard
+      //   thinking the user is still authenticated after a full page
+      //   reload, so the layout skips the auth-gate redirect and the user
+      //   ends up staring at an empty dashboard with `/login?reason=expired`
+      //   in the URL bar (reported by an admin Feb 25 2026).
       clearToken();
-      // Tell the login page why the user got bounced so it can show a banner.
-      window.location.href = '/login?reason=expired';
+      try {
+        useAuthStore.getState().logout();
+      } catch {
+        // Defensive: if zustand isn't initialised for any reason, fall back
+        // to a raw sessionStorage wipe so the rehydrate-on-reload step
+        // can't restore stale `isAuthenticated: true`.
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.removeItem('auth-storage');
+        }
+      }
+      // `replace`, not `href = ...`, so we don't leave the protected route
+      // sitting in browser history (back-button trap). Tells the login page
+      // to show the "session expired" banner.
+      window.location.replace('/login?reason=expired');
     }
     return Promise.reject(error);
   }
