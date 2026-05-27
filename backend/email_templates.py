@@ -6,6 +6,8 @@ Bashari Lab-Direct experience across every touchpoint.
 
 import os
 
+from jobs_helpers import physical_stone_count
+
 # ---------------------------------------------------------------------------
 # Brand / company constants (kept in one place so the display remains
 # consistent across Print, Email and SMS templates).
@@ -26,7 +28,7 @@ COMPANY_ADDRESS = (
     "Israel Diamond Exchange, Macabbi bld. 23-42, 1 Jabotinsky st. 5252001, Ramat-Gan"
 )
 COMPANY_PHONES = ["+972-3-7521295", "+972-54-2989805"]
-COMPANY_EMAIL = "grs-il@bashds.com"
+COMPANY_EMAIL = "lab@bashari.co"
 COMPANY_VAT = "513180083"
 LOGO_URL = "https://customer-assets.emergentagent.com/job_777624e9-9d3b-43c3-b65b-05602d9f9f7d/artifacts/cpw6x0ub_bashari%20logo-square%20copy.jpg"
 
@@ -80,7 +82,7 @@ def _footer_html() -> str:
           <div>{COMPANY_ADDRESS}</div>
           <div>{phones}</div>
           <div><a href="mailto:{COMPANY_EMAIL}" style="color: {BRAND_NAVY}; text-decoration: none;">{COMPANY_EMAIL}</a> &nbsp;·&nbsp; VAT {COMPANY_VAT}</div>
-          <div style="margin-top: 10px; color: #a1a1aa; font-size: 10px;">This is an automated message from {COMPANY_DISPLAY_NAME}. Please do not reply to this email — use the contact details above.</div>
+          <div style="margin-top: 10px; color: #71717a; font-size: 11px;">Have a question? You can reply directly to this email — we're happy to help.</div>
         </td>
       </tr>
     </table>
@@ -104,6 +106,23 @@ def _cta_button(label: str, url: str) -> str:
 
 
 def _job_meta_pill(job: dict) -> str:
+    # Compute counts from the active (non-cancelled) stone rows so the pill
+    # respects soft-cancellation. We deliberately don't trust the stored
+    # job.total_stones / job.total_certificates because email previews can be
+    # rendered before recompute_job_totals() has run after a stone edit.
+    #
+    # `physical_stone_count` handles parcels: a parcel row with stone_count=10
+    # contributes 10 to total_stones but 1 to total_certificates. Without this
+    # distinction a job with a 10-stone parcel was previously emailed as
+    # "Stones: 1" (one row) instead of the real "10 stones · 1 certificate"
+    # — reported by an admin Feb 25 2026 (job #512).
+    active_stones = [s for s in job.get('stones', []) if not s.get('cancelled')]
+    total_stones = sum(physical_stone_count(s) for s in active_stones)
+    total_certs = len(active_stones)
+    # Singular vs plural so "1 stone · 1 certificate" doesn't read as a typo.
+    stones_label = "stone" if total_stones == 1 else "stones"
+    certs_label = "certificate" if total_certs == 1 else "certificates"
+    counts_html = f"{total_stones} {stones_label} &middot; {total_certs} {certs_label}"
     return f"""
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0 24px; background: {BG_SOFT}; border-radius: 8px;">
       <tr>
@@ -112,7 +131,7 @@ def _job_meta_pill(job: dict) -> str:
             <tr>
               <td style="padding: 4px 0;"><span style="color: {TEXT_MUTED}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;">Job</span><br/><strong style="color: {BRAND_NAVY}; font-size: 14px;">#{job.get('job_number', 'N/A')}</strong></td>
               <td style="padding: 4px 0;"><span style="color: {TEXT_MUTED}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;">Service</span><br/><strong style="color: {BRAND_NAVY}; font-size: 13px;">{job.get('service_type', 'Standard')}</strong></td>
-              <td style="padding: 4px 0;"><span style="color: {TEXT_MUTED}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;">Stones</span><br/><strong style="color: {BRAND_NAVY}; font-size: 13px;">{len([s for s in job.get('stones', []) if not s.get('cancelled')])}</strong></td>
+              <td style="padding: 4px 0;"><span style="color: {TEXT_MUTED}; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px;">Items</span><br/><strong style="color: {BRAND_NAVY}; font-size: 13px;">{counts_html}</strong></td>
             </tr>
           </table>
         </td>
@@ -375,7 +394,7 @@ def _muted_note(text: str) -> str:
 
 def _render_stones_accepted(ctx: dict) -> tuple:
     job = ctx["job"]
-    subject = f"Job #{ctx['job_number']} · Stones received at the lab"
+    subject = f"Job #{ctx['job_number']} · Stones received"
     body = (
         _heading("Stones received")
         + ctx["greeting"]
@@ -385,7 +404,6 @@ def _render_stones_accepted(ctx: dict) -> tuple:
         + _section_h3("Stones received")
         + generate_stones_table_html(ctx["stones"], include_fees=True)
         + _cta_button("View Job in Portal", ctx["portal_link"])
-        + _muted_note("The signed Memo-In document is attached to this email.")
     )
     return subject, body
 

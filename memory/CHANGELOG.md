@@ -5,6 +5,23 @@
 
 ---
 
+## Feb 25, 2026 — Email template fixes (parcel counts, subject, footer)
+
+Admin reported five issues against the "Stones received" email for job #512:
+
+### Fixes in `backend/email_templates.py`
+1. **Subject** — `Job #N · Stones received at the lab` → `Job #N · Stones received`.
+2. **Meta pill (shared across ALL job emails)** — was rendering `Stones: 1` for a job with one parcel covering 10 physical stones (i.e. counting *rows* not *stones*). Now uses `jobs_helpers.physical_stone_count()` to expand parcels: shows `10 stones · 1 certificate`. Singular/plural labels honored, cancelled stones still ignored. Verified with 6 unit cases in `tests/test_email_template_fixes.py` (single, multi, parcel-of-10, mixed parcel+singletons, cancellations).
+3. **Stones-accepted body** — removed the line `"The signed Memo-In document is attached to this email."` We don't actually attach a memo; the line was misleading.
+4. **Footer email** — `grs-il@bashds.com` → `lab@bashari.co`.
+5. **Footer disclaimer** — replaced the "This is an automated message... please do not reply" line with a friendlier `Have a question? You can reply directly to this email — we're happy to help.`
+
+### Tests
+- `/app/backend/tests/test_email_template_fixes.py` — 9 pytests, all pass.
+
+---
+
+
 ## Feb 25, 2026 — Session-expired bounce was broken (URL changed, content didn't)
 
 User reported on production: clicking around an idle dashboard would set the URL to `/login?reason=expired` but the dashboard view stayed put, showing empty data. Every API call kept returning 401 in a silent loop.
