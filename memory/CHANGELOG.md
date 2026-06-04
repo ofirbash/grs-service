@@ -5,6 +5,29 @@
 
 ---
 
+## Feb 25, 2026 — "Send Verification Code" silently failed (Resend domain not verified)
+
+Admin reported: clicking "Send Verification Code" on the Request Access modal showed a green Turnstile checkmark but no email arrived. Investigation: Resend was rejecting every send with `The bashds.com domain is not verified` because the configured `SENDER_EMAIL=notifications@bashds.com` belonged to an unverified domain. Backend caught the exception, logged it, and returned `{ok: true, email_sent: false}` → the frontend treated that as success and moved to the OTP step.
+
+### Fixes
+**Backend (`/app/backend/routes/access_requests.py`)**
+- New-email path now raises HTTP 502 (`"We couldn't send the verification email right now... contact lab@bashari.co"`) when `_send_email` returns False. Frontend can now surface the failure instead of silently proceeding.
+- Existing-email path (silent password-reset) still returns the "already_registered" shape unchanged — privacy-by-design must not leak account existence.
+
+**Frontend (`/app/frontend/src/app/_landing/LandingPage.tsx`)**
+- OTP step now shows: *"We've emailed a 6-digit code to {email}. It may take a minute — please also check your spam / junk folder."*
+- New **"Didn't get the code? Resend it"** action (`data-testid='ra-resend-otp-button'`) that re-fires the same `send-otp` call. Confirmation message appears in the same banner slot. Backend rotates the OTP doc so previously-issued codes are invalidated.
+- Error handler unchanged in behaviour but now reachable: the dialog stays on the form step on 502 and displays the backend's detail message.
+
+**Env (`/app/backend/.env`)**
+- `SENDER_EMAIL`: `notifications@bashds.com` → `lab@bashari.co`. **User must verify `bashari.co` in the Resend dashboard** before production redeploy — DNS records (SPF/DKIM) for the domain.
+
+### Tests
+- `/app/backend/tests/test_access_request_otp_failure.py` — 3 pytests (502 on send failure, 200 on send success, 200 still on existing-email duplicate path). All pass.
+
+---
+
+
 ## Feb 25, 2026 — Email template fixes (parcel counts, subject, footer)
 
 Admin reported five issues against the "Stones received" email for job #512:

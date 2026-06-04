@@ -196,7 +196,22 @@ async def send_otp(payload: SendOtpRequest, request: Request):
         upsert=True,
     )
     sent = await _send_email(email, "Your Bashari Lab-Direct access code", _otp_email_html(name, otp))
-    return {"ok": True, "already_registered": False, "email_sent": sent}
+    if not sent:
+        # Don't let the UI claim "Code sent — check your inbox" when Resend
+        # actually rejected the send (e.g. unverified sender domain, or the
+        # RESEND_API_KEY is missing). Reported by an admin Feb 25 2026:
+        # the dialog showed "Success!" but no email ever arrived because
+        # bashds.com wasn't verified in Resend. A 502 here lets the frontend
+        # show an actionable error instead of moving to the OTP step.
+        logger.error(
+            "Access-request OTP NOT delivered for %s (Resend rejected the send)", email,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="We couldn't send the verification email right now. "
+                   "Please try again in a moment, or contact lab@bashari.co.",
+        )
+    return {"ok": True, "already_registered": False, "email_sent": True}
 
 
 @router.post("/access-requests/verify-and-submit")

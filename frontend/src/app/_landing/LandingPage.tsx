@@ -364,8 +364,38 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setError(e.response?.data?.detail || 'Could not send verification code. Please try again.');
+      // Single-use Turnstile token — reset for the retry.
       turnstileRef.current?.reset();
       setTurnstileToken('');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /** "Didn't get the code?" path on the OTP step. Reuses the same backend
+   *  endpoint as the initial send (server idempotently overwrites the
+   *  pending OTP row, so the old code is invalidated and a fresh code is
+   *  emailed). We DON'T re-validate Turnstile here because the user
+   *  already passed it on the form step — the backend's per-email rate
+   *  limit (one new OTP per email per 30 min, plus OTP_MAX_ATTEMPTS=5 on
+   *  the verification side) is what prevents abuse. */
+  const handleResendOtp = async () => {
+    setError('');
+    setSubmitting(true);
+    try {
+      await accessRequestApi.sendOtp({
+        full_name: form.full_name.trim(),
+        company: form.company.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        turnstile_token: turnstileToken || undefined,
+        website: form.website,
+      });
+      // Show a transient confirmation in the same slot the error uses.
+      setError('A fresh code has been emailed. Please also check your spam folder.');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setError(e.response?.data?.detail || 'Could not resend the verification code. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -538,6 +568,10 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
 
         {step === 'otp' && (
           <form onSubmit={handleVerifyAndSubmit} className="space-y-4 pt-1">
+            <p className="text-xs text-neutral-700">
+              We&apos;ve emailed a 6-digit code to <strong>{form.email}</strong>.
+              It may take a minute — please also check your spam / junk folder.
+            </p>
             <div>
               <Label htmlFor="ra-otp" className="text-xs text-black font-medium">6-digit code</Label>
               <Input
@@ -552,6 +586,21 @@ function RequestAccessDialog({ open, onOpenChange }: RequestAccessDialogProps) {
                 data-testid="ra-otp-input"
                 autoFocus
               />
+              {/* "Didn't get the code?" — re-fires the same send-otp call.
+                  Backend rotates the pending OTP doc, so any code that
+                  actually did arrive late becomes invalid; honest tradeoff. */}
+              <div className="mt-2 text-xs text-neutral-600">
+                Didn&apos;t get the code?{' '}
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={submitting}
+                  className="font-medium text-black underline underline-offset-2 disabled:opacity-50"
+                  data-testid="ra-resend-otp-button"
+                >
+                  Resend it
+                </button>
+              </div>
             </div>
 
             {error && (
