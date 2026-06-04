@@ -23,6 +23,7 @@ Flow:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import secrets
@@ -90,14 +91,32 @@ async def _send_email(to: str, subject: str, html: str) -> bool:
         logger.info(f"[MOCK EMAIL] to={to} subject={subject!r}")
         return False
     try:
-        resend.Emails.send({
-            "from": SENDER_EMAIL,
-            "reply_to": SENDER_EMAIL,
-            "to": [to],
-            "subject": subject,
-            "html": html,
-        })
+        # `resend.Emails.send` is a SYNCHRONOUS requests-based call. Calling
+        # it directly from an async route blocks the event loop — which on
+        # production caused Cloudflare to return a 520 "origin returned an
+        # invalid or incomplete response" page (the request was held long
+        # enough for Cloudflare's proxy timeout to kick in). Reported
+        # Feb 25 2026 right after redeploy. Wrapping in `asyncio.to_thread`
+        # + a hard timeout keeps the event loop responsive and makes a
+        # slow/stuck Resend call fail fast with a clean 502 from our route
+        # instead of a malformed origin response from CF.
+        await asyncio.wait_for(
+            asyncio.to_thread(
+                resend.Emails.send,
+                {
+                    "from": SENDER_EMAIL,
+                    "reply_to": SENDER_EMAIL,
+                    "to": [to],
+                    "subject": subject,
+                    "html": html,
+                },
+            ),
+            timeout=15.0,
+        )
         return True
+    except asyncio.TimeoutError:
+        logger.error("Email to %s timed out after 15s (Resend slow/unreachable)", to)
+        return False
     except Exception as e:
         logger.error(f"Email to {to} failed: {e}")
         return False

@@ -16,7 +16,8 @@ _None currently._
   3. `<JobDetailDialog>` ⏳ extracted for shipments (`shipments/_components/JobDetailDialog.tsx`); jobs/page.tsx still has its own inline copy. Next step: lift the jobs version into a shared `components/dialogs/JobDetailDialog.tsx` with a `mode: 'admin' | 'shipment-view'` prop.
   4. `<StoneEditDialog>` ⏳ extracted for shipments; same consolidation pending with jobs/page.tsx + stones/page.tsx.
 - [ ] **Bulk notify clients per shipment.** Admin action: pick a shipment → send the same notification (intake / dispatched / delivered) to every client whose jobs are contained in it.
-- [ ] **Domain verification for Resend email** (production).
+- [ ] **Apply the `asyncio.to_thread` wrapper to all Resend sites.** Feb 25 2026 — fixed in `routes/access_requests.py` only. Same synchronous-SDK-in-async-route pattern still exists in `routes/manual_payments.py`, `routes/notifications.py` (2 sites), `routes/clients.py`, `routes/auth_routes.py` (2 sites). Any slow Resend call from those paths can still block the event loop → Cloudflare 520. Extract a shared `lib/email.py::send_email_async()` helper and replace all call sites.
+- [ ] **Domain verification for Resend email** ✅ done Feb 25 2026 — `bashari.co` is now verified in Resend. Sender is `lab@bashari.co`.
 - [ ] **Legacy data migration from CSV/database** (if/when source data is available).
 - [ ] **Printable shipment document** (similar to job memo).
 

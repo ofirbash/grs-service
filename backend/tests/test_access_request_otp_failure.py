@@ -5,11 +5,18 @@ sender domain), the backend returned `{ok:true, email_sent:false}` and the
 landing-page modal moved the user to the OTP step claiming "Success!" even
 though no email had arrived. Fix: the route now raises HTTP 502 with a
 user-friendly detail message when `_send_email` returns False.
+
+Second bug (Feb 25 2026, same day): after the above fix shipped, production
+showed Cloudflare 520s when the form was submitted. Root cause: the
+synchronous `resend.Emails.send` call was blocking the asyncio event loop
+long enough that Cloudflare's edge timed out before the origin responded.
+Fix: wrap the SDK call in `asyncio.to_thread` with a 15s hard timeout.
 """
 
 from __future__ import annotations
 
 import asyncio
+import time
 from unittest.mock import patch
 
 from fastapi import HTTPException
@@ -125,3 +132,72 @@ def test_duplicate_email_path_still_returns_ok_silently():
         result = _run(ar.send_otp(_payload("existing@example.com"), _StubRequest()))
 
     assert result == {"ok": True, "already_registered": True}
+
+
+# ---- New: _send_email no longer blocks the event loop --------------------
+
+
+def test_send_email_offloads_resend_sdk_to_thread():
+    """A slow synchronous Resend call must NOT block the asyncio loop.
+    We simulate a 0.5s `resend.Emails.send` and run TWO `_send_email`s
+    concurrently — total elapsed should be ~0.5s (parallel), not ~1.0s
+    (sequential), proving the call was offloaded to a worker thread.
+    """
+    def slow_resend_send(*_a, **_k):
+        time.sleep(0.5)
+        return {"id": "stub"}
+
+    class _FakeResendModule:
+        api_key = "test-key"
+
+        class Emails:
+            send = staticmethod(slow_resend_send)
+
+    async def run_two_in_parallel():
+        await asyncio.gather(
+            ar._send_email("a@example.com", "s", "<p>x</p>"),
+            ar._send_email("b@example.com", "s", "<p>x</p>"),
+        )
+
+    with patch.object(ar, "resend", _FakeResendModule):
+        t0 = time.monotonic()
+        asyncio.get_event_loop().run_until_complete(run_two_in_parallel())
+        elapsed = time.monotonic() - t0
+
+    # Generous upper bound to keep CI flake-free, but well under the 1s
+    # baseline that sequential execution would hit.
+    assert elapsed < 0.9, (
+        f"_send_email serialised the Resend SDK call ({elapsed:.2f}s for 2x0.5s sends); "
+        "it should offload to a worker thread."
+    )
+
+
+def test_send_email_returns_false_on_timeout():
+    """A Resend SDK call that hangs past the 15s budget must return False
+    (which lets the route return a clean 502 instead of letting Cloudflare
+    time out the whole request)."""
+    def hanging_send(*_a, **_k):
+        time.sleep(30)  # would exceed the 15s wrapper timeout
+        return {"id": "stub"}
+
+    class _FakeResendModule:
+        api_key = "test-key"
+
+        class Emails:
+            send = staticmethod(hanging_send)
+
+    # Override the timeout to 0.2s for the test so we don't actually wait 15s.
+    async def run():
+        # Patch asyncio.wait_for to use a tiny timeout regardless of what
+        # _send_email asked for. Cleaner than reaching into the module.
+        orig_wait_for = asyncio.wait_for
+
+        async def fast_wait_for(coro, timeout):  # noqa: ANN001
+            return await orig_wait_for(coro, timeout=0.2)
+
+        with patch.object(asyncio, "wait_for", fast_wait_for):
+            return await ar._send_email("c@example.com", "s", "<p>x</p>")
+
+    with patch.object(ar, "resend", _FakeResendModule):
+        sent = asyncio.get_event_loop().run_until_complete(run())
+    assert sent is False

@@ -5,6 +5,29 @@
 
 ---
 
+## Feb 25, 2026 — Cloudflare 520 on access-request submission (event-loop blocking)
+
+Right after redeploying the previous fix, production started returning a Cloudflare error: *"The origin web server returned an invalid or incomplete response to Cloudflare."* The user couldn't get past step 1 of the Request Access form.
+
+### Root cause
+`routes/access_requests.py::_send_email` was calling `resend.Emails.send(...)` — a **synchronous** requests-based SDK method — directly from an `async def` FastAPI route. While Resend was processing the send (first call to the freshly-verified `bashari.co` domain was apparently slow), the entire asyncio event loop was blocked. Cloudflare's edge proxy hit its origin-timeout window before any response came back and served its own 520 page. The 502 fix shipped earlier in the day couldn't help because the route never got a chance to return.
+
+### Fix
+- Wrapped the SDK call in `asyncio.to_thread(...)` + `asyncio.wait_for(timeout=15.0)`. The loop is now free to handle other requests while Resend is running, and a stuck Resend call now fails after 15s with a clean 502 from our own route instead of a 520 from Cloudflare.
+- Added `import asyncio` and a `TimeoutError` handler that logs `"Email to X timed out after 15s"` and returns `False` (which the route turns into HTTP 502 with the friendly retry message).
+
+### Scope note
+Five other backend files have the same synchronous-Resend-in-async-route pattern: `manual_payments.py`, `notifications.py` (2 sites), `clients.py`, `auth_routes.py` (2 sites). They weren't touched in this fix because they weren't reported broken and the scope was kept tight. Tracked in ROADMAP as P1 cleanup so a future flaky send doesn't take down the relevant route. Same one-line fix applies to each.
+
+### Tests
+- `/app/backend/tests/test_access_request_otp_failure.py` — added 2 pytests:
+  - `test_send_email_offloads_resend_sdk_to_thread` — runs 2 simulated 0.5s sends concurrently, asserts total < 0.9s (proves to_thread is in effect).
+  - `test_send_email_returns_false_on_timeout` — simulates a hanging Resend call with a fast-track 0.2s timeout, asserts `_send_email` returns False.
+- All 5 tests in the file pass.
+
+---
+
+
 ## Feb 25, 2026 — "Send Verification Code" silently failed (Resend domain not verified)
 
 Admin reported: clicking "Send Verification Code" on the Request Access modal showed a green Turnstile checkmark but no email arrived. Investigation: Resend was rejecting every send with `The bashds.com domain is not verified` because the configured `SENDER_EMAIL=notifications@bashds.com` belonged to an unverified domain. Backend caught the exception, logged it, and returned `{ok: true, email_sent: false}` → the frontend treated that as success and moved to the OTP step.
