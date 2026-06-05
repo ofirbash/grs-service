@@ -159,7 +159,11 @@ def test_send_email_offloads_resend_sdk_to_thread():
             ar._send_email("b@example.com", "s", "<p>x</p>"),
         )
 
-    with patch.object(ar, "resend", _FakeResendModule):
+    # The Resend SDK now lives behind the shared email_async helper, so we
+    # patch the module the helper imports from rather than the route module.
+    from email_async import resend as eaa_resend_mod  # noqa: F401
+
+    with patch("email_async.resend", _FakeResendModule):
         t0 = time.monotonic()
         asyncio.get_event_loop().run_until_complete(run_two_in_parallel())
         elapsed = time.monotonic() - t0
@@ -198,6 +202,6 @@ def test_send_email_returns_false_on_timeout():
         with patch.object(asyncio, "wait_for", fast_wait_for):
             return await ar._send_email("c@example.com", "s", "<p>x</p>")
 
-    with patch.object(ar, "resend", _FakeResendModule):
+    with patch("email_async.resend", _FakeResendModule):
         sent = asyncio.get_event_loop().run_until_complete(run())
     assert sent is False

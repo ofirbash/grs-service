@@ -10,6 +10,7 @@ import resend
 from database import db
 from auth import get_current_user, require_admin
 from models import SendEmailRequest
+from email_async import send_email_async
 from email_templates import build_notification_email_html
 from sms import send_sms, check_balance, build_sms_message
 
@@ -200,13 +201,23 @@ async def send_notification_email(
             if attachments_for_email:
                 email_params["attachments"] = attachments_for_email
 
-            response = resend.Emails.send(email_params)
+            response = await send_email_async(email_params, context="notifications-single")
+            if response is None:
+                notification_log["status"] = "failed"
+                notification_log["error"] = "Resend send failed (see logs)"
+                logger.error(f"Failed to send email to {request.recipient_email}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to send email — please try again. If the problem persists, contact lab@bashari.co.",
+                )
 
             notification_log["status"] = "sent"
-            notification_log["resend_id"] = response.get("id") if isinstance(response, dict) else str(response)
+            notification_log["resend_id"] = response.get("id")
 
             logger.info(f"Email sent successfully to {request.recipient_email} - ID: {notification_log['resend_id']}")
 
+        except HTTPException:
+            raise
         except Exception as e:
             notification_log["status"] = "failed"
             notification_log["error"] = str(e)
@@ -515,15 +526,20 @@ async def send_welcome_emails_bulk(payload: WelcomeBulkRequest, user: dict = Dep
                     if branch and branch.get("email"):
                         branch_sender = f"{branch.get('sender_name', branch.get('name', 'GRS'))} <{branch['email']}>"
 
-                response = resend.Emails.send({
-                    "from": branch_sender,
-                    "reply_to": branch_sender,
-                    "to": [recipient],
-                    "subject": subject,
-                    "html": html_body,
-                })
+                response = await send_email_async(
+                    {
+                        "from": branch_sender,
+                        "reply_to": branch_sender,
+                        "to": [recipient],
+                        "subject": subject,
+                        "html": html_body,
+                    },
+                    context="notifications-bulk",
+                )
+                if response is None:
+                    raise Exception("Resend send failed (see logs)")
                 log_entry["status"] = "sent"
-                log_entry["resend_id"] = response.get("id") if isinstance(response, dict) else str(response)
+                log_entry["resend_id"] = response.get("id")
                 results.append({
                     "client_id": raw_id,
                     "name": client.get("name"),

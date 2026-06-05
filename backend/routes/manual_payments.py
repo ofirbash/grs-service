@@ -15,6 +15,7 @@ import resend
 
 from database import db
 from auth import require_admin, get_current_user
+from email_async import send_email_async
 from email_templates import build_notification_email_html
 from sms import send_sms, build_sms_message
 
@@ -87,19 +88,25 @@ async def _send_payment_email(job_for_template: dict, client: dict) -> dict:
         subject, html_body = build_notification_email_html(
             "manual_payment_receipt", job_for_template, client
         )
-        if not resend.api_key:
-            logger.info(f"[MOCK PAYMENT EMAIL] {subject} → {client['email']}")
-            return {"status": "mocked", "recipient": client["email"]}
-        response = resend.Emails.send({
-            "from": SENDER_EMAIL,
-            "reply_to": SENDER_EMAIL,
-            "to": [client["email"]],
-            "subject": subject,
-            "html": html_body,
-        })
+        response = await send_email_async(
+            {
+                "from": SENDER_EMAIL,
+                "reply_to": SENDER_EMAIL,
+                "to": [client["email"]],
+                "subject": subject,
+                "html": html_body,
+            },
+            context="payment-receipt",
+        )
+        if response is None:
+            # Helper already logged; treat as soft failure (don't block the
+            # payment recording flow on a missed email).
+            if not resend.api_key:
+                return {"status": "mocked", "recipient": client["email"]}
+            return {"status": "failed", "error": "Resend send failed (see logs)"}
         return {
             "status": "sent",
-            "resend_id": response.get("id") if isinstance(response, dict) else str(response),
+            "resend_id": response.get("id"),
             "recipient": client["email"],
         }
     except Exception as e:

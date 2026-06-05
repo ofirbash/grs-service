@@ -5,6 +5,39 @@
 
 ---
 
+## Feb 25, 2026 — All 6 Resend sites migrated to shared async helper
+
+Extends the earlier same-day fix that only touched `routes/access_requests.py`. Same root cause (synchronous `resend.Emails.send` blocking the asyncio loop → Cloudflare 520 on slow Resend responses) applied to **6** routes; today we consolidated them all behind one helper so future call sites can't reintroduce the bug.
+
+### New module: `/app/backend/email_async.py`
+- `send_email_async(params, *, timeout=15.0, context="email") -> Optional[dict]` — wraps `resend.Emails.send` in `asyncio.to_thread` + `asyncio.wait_for`. Returns the Resend response dict on success, `None` on any failure (timeout / SDK exception / missing api_key).
+- `context` string is included in log lines so production logs are greppable by subsystem (`otp`, `welcome`, `payment-receipt`, etc.).
+- Default 15s ceiling — well under Cloudflare's ~30s edge timeout.
+
+### Migrated sites (5 newly migrated, 1 already done)
+- `routes/access_requests.py::_send_email` — already used `to_thread` directly; refactored to delegate to the helper. `import resend` no longer needed in this module.
+- `routes/manual_payments.py::_send_payment_email` — payment receipt path.
+- `routes/clients.py::create_client` — client welcome / setup-password email.
+- `routes/notifications.py` (×2) — single send + bulk per-client send. Bulk-send loop still continues on per-client failure (preserved best-effort semantics).
+- `routes/auth_routes.py` (×2) — admin-initiated password reset + public `/auth/forgot-password`.
+
+### Behavioural notes
+- Best-effort call sites (manual payments, bulk notifications, password resets, client welcome) preserved their previous "log + continue" semantics; they just no longer block the event loop while doing so.
+- The hard-failing site (OTP send) still raises HTTP 502 with the friendly message on `None`.
+- No public API contract changed.
+
+### Tests
+- `tests/test_email_async_helper.py` — 6 pytests (success, missing-key None, SDK exception, timeout, response coercion, concurrent parallelism).
+- `tests/test_access_request_otp_failure.py` — 5 pytests (updated 2 to patch `email_async.resend` since the SDK now lives behind the helper).
+- All 20 email-related tests pass: `python -m pytest tests/test_email_async_helper.py tests/test_access_request_otp_failure.py tests/test_email_template_fixes.py` → 20 passed.
+- Live smoke-test against the preview backend: `POST /api/access-requests/send-otp` returns HTTP 200, `email_sent: true`.
+
+### Verification before redeploy
+- `grep -rn "resend\.Emails\.send" /app/backend --include="*.py"` returns matches only inside `email_async.py` (the helper itself) and a doc-comment in the test file. No production route calls the SDK directly.
+
+---
+
+
 ## Feb 25, 2026 — Cloudflare 520 on access-request submission (event-loop blocking)
 
 Right after redeploying the previous fix, production started returning a Cloudflare error: *"The origin web server returned an invalid or incomplete response to Cloudflare."* The user couldn't get past step 1 of the Request Access form.

@@ -12,6 +12,7 @@ import logging
 import resend
 
 from database import db
+from email_async import send_email_async
 from auth import (
     get_password_hash, verify_password, create_access_token,
     get_current_user
@@ -450,11 +451,12 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
     email_sent = False
     try:
         if resend.api_key and reset_url:
-            resend.Emails.send({
-                "from": SENDER_EMAIL,
-                "to": [target["email"]],
-                "subject": "Bashari Lab-Direct - Password Reset",
-                "html": f"""
+            response = await send_email_async(
+                {
+                    "from": SENDER_EMAIL,
+                    "to": [target["email"]],
+                    "subject": "Bashari Lab-Direct - Password Reset",
+                    "html": f"""
                 <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
                     <h2 style="color:#141417;">Password Reset</h2>
                     <p>Hello {target.get('full_name', '')},</p>
@@ -463,9 +465,11 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
                     <a href="{reset_url}" style="display:inline-block;background:#141417;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0;">Reset Password</a>
                     <p style="color:#666;font-size:12px;">This link expires in 30 days.</p>
                 </div>
-                """
-            })
-            email_sent = True
+                """,
+                },
+                context="admin-reset",
+            )
+            email_sent = response is not None
     except Exception as e:
         logger.error(f"Failed to send reset email: {e}")
 
@@ -524,11 +528,12 @@ async def forgot_password(email: str = Body(..., embed=True)):
 
     try:
         if resend.api_key and reset_url:
-            resend.Emails.send({
-                "from": SENDER_EMAIL,
-                "to": [user["email"]],
-                "subject": "Bashari Lab-Direct - Password Reset",
-                "html": f"""
+            response = await send_email_async(
+                {
+                    "from": SENDER_EMAIL,
+                    "to": [user["email"]],
+                    "subject": "Bashari Lab-Direct - Password Reset",
+                    "html": f"""
                 <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px;">
                     <h2 style="color:#141417;">Password Reset</h2>
                     <p>Hello {user.get('full_name', '')},</p>
@@ -537,9 +542,12 @@ async def forgot_password(email: str = Body(..., embed=True)):
                     <a href="{reset_url}" style="display:inline-block;background:#141417;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;margin:16px 0;">Reset Password</a>
                     <p style="color:#666;font-size:12px;">If you didn't request this, you can safely ignore this email. This link expires in 30 days.</p>
                 </div>
-                """
-            })
-            logger.info(f"Password reset email sent to {user['email']}")
+                """,
+                },
+                context="forgot-password",
+            )
+            if response is not None:
+                logger.info(f"Password reset email sent to {user['email']}")
     except Exception as e:
         logger.error(f"Failed to send forgot-password email: {e}")
 

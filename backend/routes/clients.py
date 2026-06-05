@@ -10,6 +10,7 @@ import resend
 
 from database import db
 from auth import get_current_user, require_admin
+from email_async import send_email_async
 from models import ClientCreate, ClientUpdate, ClientResponse
 
 logger = logging.getLogger(__name__)
@@ -92,14 +93,20 @@ async def create_client(client: ClientCreate, user: dict = Depends(require_admin
                 wb_sender = welcome_branch.get("sender_name", welcome_branch.get("name", "GRS")) if welcome_branch else "GRS"
                 welcome_sender = f"{wb_sender} <{wb_email}>" if wb_email else SENDER_EMAIL
 
-                resend.Emails.send({
-                    "from": welcome_sender,
-                    "reply_to": welcome_sender,
-                    "to": [email_lower],
-                    "subject": "Welcome to Bashari Lab-Direct - Set Up Your Account",
-                    "html": html_body,
-                })
-                logger.info(f"Setup email sent to {email_lower}")
+                resp = await send_email_async(
+                    {
+                        "from": welcome_sender,
+                        "reply_to": welcome_sender,
+                        "to": [email_lower],
+                        "subject": "Welcome to Bashari Lab-Direct - Set Up Your Account",
+                        "html": html_body,
+                    },
+                    context="client-setup",
+                )
+                if resp is not None:
+                    logger.info(f"Setup email sent to {email_lower}")
+                # else: helper already logged the failure; we don't block
+                # client creation on a missed setup email.
             except Exception as e:
                 logger.error(f"Failed to send setup email to {email_lower}: {e}")
 
