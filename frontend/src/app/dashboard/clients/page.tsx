@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { clientsApi, branchesApi, authApi, notificationsApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
+import { usePendingAccessRequestsStore } from '@/lib/usePendingAccessRequests';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -360,8 +361,9 @@ export default function ClientsPage() {
             <Users className="h-4 w-4 mr-2" /> Clients
           </TabsTrigger>
           {isSuperAdmin && (
-            <TabsTrigger value="access-requests" data-testid="access-requests-tab-trigger">
+            <TabsTrigger value="access-requests" data-testid="access-requests-tab-trigger" className="relative">
               <Inbox className="h-4 w-4 mr-2" /> Access Requests
+              <AccessRequestsTabBadge />
             </TabsTrigger>
           )}
         </TabsList>
@@ -1148,3 +1150,19 @@ export default function ClientsPage() {
     </div>
   );
 }
+
+/** Inline red badge on the "Access Requests" TabsTrigger.
+ *  Reads from the same store the sidebar uses so they always agree. */
+function AccessRequestsTabBadge() {
+  const count = usePendingAccessRequestsStore((s) => s.count);
+  if (count <= 0) return null;
+  return (
+    <span
+      className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-red text-white text-[10px] font-semibold leading-none"
+      data-testid="access-requests-tab-badge"
+    >
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+

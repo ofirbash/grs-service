@@ -5,6 +5,36 @@
 
 ---
 
+## Feb 25, 2026 — Access-request admin notifications + sidebar/tab pending badge
+
+User asked: "Where does Request Access go?" Two gaps:
+1. Pending requests **did** save to MongoDB and **were** visible at `Dashboard → Clients → Access Requests` tab — but admins had no signal to know one had arrived.
+2. No notification email was sent to admins on submission.
+
+### Backend (`routes/access_requests.py`)
+- New constant `ADMIN_FIXED_INBOX = "lab@bashari.co"` — every notification fan-out includes this address in addition to every `role: super_admin` user, so the team is informed even when the super-admin list is empty.
+- New helpers `_new_request_admin_html(req, review_url)` (lean email body) and `_notify_admins_of_new_request(req_doc)` (fans out the send via the shared `send_email_async`).
+- `verify_and_submit` now fires `_notify_admins_of_new_request(doc)` immediately after the access_request row is inserted. Wrapped in try/except so a Resend failure on the notify path can't turn an accepted submission into a 5xx for the user.
+- CTA link: `{FRONTEND_URL}/dashboard/clients?tab=access-requests`.
+- New endpoint **`GET /api/access-requests/pending-count`** — returns `{count: N}` for the badge. Lightweight, doesn't load 500 rows on every dashboard render.
+
+### Frontend
+- New tiny zustand store `lib/usePendingAccessRequests.ts` exposing `count` + `refresh()` + `reset()`. Polled every 30 s from `dashboard/layout.tsx` whenever an admin is signed in.
+- **Sidebar "Clients" link badge** (`nav-clients-pending-badge`) — red pill with the count, white-on-red when active, repositions to corner when sidebar is collapsed. Hidden at zero.
+- **Tab badge** on the "Access Requests" `TabsTrigger` inside `clients/page.tsx` (`access-requests-tab-badge`) reads from the same store. After approve/reject inside the tab, `refreshPendingBadge()` runs to keep both visuals in sync.
+
+### Tests
+- `tests/test_access_request_admin_notify.py` — 4 new pytests:
+  - sends to super_admins + fixed inbox (3 recipients in fixture)
+  - notify failure does NOT 5xx the submission (row is still inserted)
+  - falls back to fixed-inbox-only when super_admin list is empty
+  - CTA renders the correct deep link
+- All 15 access-request + email-helper pytests pass: `python -m pytest tests/test_access_request_otp_failure.py tests/test_access_request_admin_notify.py tests/test_email_async_helper.py` → 15 passed.
+- Live smoke: `GET /api/access-requests/pending-count` returns 401 unauth, 200 `{count: N}` with admin token.
+
+---
+
+
 ## Feb 25, 2026 — All 6 Resend sites migrated to shared async helper
 
 Extends the earlier same-day fix that only touched `routes/access_requests.py`. Same root cause (synchronous `resend.Emails.send` blocking the asyncio loop → Cloudflare 520 on slow Resend responses) applied to **6** routes; today we consolidated them all behind one helper so future call sites can't reintroduce the bug.

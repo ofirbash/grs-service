@@ -207,6 +207,12 @@ export const accessRequestApi = {
       client_id: string | null;
     }>;
   },
+  pendingCount: async (): Promise<number> => {
+    // Lightweight endpoint specifically for the sidebar/tab badge — returns
+    // just the count, not the full row payload.
+    const response = await api.get('/access-requests/pending-count');
+    return (response.data?.count as number) || 0;
+  },
   approve: async (id: string) => {
     const response = await api.post(`/access-requests/${id}/approve`);
     return response.data;

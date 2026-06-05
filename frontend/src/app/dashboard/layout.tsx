@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuthStore, useSidebarStore, useBranchFilterStore } from '@/lib/store';
 import { branchesApi } from '@/lib/api';
+import { usePendingAccessRequestsStore } from '@/lib/usePendingAccessRequests';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -80,6 +81,19 @@ export default function DashboardLayout({
       branchesApi.getAll().then(setBranches).catch(console.error);
     }
   }, [mounted, isAuthenticated, isSuperAdmin]);
+
+  // Pending-access-requests badge: poll for the count whenever an admin
+  // is signed in. 30 s is the right cadence — new sign-ups are rare and
+  // we don't want the dashboard blinking the badge on every render.
+  const pendingAccessCount = usePendingAccessRequestsStore((s) => s.count);
+  const refreshPendingAccess = usePendingAccessRequestsStore((s) => s.refresh);
+  const isAdminLike = user?.role === 'super_admin' || user?.role === 'branch_admin';
+  useEffect(() => {
+    if (!mounted || !isAuthenticated || !isAdminLike) return;
+    refreshPendingAccess();
+    const id = setInterval(refreshPendingAccess, 30_000);
+    return () => clearInterval(id);
+  }, [mounted, isAuthenticated, isAdminLike, refreshPendingAccess]);
 
   // Auth gate for deep-link entry into the dashboard.
   //
@@ -158,12 +172,16 @@ export default function DashboardLayout({
             const isActive = item.href === '/dashboard' 
               ? pathname === '/dashboard' 
               : pathname === item.href || pathname.startsWith(item.href + '/');
+            // Show a red badge with the pending access-request count on the
+            // Clients link so admins can see new signups without drilling
+            // into the tab. Hidden when zero (don't visually shout for nothing).
+            const showAccessBadge = item.name === 'Clients' && pendingAccessCount > 0;
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm",
+                  "relative flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm",
                   isActive
                     ? "bg-brand-red text-white"
                     : "text-navy-300 hover:bg-navy-800 hover:text-white"
@@ -171,7 +189,19 @@ export default function DashboardLayout({
                 data-testid={`nav-${item.name.toLowerCase()}`}
               >
                 <item.icon className="h-4 w-4 flex-shrink-0" />
-                {!isCollapsed && <span>{item.name}</span>}
+                {!isCollapsed && <span className="flex-1">{item.name}</span>}
+                {showAccessBadge && (
+                  <span
+                    className={cn(
+                      "inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-red text-white text-[10px] font-semibold leading-none",
+                      isActive && "bg-white text-brand-red",
+                      isCollapsed && "absolute top-1 right-1 min-w-[1rem] h-4 px-1",
+                    )}
+                    data-testid="nav-clients-pending-badge"
+                  >
+                    {pendingAccessCount > 99 ? '99+' : pendingAccessCount}
+                  </span>
+                )}
               </Link>
             );
           })}

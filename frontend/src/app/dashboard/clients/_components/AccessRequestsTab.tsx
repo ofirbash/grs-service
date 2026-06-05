@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { accessRequestApi } from '@/lib/api';
+import { usePendingAccessRequestsStore } from '@/lib/usePendingAccessRequests';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -68,12 +69,16 @@ export function AccessRequestsTab() {
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<AccessRequest | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  // Shared store powers the sidebar + tab badge. Refresh it whenever
+  // we approve/reject so both update in lockstep.
+  const refreshPendingBadge = usePendingAccessRequestsStore((s) => s.refresh);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const data = await accessRequestApi.list();
       setRequests(data);
+      refreshPendingBadge();
     } finally {
       setLoading(false);
     }

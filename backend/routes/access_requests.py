@@ -43,6 +43,10 @@ logger = logging.getLogger(__name__)
 
 SENDER_EMAIL = os.getenv("SENDER_EMAIL", "onboarding@resend.dev")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
+# Fixed inbox that always receives a copy of new-access-request notifications,
+# in addition to every super_admin user. Keeps the team informed even when
+# the super_admin list is empty or stale.
+ADMIN_FIXED_INBOX = "lab@bashari.co"
 OTP_TTL_MINUTES = 30
 OTP_MAX_ATTEMPTS = 5  # per OTP row
 
@@ -160,6 +164,79 @@ async def _silently_trigger_password_reset(user: dict) -> None:
         )
 
 
+def _new_request_admin_html(req: dict, review_url: str) -> str:
+    """Email body shown to super-admins when a new access request comes in.
+    Lean intentionally — operators glance, click the CTA, and triage in the
+    actual admin panel. No data is bcc'd that isn't already visible there."""
+    full_name = req.get("full_name", "(no name)")
+    company = req.get("company", "(no company)")
+    email = req.get("email", "")
+    phone = req.get("phone", "")
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#141417;">
+      <h2 style="margin:0 0 8px;">New access request</h2>
+      <p style="color:#3f3f46;font-size:14px;line-height:1.55;">
+        A new sign-up is waiting for review on Bashari Lab-Direct.
+      </p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+        <tr><td style="padding:6px 0;color:#71717a;width:140px;">Name</td><td style="padding:6px 0;font-weight:600;">{full_name}</td></tr>
+        <tr><td style="padding:6px 0;color:#71717a;">Company</td><td style="padding:6px 0;font-weight:600;">{company}</td></tr>
+        <tr><td style="padding:6px 0;color:#71717a;">Email</td><td style="padding:6px 0;">{email}</td></tr>
+        <tr><td style="padding:6px 0;color:#71717a;">Phone</td><td style="padding:6px 0;">{phone}</td></tr>
+      </table>
+      <p style="text-align:center;margin:24px 0;">
+        <a href="{review_url}" style="display:inline-block;background:#141417;color:#fff;
+           padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;">
+          Review in admin panel
+        </a>
+      </p>
+      <p style="color:#71717a;font-size:12px;">
+        You can reply directly to this email if you have any questions.
+      </p>
+    </div>
+    """
+
+
+async def _notify_admins_of_new_request(req_doc: dict) -> None:
+    """Fan-out a new-request notification to every super_admin + the fixed
+    ADMIN_FIXED_INBOX. Sends are best-effort — a failed admin email must NOT
+    leave the user staring at a 502 on a request we already accepted. The
+    shared `send_email_async` already wraps each send in a 15s timeout."""
+    recipients: set[str] = {ADMIN_FIXED_INBOX}
+    try:
+        async for u in db.users.find(
+            {"role": "super_admin"},
+            {"_id": 0, "email": 1},
+        ):
+            addr = (u.get("email") or "").strip().lower()
+            if addr:
+                recipients.add(addr)
+    except Exception as exc:  # noqa: BLE001
+        # Don't bring down the submission flow on a DB hiccup; we still
+        # have the fixed inbox.
+        logger.error("Could not enumerate super_admins for access-request notify: %s", exc)
+
+    # Single deep-link that lands the admin on the Access Requests tab.
+    review_url = (
+        f"{FRONTEND_URL}/dashboard/clients?tab=access-requests" if FRONTEND_URL
+        else "/dashboard/clients?tab=access-requests"
+    )
+    html = _new_request_admin_html(req_doc, review_url)
+    subject = f"New access request — {req_doc.get('full_name', '(no name)')} ({req_doc.get('company', '?')})"
+
+    for addr in recipients:
+        await send_email_async(
+            {
+                "from": SENDER_EMAIL,
+                "reply_to": SENDER_EMAIL,
+                "to": [addr],
+                "subject": subject,
+                "html": html,
+            },
+            context="access-request-admin-notify",
+        )
+
+
 # ---------------------------------------------------------------------------
 # Public endpoints (no auth)
 # ---------------------------------------------------------------------------
@@ -259,12 +336,30 @@ async def verify_and_submit(payload: VerifySubmitRequest, request: Request):
     result = await db.access_requests.insert_one(doc)
     await db.access_otps.delete_one({"_id": row["_id"]})
 
+    # Notify super-admins (+ fixed inbox) so requests don't sit unnoticed.
+    # Best-effort: a Resend failure here must not turn an accepted submission
+    # into a 500 from the user's perspective. The helper logs failures.
+    try:
+        await _notify_admins_of_new_request(doc)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Admin notification for access-request %s failed: %s", result.inserted_id, exc)
+
     return {"ok": True, "id": str(result.inserted_id)}
 
 
 # ---------------------------------------------------------------------------
 # Admin endpoints
 # ---------------------------------------------------------------------------
+
+@router.get("/access-requests/pending-count")
+async def pending_count(user: dict = Depends(require_admin)):
+    """Lightweight count used by the sidebar/tab badge.
+    Kept dedicated (rather than reusing list_access_requests) so the
+    nav badge doesn't pay the cost of materialising 500 docs on every
+    dashboard render."""
+    count = await db.access_requests.count_documents({"status": "pending"})
+    return {"count": count}
+
 
 @router.get("/access-requests")
 async def list_access_requests(status: Optional[str] = None, user: dict = Depends(require_admin)):
