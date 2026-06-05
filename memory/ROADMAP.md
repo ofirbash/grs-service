@@ -18,7 +18,6 @@ _None currently._
 - [ ] **Bulk notify clients per shipment.** Admin action: pick a shipment → send the same notification (intake / dispatched / delivered) to every client whose jobs are contained in it.
 - [ ] **Apply the `asyncio.to_thread` wrapper to all Resend sites.** ✅ done Feb 25 2026 — shared helper `email_async.send_email_async()` now wraps all 6 sites (access_requests, manual_payments, clients, notifications ×2, auth_routes ×2). Any future Resend slowness fails fast with a 502/None instead of blocking the event loop. Verified with 6 unit tests in `tests/test_email_async_helper.py` (timeout, sdk-exception, missing-key, parallel-offload, response-coercion).
 - [ ] **Domain verification for Resend email** ✅ done Feb 25 2026 — `bashari.co` is now verified in Resend. Sender is `lab@bashari.co`.
-- [ ] **Legacy data migration from CSV/database** (if/when source data is available).
 - [ ] **Printable shipment document** (similar to job memo).
 
 ## P2 — Medium Priority
@@ -26,7 +25,6 @@ _None currently._
 - [ ] **Mobile responsive audit** across all pages.
 - [x] **Session-expired toast on `/login`** when redirected from a protected route (`?reason=expired` query param). _Done Feb 24, 2026 — amber banner on /login renders when Axios interceptor bounces an idle session. See CHANGELOG._
 - [ ] **Notify client on stone cancellation** (email + SMS) for traceability.
-- [ ] **In-job "Cancelled stones" panel** — admins can see cancelled stones inline and uncancel without leaving the job dialog.
 
 ## P3 — Low Priority / Refactor / Future
 
