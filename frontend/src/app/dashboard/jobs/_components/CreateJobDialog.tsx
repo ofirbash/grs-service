@@ -62,6 +62,11 @@ interface CreateJobDialogProps {
    *  the newly-created client into `formData.client_id` so the operator
    *  can continue creating the job without leaving the modal. */
   onClientCreated?: (client: Client) => void | Promise<void>;
+  /** Branch to preselect in the inline new-client dialog if the user
+   *  hasn't already chosen a client (and therefore there's no client-derived
+   *  branch yet). Typically the page's selectedBranchId or the operator's
+   *  own branch for branch_admins. */
+  defaultBranchId?: string;
 }
 
 export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
@@ -84,6 +89,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
   isFormValid,
   onSubmit,
   onClientCreated,
+  defaultBranchId,
 }) => {
   const [newClientOpen, setNewClientOpen] = useState(false);
 
@@ -501,7 +507,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
     // identical (id/name/code). Cast at the boundary to keep both type
     // modules independent.
     branches={branches as unknown as ClientsBranch[]}
-    defaultBranchId={formData.branch_id || ''}
+    defaultBranchId={formData.branch_id || defaultBranchId || ''}
     onCreated={async (newClient) => {
       // Auto-select the new client in the job form and adopt its branch.
       setFormData({

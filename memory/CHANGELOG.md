@@ -5,6 +5,32 @@
 
 ---
 
+## Feb 25, 2026 — Inline "+ New client" affordance in Create Job dialog
+
+Admins reported workflow friction: when creating a job for a brand-new client, they had to abandon the half-filled job modal, switch to `/dashboard/clients`, create the client, switch back, and re-open the Create Job dialog. Now they can do it from the same screen.
+
+### New shared component
+- **`/app/frontend/src/app/dashboard/clients/_components/CreateClientDialog.tsx`** — self-contained dialog (~290 lines, owns its own form state). Receives `branches` + optional `defaultBranchId` + an `onCreated(client)` callback. Pulled out of the inline copy that was previously in `clients/page.tsx`.
+- **`/app/frontend/src/app/dashboard/clients/_types.ts`** — co-located `Client` + `Branch` types so the page and component import from a single source.
+
+### Create Job dialog
+- New **"+ New client"** button (`data-testid='job-add-new-client-button'`) inside the Client field — visually quiet (ghost button, `<UserPlus>` icon) so it doesn't compete with the picker, but discoverable.
+- Opens the same canonical `<CreateClientDialog>`. After save:
+  - `formData.client_id` auto-fills with the new client
+  - `formData.branch_id` adopts the new client's branch
+  - Parent's clients list refetches so the SearchableSelect now contains the new entry
+- Branch preselect cascade: `formData.branch_id (existing job context) → defaultBranchId prop → ''`. Jobs page passes `user?.branch_id || selectedBranchId` for the fallback so branch-admins get their branch pre-picked even before they touch the client field.
+
+### Clients page cleanup
+- 1149 → 963 lines (-186). Removed inline Create Client dialog + `handleCreateClient` + the manual pre-seed in the "Add Client" button (the dialog handles seeding itself on open).
+- Edit Client flow untouched — it still uses the existing `formData` / `phonePrefix` / `secondaryPhonePrefix` state.
+
+### Tests
+- Testing agent iter-35 — 6/6 acceptance criteria pass.
+
+---
+
+
 ## Feb 25, 2026 — Canonical `<StoneEditDialog>` consolidates 3 copies
 
 User-flagged refactor: three pages (`/dashboard/jobs`, `/dashboard/stones`, `/dashboard/shipments`) each carried their own copy of the stone-edit modal. The copies had drifted — the parcel feature shipped on /dashboard/jobs but silently missed /dashboard/stones because the stones-page copy predated parcels. Today's consolidation closes that drift class entirely.

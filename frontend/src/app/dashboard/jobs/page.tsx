@@ -1487,6 +1487,7 @@ function JobsPageContent() {
           // list so the SearchableSelect can render the new label.
           await fetchData();
         }}
+        defaultBranchId={user?.branch_id || selectedBranchId || ''}
       />
 
       {/* View Job Dialog */}
