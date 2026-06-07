@@ -5,6 +5,34 @@
 
 ---
 
+## Feb 25, 2026 — Canonical `<StoneEditDialog>` consolidates 3 copies
+
+User-flagged refactor: three pages (`/dashboard/jobs`, `/dashboard/stones`, `/dashboard/shipments`) each carried their own copy of the stone-edit modal. The copies had drifted — the parcel feature shipped on /dashboard/jobs but silently missed /dashboard/stones because the stones-page copy predated parcels. Today's consolidation closes that drift class entirely.
+
+### New canonical component
+- **`/app/frontend/src/components/dialogs/StoneEditDialog.tsx`** (421 lines, pure presentational, props in / callbacks out).
+- Uses the already-shared `<StoneVerbalSection>` internally.
+- Receives 18 props covering all 3 sites: stone, job, isAdmin, findings + setter, dropdownSettings, editMode + setter, optional CS/Mounted toggles + setters, fee constants, save handler + saving flag, cert input ref + uploading flag + onCertChange + onViewCert.
+- Parcel-aware fee preview math (`csFeeCost × stone_count` for parcels) lives in ONE place now — preview pill and inline CS line read from the same calculation.
+
+### Migrated call sites
+- **`jobs/page.tsx`** — 2266 → 2068 lines (-198). Inline ~265-line dialog block replaced with one component invocation. Extracted `handleStoneCertUpload` from a previously-inline file-input closure.
+- **`stones/page.tsx`** — 796 → 604 lines (-192). Extracted `handleSaveStone`. Save button position harmonised: was inline below verbal section, now lives in the footer right (consistent with other surfaces, user-confirmed).
+- **`shipments/page.tsx`** — 1149 → 1198 (+49 for new fee-toggle state + handler expansion). The Color Stability / Mounted toggles are now exposed to admins viewing a stone from inside a shipment (was missing in the previous shipments-local copy — user-confirmed harmonisation). Added optional `color_stability_test` and `mounted` fields to `shipments/_types.ts::Stone`.
+- **Deleted** `/app/frontend/src/app/dashboard/shipments/_components/StoneEditDialog.tsx`.
+
+### JobDetailDialog NOT consolidated
+- The jobs/page.tsx and shipments-local JobDetailDialog have **intentional** scope divergence (jobs = full admin with payments + per-stone actions, shipments = focused read-mostly view). Not the same code-drift problem the StoneEditDialog had. Logged in ROADMAP as `defer` — revisit if drift actually causes a bug.
+
+### Tests
+- Testing agent iter-34 — 13/13 acceptance criteria pass.
+- Original bug verified fixed: opening parcel SA750J58402 on `/dashboard/stones` now correctly shows "PARCEL · 3 stones" chip, "TOTAL WT / TOTAL VALUE" labels, and `+$50 × 3 = $150` CS preview in edit mode.
+- New behaviour confirmed: on `/dashboard/shipments`, admins now see Edit + CS + Mounted toggles inside the nested stone modal (previously hidden).
+- Build clean (`yarn build`), `tsc --noEmit` clean.
+
+---
+
+
 ## Feb 25, 2026 — Access-request admin notifications + sidebar/tab pending badge
 
 User asked: "Where does Request Access go?" Two gaps:
