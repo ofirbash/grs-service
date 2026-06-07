@@ -56,6 +56,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 
 import { StoneVerbalSection, seedStructuredFindings } from '@/components/StoneVerbalSection';
+import { StoneEditDialog } from '@/components/dialogs/StoneEditDialog';
 
 // Types, constants and sub-components extracted into sibling files
 import type {
@@ -557,14 +558,57 @@ function JobsPageContent() {
           setStoneColorStability(refreshedStone.color_stability_test || false);
           setStoneMounted(refreshedStone.mounted || false);
         }
-      }
-      fetchData();
+      }      fetchData();
       setVerbalEditMode(false);
     } catch (error) {
       console.error('Failed to save:', error);
       alert('Failed to save changes');
     } finally {
       setSavingStoneVerbal(false);
+    }
+  };
+
+  /** Cert-scan upload handler for the canonical StoneEditDialog. Lifted
+   *  unchanged from the previously-inline file-input onChange so the
+   *  component can receive it as a prop. Handles both per-stone and
+   *  certificate-group routing. */
+  const handleStoneCertUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !viewingStone || !selectedJob) return;
+    setUploadingCertScan(true);
+    try {
+      const folder = `certificates/${selectedJob.id}`;
+      const { url } = await cloudinaryApi.uploadFile(file, folder);
+      if (viewingStone.certificate_group) {
+        await stonesApi.uploadGroupCertificateScan(
+          selectedJob.id,
+          viewingStone.certificate_group,
+          file.name,
+          url,
+        );
+        const updatedStones = selectedJob.stones?.map((s) =>
+          s.certificate_group === viewingStone.certificate_group
+            ? { ...s, certificate_scan_url: url }
+            : s,
+        );
+        setSelectedJob({ ...selectedJob, stones: updatedStones });
+      } else {
+        await stonesApi.uploadCertificateScan(viewingStone.id, file.name, url);
+        const updatedStones = selectedJob.stones?.map((s) =>
+          s.id === viewingStone.id ? { ...s, certificate_scan_url: url } : s,
+        );
+        setSelectedJob({ ...selectedJob, stones: updatedStones });
+      }
+      setViewingStone({ ...viewingStone, certificate_scan_url: url });
+      fetchData();
+    } catch (error) {
+      console.error('Failed to upload certificate scan:', error);
+      alert('Failed to upload certificate scan');
+    } finally {
+      setUploadingCertScan(false);
+    }
+    if (certScanInputRef.current) {
+      certScanInputRef.current.value = '';
     }
   };
 
@@ -1889,272 +1933,31 @@ function JobsPageContent() {
       />
 
       {/* Nested Stone Dialog - opens on top of job dialog */}
-      <Dialog open={stoneDialogOpen} onOpenChange={handleStoneDialogClose}>
-        <DialogContent className="sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
-              <Diamond className="h-5 w-5" />
-              Stone - {viewingStone?.sku}
-              {isAdmin && (
-                <Button
-                  variant={verbalEditMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setVerbalEditMode(!verbalEditMode)}
-                  className={`ml-auto h-7 text-xs ${verbalEditMode ? 'bg-brand-red hover:bg-brand-red-dark' : 'border-navy-300 hover:bg-navy-100'}`}
-                  data-testid="edit-stone-button"
-                >
-                  <Pencil className="h-3 w-3 mr-1" />
-                  {verbalEditMode ? 'Editing...' : 'Edit'}
-                </Button>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              Job #{selectedJob?.job_number} | {viewingStone?.stone_type} | {viewingStone?.weight} ct
-              {selectedJob?.service_type === 'Recheck' && selectedJob?.recheck_reasons && selectedJob.recheck_reasons.length > 0 && (
-                <span className="ml-2 text-amber-700 font-medium" data-testid="stone-dialog-recheck-reasons">
-                  · Recheck: {selectedJob.recheck_reasons.join(', ')}
-                </span>
-              )}
-            </DialogDescription>
-          </DialogHeader>
+      <StoneEditDialog
+        open={stoneDialogOpen}
+        onOpenChange={handleStoneDialogClose}
+        stone={viewingStone}
+        job={selectedJob}
+        isAdmin={isAdmin}
+        findings={structuredFindings}
+        setFindings={setStructuredFindings}
+        dropdownSettings={dropdownSettings}
+        editMode={verbalEditMode}
+        setEditMode={setVerbalEditMode}
+        colorStability={stoneColorStability}
+        setColorStability={setStoneColorStability}
+        mounted={stoneMounted}
+        setMounted={setStoneMounted}
+        csFeeCost={csFeeCost}
+        mountedFeeCost={mountedFeeCost}
+        saving={savingStoneVerbal}
+        onSave={handleSaveStone}
+        certInputRef={certScanInputRef}
+        uploadingCert={uploadingCertScan}
+        onCertChange={handleStoneCertUpload}
+        onViewCert={() => setViewCertScanOpen(true)}
+      />
 
-          {viewingStone && (
-            <div className="flex-1 overflow-y-auto space-y-4 py-3 pr-2">
-              {/* Compact stone info summary — single horizontal row */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-3 py-2 bg-navy-50 rounded-md text-sm">
-                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Type</span><span className="font-medium text-navy-900">{viewingStone.stone_type}</span></span>
-                <span className="text-navy-200">|</span>
-                <span>
-                  <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">{viewingStone.kind === 'parcel' ? 'Total wt' : 'Weight'}</span>
-                  <span className="font-medium text-navy-900">{viewingStone.weight} ct</span>
-                </span>
-                <span className="text-navy-200">|</span>
-                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Shape</span><span className="font-medium text-navy-900">{viewingStone.shape}</span></span>
-                <span className="text-navy-200">|</span>
-                <span>
-                  <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">{viewingStone.kind === 'parcel' ? 'Total value' : 'Value'}</span>
-                  <span className="font-medium text-navy-900">${viewingStone.value.toLocaleString()}</span>
-                </span>
-                {viewingStone.kind === 'parcel' && (
-                  <>
-                    <span className="text-navy-200">|</span>
-                    <span>
-                      <span className="text-amber-700 text-xs uppercase tracking-wide mr-1.5">Parcel</span>
-                      <span className="font-medium text-amber-900">{viewingStone.stone_count} stones</span>
-                    </span>
-                  </>
-                )}
-                <span className="text-navy-200">|</span>
-                <span>
-                  <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Fee</span>
-                  <span className="font-medium text-navy-900">
-                    ${(verbalEditMode
-                      ? viewingStone.fee
-                        + ((stoneColorStability && !viewingStone.color_stability_test ? csFeeCost : 0) * (viewingStone.kind === 'parcel' ? (viewingStone.stone_count || 1) : 1))
-                        - ((!stoneColorStability && viewingStone.color_stability_test ? csFeeCost : 0) * (viewingStone.kind === 'parcel' ? (viewingStone.stone_count || 1) : 1))
-                        + (stoneMounted && !viewingStone.mounted ? mountedFeeCost : 0)
-                        - (!stoneMounted && viewingStone.mounted ? mountedFeeCost : 0)
-                      : viewingStone.fee
-                    ).toLocaleString()}
-                  </span>
-                </span>
-                {viewingStone.certificate_group ? (
-                  <>
-                    <span className="text-navy-200">|</span>
-                    <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Cert Group</span><span className="font-medium text-navy-900">{viewingStone.certificate_group}</span></span>
-                  </>
-                ) : null}
-              </div>
-
-              {/* Color Stability + Mounted toggles */}
-              {(verbalEditMode || viewingStone.color_stability_test || viewingStone.mounted) && (
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-3 py-1.5 text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="text-navy-500 text-xs uppercase tracking-wide">Color Stability</span>
-                    {verbalEditMode ? (
-                      <>
-                        <Switch
-                          checked={stoneColorStability}
-                          onCheckedChange={setStoneColorStability}
-                          className="scale-75"
-                          data-testid="stone-color-stability-switch"
-                        />
-                        <span className="text-xs text-navy-600">
-                          {stoneColorStability
-                            ? `+$${csFeeCost}${viewingStone.kind === 'parcel' && (viewingStone.stone_count || 1) > 1 ? ` × ${viewingStone.stone_count} = $${csFeeCost * (viewingStone.stone_count || 1)}` : ''}`
-                            : 'No'}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="font-medium text-navy-900">
-                        {viewingStone.color_stability_test
-                          ? `Yes (+$${csFeeCost}${viewingStone.kind === 'parcel' && (viewingStone.stone_count || 1) > 1 ? ` × ${viewingStone.stone_count}` : ''})`
-                          : 'No'}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-navy-200">|</span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-navy-500 text-xs uppercase tracking-wide">Mounted</span>
-                    {verbalEditMode ? (
-                      <>
-                        <Switch
-                          checked={stoneMounted}
-                          onCheckedChange={setStoneMounted}
-                          className="scale-75"
-                          data-testid="stone-mounted-switch"
-                        />
-                        <span className="text-xs text-navy-600">{stoneMounted ? `+$${mountedFeeCost}` : 'No'}</span>
-                      </>
-                    ) : (
-                      <span className="font-medium text-navy-900">{viewingStone.mounted ? `Yes (+$${mountedFeeCost})` : 'No'}</span>
-                    )}
-                  </span>
-                </div>
-              )}
-
-              {/* Verbal Findings Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-navy-200 pb-2">
-                  <Label className="text-lg font-semibold flex items-center gap-2 text-navy-900">
-                    <FileText className="h-5 w-5" />
-                    Verbal Findings
-                  </Label>
-                  {(() => {
-                    const vf = viewingStone.verbal_findings;
-                    const hasFindings = vf && typeof vf === 'object' && (vf as StructuredVerbalFindings).certificate_id;
-                    return hasFindings ? <Badge variant="secondary" className="bg-navy-900 text-white">Completed</Badge> : null;
-                  })()}
-                </div>
-                
-                {/* Lock indicator when not in edit mode */}
-                {!verbalEditMode && isAdmin && (
-                  <div className="bg-navy-50 border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-600 flex items-center gap-2">
-                    <Lock className="h-4 w-4" />
-                    Click &quot;Edit&quot; to modify fees and verbal findings.
-                  </div>
-                )}
-                
-                <StoneVerbalSection
-                  stone={viewingStone}
-                  structuredFindings={structuredFindings}
-                  setStructuredFindings={setStructuredFindings}
-                  dropdownSettings={dropdownSettings}
-                  editMode={verbalEditMode}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Hidden file input — used by the compact footer "Upload cert scan" button */}
-          {viewingStone && (
-            <input
-              ref={certScanInputRef}
-              type="file"
-              accept="image/*,.pdf"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file || !viewingStone || !selectedJob) return;
-                setUploadingCertScan(true);
-                try {
-                  const folder = `certificates/${selectedJob.id}`;
-                  const { url } = await cloudinaryApi.uploadFile(file, folder);
-                  if (viewingStone.certificate_group) {
-                    await stonesApi.uploadGroupCertificateScan(
-                      selectedJob.id,
-                      viewingStone.certificate_group,
-                      file.name,
-                      url
-                    );
-                    const updatedStones = selectedJob.stones?.map(s =>
-                      s.certificate_group === viewingStone.certificate_group
-                        ? { ...s, certificate_scan_url: url }
-                        : s
-                    );
-                    setSelectedJob({ ...selectedJob, stones: updatedStones });
-                  } else {
-                    await stonesApi.uploadCertificateScan(viewingStone.id, file.name, url);
-                    const updatedStones = selectedJob.stones?.map(s =>
-                      s.id === viewingStone.id ? { ...s, certificate_scan_url: url } : s
-                    );
-                    setSelectedJob({ ...selectedJob, stones: updatedStones });
-                  }
-                  setViewingStone({ ...viewingStone, certificate_scan_url: url });
-                  fetchData();
-                } catch (error) {
-                  console.error('Failed to upload certificate scan:', error);
-                  alert('Failed to upload certificate scan');
-                } finally {
-                  setUploadingCertScan(false);
-                }
-                if (certScanInputRef.current) {
-                  certScanInputRef.current.value = '';
-                }
-              }}
-              className="hidden"
-              id="cert-upload-jobs"
-            />
-          )}
-
-          <DialogFooter className="flex-shrink-0 border-t pt-3 gap-2 flex-row items-center justify-between sm:justify-between">
-            {/* Left: compact certificate-scan controls */}
-            <div className="flex items-center gap-2">
-              {viewingStone && isAdmin && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => certScanInputRef.current?.click()}
-                  disabled={uploadingCertScan}
-                  data-testid="upload-stone-cert-button"
-                  title={viewingStone.certificate_group ? `Applies to certificate group ${viewingStone.certificate_group}` : 'Upload certificate scan'}
-                >
-                  {uploadingCertScan ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading…</>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      {viewingStone.certificate_scan_url ? 'Replace cert scan' : 'Upload cert scan'}
-                    </>
-                  )}
-                </Button>
-              )}
-              {viewingStone?.certificate_scan_url && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setViewCertScanOpen(true)}
-                  data-testid="view-stone-cert-button"
-                  title="View certificate scan"
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  View scan
-                </Button>
-              )}
-            </div>
-            {/* Right: save + close */}
-            <div className="flex items-center gap-2">
-              {isAdmin && verbalEditMode && (
-                <Button
-                  onClick={handleSaveStone}
-                  disabled={savingStoneVerbal}
-                  size="sm"
-                  className="bg-navy-900 hover:bg-navy-800"
-                  data-testid="save-stone-button"
-                >
-                  {savingStoneVerbal ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
-                  ) : (
-                    <><Check className="h-4 w-4 mr-2" />Save Changes</>
-                  )}
-                </Button>
-              )}
-              <Button variant="outline" size="sm" onClick={() => handleStoneDialogClose(false)}>
-                Close
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Unsaved Changes Confirmation Dialog */}
       <UnsavedChangesDialog

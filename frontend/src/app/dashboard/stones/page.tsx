@@ -48,6 +48,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { DoubleConfirmDialog } from '@/components/DoubleConfirmDialog';
 import { StoneVerbalSection, seedStructuredFindings } from '@/components/StoneVerbalSection';
+import { StoneEditDialog } from '@/components/dialogs/StoneEditDialog';
 
 interface StructuredVerbalFindings {
   certificate_id?: string;
@@ -205,6 +206,45 @@ export default function StonesPage() {
     setVerbalEditMode(false);
 
     setDetailsOpen(true);
+  };
+
+  /** Save handler for the canonical StoneEditDialog. Lifted from the
+   *  previously-inline closure on the Save button so the component can
+   *  receive it as `onSave`. */
+  const handleSaveStone = async () => {
+    if (!selectedStone) return;
+    setSavingVerbal(true);
+    try {
+      // Always persist verbal findings — wiping every field and saving
+      // must commit the empty state instead of silently no-op'ing.
+      await stonesApi.updateStructuredVerbal(selectedStone.id, structuredFindings);
+
+      const hasColorStabilityChange = colorStabilityTest !== selectedStone.color_stability_test;
+      const hasMountedChange = stoneMounted !== (selectedStone.mounted || false);
+      if (hasColorStabilityChange || hasMountedChange) {
+        const feeUpdateData: { color_stability_test?: boolean; mounted?: boolean } = {};
+        if (hasColorStabilityChange) feeUpdateData.color_stability_test = colorStabilityTest;
+        if (hasMountedChange) feeUpdateData.mounted = stoneMounted;
+        await stonesApi.updateFees(selectedStone.id, feeUpdateData);
+      }
+
+      await fetchStones();
+      const refreshedStones = await stonesApi.getAll(
+        selectedBranchId ? { branch_id: selectedBranchId } : {},
+      );
+      const refreshedStone = refreshedStones.find((s: Stone) => s.id === selectedStone.id);
+      if (refreshedStone) {
+        setSelectedStone(refreshedStone);
+        setColorStabilityTest(refreshedStone.color_stability_test || false);
+        setStoneMounted(refreshedStone.mounted || false);
+      }
+      setVerbalEditMode(false);
+    } catch (error) {
+      console.error('Failed to save:', error);
+      alert('Failed to save changes');
+    } finally {
+      setSavingVerbal(false);
+    }
   };
 
   const handleCertificateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -476,266 +516,35 @@ export default function StonesPage() {
       </Card>
 
       {/* Stone Details Dialog */}
-      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-xl text-navy-800 flex items-center gap-2">
-              <Diamond className="h-5 w-5" />
-              Stone Details - {selectedStone?.sku}
-              {isAdmin && (
-                <Button
-                  variant={verbalEditMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setVerbalEditMode(!verbalEditMode)}
-                  className={`ml-auto h-7 text-xs ${verbalEditMode ? 'bg-brand-red hover:bg-brand-red-dark' : 'border-navy-300 hover:bg-navy-100'}`}
-                  data-testid="edit-stone-button"
-                >
-                  <Pencil className="h-3 w-3 mr-1" />
-                  {verbalEditMode ? 'Editing...' : 'Edit'}
-                </Button>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              Job #{selectedStone?.job_number} | {selectedStone?.client_name}
-            </DialogDescription>
-          </DialogHeader>
+      <StoneEditDialog
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        stone={selectedStone}
+        // The Stones page doesn't load the full Job — but the canonical
+        // dialog only reads job_number + service_type + recheck_reasons,
+        // all of which are optional. Pass a shallow object built from
+        // whatever the Stone row already carries.
+        job={selectedStone ? { job_number: selectedStone.job_number, client_name: selectedStone.client_name } : null}
+        isAdmin={isAdmin}
+        findings={structuredFindings}
+        setFindings={setStructuredFindings}
+        dropdownSettings={dropdownSettings}
+        editMode={verbalEditMode}
+        setEditMode={setVerbalEditMode}
+        colorStability={colorStabilityTest}
+        setColorStability={setColorStabilityTest}
+        mounted={stoneMounted}
+        setMounted={setStoneMounted}
+        csFeeCost={csFeeCost}
+        mountedFeeCost={mountedFeeCost}
+        saving={savingVerbal}
+        onSave={handleSaveStone}
+        certInputRef={certInputRef}
+        uploadingCert={uploadingCert}
+        onCertChange={handleCertificateUpload}
+        onViewCert={() => setViewCertOpen(true)}
+      />
 
-          {selectedStone && (
-            <div className="flex-1 overflow-y-auto space-y-4 py-3 pr-2">
-              {/* Compact stone info summary — single horizontal row */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-3 py-2 bg-navy-50 rounded-md text-sm">
-                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Type</span><span className="font-medium text-navy-900">{selectedStone.stone_type}</span></span>
-                <span className="text-navy-200">|</span>
-                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">{selectedStone.kind === 'parcel' ? 'Total wt' : 'Weight'}</span><span className="font-medium text-navy-900">{selectedStone.weight} ct</span></span>
-                <span className="text-navy-200">|</span>
-                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Shape</span><span className="font-medium text-navy-900">{selectedStone.shape}</span></span>
-                <span className="text-navy-200">|</span>
-                <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">{selectedStone.kind === 'parcel' ? 'Total value' : 'Value'}</span><span className="font-medium text-navy-900">${selectedStone.value.toLocaleString()}</span></span>
-                {selectedStone.kind === 'parcel' && (
-                  <>
-                    <span className="text-navy-200">|</span>
-                    <span><span className="text-amber-700 text-xs uppercase tracking-wide mr-1.5">Parcel</span><span className="font-medium text-amber-900">{selectedStone.stone_count} stones</span></span>
-                  </>
-                )}
-                <span className="text-navy-200">|</span>
-                <span>
-                  <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Fee</span>
-                  <span className="font-medium text-navy-900">
-                    ${(verbalEditMode
-                      ? selectedStone.fee
-                        + ((colorStabilityTest && !selectedStone.color_stability_test ? csFeeCost : 0) * (selectedStone.kind === 'parcel' ? (selectedStone.stone_count || 1) : 1))
-                        - ((!colorStabilityTest && selectedStone.color_stability_test ? csFeeCost : 0) * (selectedStone.kind === 'parcel' ? (selectedStone.stone_count || 1) : 1))
-                        + (stoneMounted && !selectedStone.mounted ? mountedFeeCost : 0)
-                        - (!stoneMounted && selectedStone.mounted ? mountedFeeCost : 0)
-                      : selectedStone.fee
-                    ).toLocaleString()}
-                  </span>
-                </span>
-                {selectedStone.certificate_group ? (
-                  <>
-                    <span className="text-navy-200">|</span>
-                    <span><span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Cert Group</span><span className="font-medium text-navy-900">{selectedStone.certificate_group}</span></span>
-                  </>
-                ) : null}
-              </div>
-
-              {/* Color Stability + Mounted toggles (only when in edit mode, or shown read-only when set) */}
-              {(verbalEditMode || selectedStone.color_stability_test || selectedStone.mounted) && (
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-3 py-1.5 text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="text-navy-500 text-xs uppercase tracking-wide">Color Stability</span>
-                    {verbalEditMode ? (
-                      <>
-                        <Switch
-                          checked={colorStabilityTest}
-                          onCheckedChange={setColorStabilityTest}
-                          className="scale-75"
-                          data-testid="color-stability-switch"
-                        />
-                        <span className="text-xs text-navy-600">
-                          {colorStabilityTest
-                            ? `+$${csFeeCost}${selectedStone.kind === 'parcel' && (selectedStone.stone_count || 1) > 1 ? ` × ${selectedStone.stone_count} = $${csFeeCost * (selectedStone.stone_count || 1)}` : ''}`
-                            : 'No'}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="font-medium text-navy-900">
-                        {selectedStone.color_stability_test
-                          ? `Yes (+$${csFeeCost}${selectedStone.kind === 'parcel' && (selectedStone.stone_count || 1) > 1 ? ` × ${selectedStone.stone_count}` : ''})`
-                          : 'No'}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-navy-200">|</span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-navy-500 text-xs uppercase tracking-wide">Mounted</span>
-                    {verbalEditMode ? (
-                      <>
-                        <Switch
-                          checked={stoneMounted}
-                          onCheckedChange={setStoneMounted}
-                          className="scale-75"
-                          data-testid="stone-mounted-switch"
-                        />
-                        <span className="text-xs text-navy-600">{stoneMounted ? `+$${mountedFeeCost}` : 'No'}</span>
-                      </>
-                    ) : (
-                      <span className="font-medium text-navy-900">{selectedStone.mounted ? `Yes (+$${mountedFeeCost})` : 'No'}</span>
-                    )}
-                  </span>
-                </div>
-              )}
-
-              {/* Verbal Findings Section */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-navy-200 pb-2">
-                  <Label className="text-lg font-semibold flex items-center gap-2 text-navy-900">
-                    <FileText className="h-5 w-5" />
-                    Verbal Findings
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    {(() => {
-                      const vf = selectedStone.verbal_findings;
-                      const hasFindings = vf && typeof vf === 'object' && (vf as StructuredVerbalFindings).certificate_id;
-                      return hasFindings ? <Badge variant="success">Completed</Badge> : null;
-                    })()}
-                  </div>
-                </div>
-                
-                {/* Lock indicator when not in edit mode */}
-                {!verbalEditMode && isAdmin && (
-                  <div className="bg-navy-50 border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-600 flex items-center gap-2">
-                    <Lock className="h-4 w-4" />
-                    Click &quot;Edit&quot; to modify fees and verbal findings.
-                  </div>
-                )}
-                
-                <StoneVerbalSection
-                  stone={selectedStone}
-                  structuredFindings={structuredFindings}
-                  setStructuredFindings={setStructuredFindings}
-                  dropdownSettings={dropdownSettings}
-                  editMode={verbalEditMode}
-                />
-                
-                {isAdmin && verbalEditMode && (
-                <Button
-                  onClick={async () => {
-                    if (!selectedStone) return;
-                    setSavingVerbal(true);
-                    try {
-                      // Always persist verbal findings while in edit mode, even
-                      // when every field has been cleared — otherwise wiping
-                      // multiple fields and saving silently does nothing,
-                      // leaving stale values in the DB.
-                      await stonesApi.updateStructuredVerbal(selectedStone.id, structuredFindings);
-
-                      // Save fee changes if any
-                      const hasColorStabilityChange = colorStabilityTest !== selectedStone.color_stability_test;
-                      const hasMountedChange = stoneMounted !== (selectedStone.mounted || false);
-                      if (hasColorStabilityChange || hasMountedChange) {
-                        const feeUpdateData: { color_stability_test?: boolean; mounted?: boolean } = {};
-                        if (hasColorStabilityChange) {
-                          feeUpdateData.color_stability_test = colorStabilityTest;
-                        }
-                        if (hasMountedChange) {
-                          feeUpdateData.mounted = stoneMounted;
-                        }
-                        await stonesApi.updateFees(selectedStone.id, feeUpdateData);
-                      }
-
-                      // Refetch stones to get updated data from backend
-                      await fetchStones();
-                      const refreshedStones = await stonesApi.getAll(selectedBranchId ? { branch_id: selectedBranchId } : {});
-                      const refreshedStone = refreshedStones.find((s: Stone) => s.id === selectedStone.id);
-                      if (refreshedStone) {
-                        setSelectedStone(refreshedStone);
-                        setColorStabilityTest(refreshedStone.color_stability_test || false);
-                        setStoneMounted(refreshedStone.mounted || false);
-                      }
-                      setVerbalEditMode(false);
-                    } catch (error) {
-                      console.error('Failed to save:', error);
-                      alert('Failed to save changes');
-                    } finally {
-                      setSavingVerbal(false);
-                    }
-                  }}
-                  disabled={savingVerbal}
-                  className="bg-navy-900 hover:bg-navy-800 w-full"
-                  data-testid="save-stone-button"
-                >
-                  {savingVerbal ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Hidden file input lives here so the footer button can trigger it */}
-          {selectedStone && (
-            <input
-              ref={certInputRef}
-              type="file"
-              accept="image/*,.pdf"
-              onChange={handleCertificateUpload}
-              className="hidden"
-              id="cert-upload"
-            />
-          )}
-
-          <DialogFooter className="flex-shrink-0 pt-3 border-t flex-row items-center justify-between gap-2 sm:justify-between">
-            {/* Left: compact certificate-scan controls */}
-            <div className="flex items-center gap-2">
-              {selectedStone && isAdmin && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => certInputRef.current?.click()}
-                  disabled={uploadingCert}
-                  data-testid="upload-cert-button"
-                  title={selectedStone.certificate_group ? `Applies to certificate group ${selectedStone.certificate_group}` : 'Upload certificate scan'}
-                >
-                  {uploadingCert ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading…</>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      {selectedStone.certificate_scan_url ? 'Replace cert scan' : 'Upload cert scan'}
-                    </>
-                  )}
-                </Button>
-              )}
-              {selectedStone?.certificate_scan_url && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setViewCertOpen(true)}
-                  data-testid="view-cert-button"
-                  title="View certificate scan"
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  View scan
-                </Button>
-              )}
-            </div>
-            {/* Right: close */}
-            <Button variant="outline" size="sm" onClick={() => setDetailsOpen(false)} data-testid="close-stone-details">
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* View Certificate Scan Dialog */}
       <Dialog open={viewCertOpen} onOpenChange={setViewCertOpen}>

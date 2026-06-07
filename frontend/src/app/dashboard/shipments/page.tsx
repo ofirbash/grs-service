@@ -11,7 +11,7 @@ import { AddJobsToShipmentDialog } from './_components/AddJobsToShipmentDialog';
 import { CreateShipmentDialog } from './_components/CreateShipmentDialog';
 import { ShipmentDetailDialog } from './_components/ShipmentDetailDialog';
 import { JobDetailDialog } from './_components/JobDetailDialog';
-import { StoneEditDialog } from './_components/StoneEditDialog';
+import { StoneEditDialog } from '@/components/dialogs/StoneEditDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -111,6 +111,15 @@ export default function ShipmentsPage() {
   const [savingVerbal, setSavingVerbal] = useState(false);
   const [uploadingCert, setUploadingCert] = useState(false);
   const [viewCertOpen, setViewCertOpen] = useState(false);
+  // Admin fee toggles + edit mode — added Feb 25 2026 when the shipments
+  // stone-detail modal was unified with the canonical StoneEditDialog so
+  // admins viewing a stone from inside a shipment have the same edit
+  // capabilities as on the Jobs / Stones pages (no more drift across copies).
+  const [verbalEditMode, setVerbalEditMode] = useState(false);
+  const [stoneColorStability, setStoneColorStability] = useState(false);
+  const [stoneMounted, setStoneMounted] = useState(false);
+  const [csFeeCost, setCsFeeCost] = useState(50);
+  const [mountedFeeCost, setMountedFeeCost] = useState(50);
   const certInputRef = useRef<HTMLInputElement>(null);
   
   // Memo upload for nested job dialog
@@ -193,14 +202,22 @@ export default function ShipmentsPage() {
         branchesApi.getAll(),
         addressesApi.getAll().catch(() => [] as Array<{ name: string; address?: string }>),
         shipmentsApi.getAll(archivedParam).catch(() => []),
+        settingsApi.getPricing().catch(() => ({} as Record<string, unknown>)),
       ]);
-      const [shipmentsR, jobsR, optionsR, dropdownR, branchesR, addressesR, archivedR] = results;
+      const [shipmentsR, jobsR, optionsR, dropdownR, branchesR, addressesR, archivedR, pricingR] = results;
       results.forEach((r, i) => {
         if (r.status === 'rejected') {
-          const labels = ['shipments', 'jobs', 'options', 'dropdowns', 'branches', 'addresses', 'archived'];
+          const labels = ['shipments', 'jobs', 'options', 'dropdowns', 'branches', 'addresses', 'archived', 'pricing'];
           console.error(`fetchData: failed to load ${labels[i]}`, r.reason);
         }
       });
+      // Pricing — only the two fee constants the canonical StoneEditDialog
+      // needs. Falls back to the existing defaults if pricing API fails.
+      if (pricingR.status === 'fulfilled') {
+        const p = pricingR.value as Record<string, unknown>;
+        if (typeof p.color_stability_fee === 'number') setCsFeeCost(p.color_stability_fee);
+        if (typeof p.mounted_jewellery_fee === 'number') setMountedFeeCost(p.mounted_jewellery_fee);
+      }
       if (archivedR.status === 'fulfilled') {
         const archived = archivedR.value as Array<{ status?: string }>;
         setCompletedCount(archived.filter((s) => s.status === 'completed').length);
@@ -255,7 +272,13 @@ export default function ShipmentsPage() {
   // Helper to open nested stone dialog
   const openNestedStoneDialog = (stone: Stone) => {
     setSelectedStone(stone);
-    
+    // Seed fee toggles + start in locked (read-only) mode. Admins click
+    // "Edit" in the dialog header to switch to edit mode — keeps the
+    // common case (reviewing without mutating) safe by default.
+    setStoneColorStability(stone.color_stability_test || false);
+    setStoneMounted(stone.mounted || false);
+    setVerbalEditMode(false);
+
     // Initialize structured findings from stone data
     const findings = typeof stone.verbal_findings === 'object' ? stone.verbal_findings : {};
     setStructuredFindings({
@@ -270,21 +293,38 @@ export default function ShipmentsPage() {
     setStoneDialogOpen(true);
   };
 
-  /** Save verbal findings for the currently-open stone.
-   *  Extracted from the previously-inline `onClick` on the StoneEditDialog
-   *  Save button so we can pass it as a prop to the extracted dialog. */
+  /** Save verbal findings + fee toggles for the currently-open stone.
+   *  Unified Feb 25 2026 with the Jobs/Stones pages so admins viewing
+   *  a stone from inside a shipment can also edit Color Stability /
+   *  Mounted (was missing from the shipments-local copy). */
   const handleSaveStoneVerbal = async () => {
     if (!selectedStone) return;
     setSavingVerbal(true);
     try {
       await stonesApi.updateStructuredVerbal(selectedStone.id, structuredFindings);
-      setSelectedStone({ ...selectedStone, verbal_findings: structuredFindings });
+      const hasColorStabilityChange = stoneColorStability !== selectedStone.color_stability_test;
+      const hasMountedChange = stoneMounted !== (selectedStone.mounted || false);
+      if (hasColorStabilityChange || hasMountedChange) {
+        const feeUpdateData: { color_stability_test?: boolean; mounted?: boolean } = {};
+        if (hasColorStabilityChange) feeUpdateData.color_stability_test = stoneColorStability;
+        if (hasMountedChange) feeUpdateData.mounted = stoneMounted;
+        await stonesApi.updateFees(selectedStone.id, feeUpdateData);
+      }
+      setSelectedStone({
+        ...selectedStone,
+        verbal_findings: structuredFindings,
+        color_stability_test: stoneColorStability,
+        mounted: stoneMounted,
+      });
       if (selectedJob) {
         const updatedStones = selectedJob.stones?.map((s) =>
-          s.id === selectedStone.id ? { ...s, verbal_findings: structuredFindings } : s,
+          s.id === selectedStone.id
+            ? { ...s, verbal_findings: structuredFindings, color_stability_test: stoneColorStability, mounted: stoneMounted }
+            : s,
         );
         setSelectedJob({ ...selectedJob, stones: updatedStones });
       }
+      setVerbalEditMode(false);
       fetchData();
     } catch (error) {
       console.error('Failed to save verbal findings:', error);
@@ -1084,11 +1124,20 @@ export default function ShipmentsPage() {
         onOpenChange={setStoneDialogOpen}
         stone={selectedStone}
         job={selectedJob}
+        isAdmin={isAdmin}
         dropdownSettings={dropdownSettings}
         findings={structuredFindings}
         setFindings={setStructuredFindings}
-        savingVerbal={savingVerbal}
-        onSaveVerbal={handleSaveStoneVerbal}
+        editMode={verbalEditMode}
+        setEditMode={setVerbalEditMode}
+        colorStability={stoneColorStability}
+        setColorStability={setStoneColorStability}
+        mounted={stoneMounted}
+        setMounted={setStoneMounted}
+        csFeeCost={csFeeCost}
+        mountedFeeCost={mountedFeeCost}
+        saving={savingVerbal}
+        onSave={handleSaveStoneVerbal}
         certInputRef={certInputRef}
         uploadingCert={uploadingCert}
         onCertChange={handleStoneCertChange}

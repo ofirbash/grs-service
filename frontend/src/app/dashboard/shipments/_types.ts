@@ -39,6 +39,9 @@ export interface Stone {
   certificate_group?: number;
   verbal_findings?: string | StructuredVerbalFindings;
   certificate_scan_url?: string;
+  // Fee-affecting toggles surfaced by the canonical StoneEditDialog.
+  color_stability_test?: boolean;
+  mounted?: boolean;
   // Partial-return lifecycle — only populated on new jobs
   stone_status?: 'at_office' | 'at_lab' | 'returned';
   cert_status?: 'pending' | 'delivered';

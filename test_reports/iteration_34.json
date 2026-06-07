@@ -1,0 +1,43 @@
+{
+  "summary": "End-to-end verified the StoneEditDialog refactor across all 3 caller pages (/dashboard/jobs, /dashboard/stones, /dashboard/shipments). Canonical component at /app/frontend/src/components/dialogs/StoneEditDialog.tsx renders identically across all surfaces. Original parcel-on-stones-page bug (regression that prompted the consolidation) confirmed FIXED. Shipments page now exposes Color Stability + Mounted toggles for admins as intended. All testids preserved.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "All StoneEditDialog instances", "issues": ["React a11y warning: 'Missing Description or aria-describedby={undefined} for DialogContent' fires repeatedly (warning, not error) — Radix DialogContent expects either an explicit DialogDescription or aria-describedby. The new component DOES render <DialogDescription> with job# + type + weight, so the warning likely originates from a separate parent dialog (JobDetailDialog / shipments wrappers) without DialogDescription. Cosmetic but pollutes console."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Clean refactor — 421-line canonical component, pure presentational, props in / callbacks out. Hook ownership stays in parent pages which is correct because save handlers call into different stonesApi methods per page. No prop-drilling abuse.",
+    "Parcel fee multiplication math (csFeeCost * stone_count) implemented inline in StoneEditDialog.tsx:165 — both the live preview (Fee pill) and the inline CS line ('+$50 × 4 = $200') update in sync. Single source of truth for this math; no chance of drift between pages now.",
+    "shouldShowToggleStrip on line 174 correctly hides the CS/Mounted strip on read-only mode when both are false — keeps the dialog compact for stones without any fee surcharges. Good UX.",
+    "Stones-page Save button position (test ran on parcel SA750J58402, /dashboard/stones): rendered at footer bottom-right (x=1243 in 1920-wide viewport) — matches the harmonization goal stated in the problem statement.",
+    "Minor: setColorStability! / setMounted! non-null assertions on lines 276/301 are guarded by hasFeeToggles check above, but a Pick<>-style discriminated-union prop type would be cleaner than runtime + bang operators."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only scope)", "frontend": "100% — all 11 acceptance criteria from review_request validated"},
+  "test_credentials": "admin@bashari.com / admin123 (super_admin). TURNSTILE_SECRET_KEY was temporarily blanked during test and RESTORED to 0x4AAAAAADE3zaagPiHzIFhauOwCqpNvlCk afterward (verified).",
+  "seed_data_creation": "None. Existing seed data contained ample parcel stones — Job #580 has parcel SA1000J58002 (4 stones, $50 × 4 = $200 verified), Job #584 has parcel SA750J58402 (3 stones, $50 × 3 = $150 verified on /dashboard/stones).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Stone rows inside JobDetailDialog and ShipmentDetailDialog do NOT have data-testid='stone-row-*'; they're plain <TableRow> elements with onClick={() => openStoneDialog(stone)}. To select them in playwright use: 'querySelectorAll(\"[role=dialog] tbody tr\")' and pick by visible SKU/parcel text. Shipments page uses cards, NOT a table, so 'tbody tr' returns 0 — use 'cursor-pointer' divs or text selectors. Login flow: blank TURNSTILE_SECRET_KEY → fetch /api/auth/login → seed sessionStorage 'token' + 'auth-storage' JSON.",
+  "rca_of_the_issue": "VERIFICATION (not a bug fix): Pre-refactor /dashboard/stones had its own StoneEditDialog copy that PREDATED the parcel feature, so opening a parcel-kind stone on /dashboard/stones did not show the 'Parcel · N stones' chip nor multiply CS fee by stone_count — silent regression caused by code drift across 3 inline copies. The Feb 25 2026 consolidation lifted the jobs-page version (richest) into /components/dialogs/StoneEditDialog.tsx and migrated all 3 callers. POST-FIX VERIFIED: On /dashboard/stones, clicking parcel SA750J58402 now correctly renders 'PARCEL 3 stones' chip + 'TOTAL WT / TOTAL VALUE' labels, and the edit-mode CS toggle shows '+$50 × 3 = $150' preview. On /dashboard/shipments, the Edit button + CS/Mounted toggles (previously gated out in the shipments-local copy) are now visible to admin and the canonical save handler persists via stonesApi.updateFees.",
+  "acceptance_criteria_status": {
+    "jobs_dialog_opens_with_correct_header": "PASS — title 'Stone - SA1000J58002', desc 'Job #580 | Sapphire | 10 ct', Edit btn visible",
+    "jobs_readonly_lock_visible_save_hidden": "PASS — Lock indicator 'Click \"Edit\" to modify fees and verbal findings.' visible; save-stone-button missing in DOM",
+    "jobs_edit_mode_reveals_cs_mounted_save": "PASS — stone-color-stability-switch, stone-mounted-switch, save-stone-button all present after Edit click",
+    "jobs_cs_toggle_updates_fee_preview_parcel_scaled": "PASS — CS preview line on parcel: '+$50 × 4 = $200' (csFeeCost × stone_count)",
+    "jobs_upload_cert_button_present": "PASS — upload-stone-cert-button present in footer",
+    "stones_dialog_opens_with_same_testids": "PASS — edit-stone-button, stone-color-stability-switch, save-stone-button all wired",
+    "stones_parcel_chip_total_wt_total_value": "PASS — 'PARCEL 3 stones' chip + 'TOTAL WT 7.5 ct' + 'TOTAL VALUE $15,000' rendered (original bug fixed)",
+    "stones_parcel_cs_multiplied_preview": "PASS — '+$50 × 3 = $150' preview shown in edit mode",
+    "shipments_dialog_admin_edit_cs_mounted_visible": "PASS — Edit btn, CS switch, Mounted switch, Save btn all visible (were MISSING pre-refactor)",
+    "shipments_cs_toggle_preview": "PASS — '+$50' preview (non-parcel stone, no multiplier)",
+    "shipments_upload_cert_button_present": "PASS — upload-stone-cert-button present",
+    "no_console_errors": "PASS for errors — only a Radix DialogContent a11y WARNING (not an error) about missing aria-describedby, originating from outer dialogs not the canonical StoneEditDialog (which has DialogDescription)",
+    "shipments_local_StoneEditDialog_file_deleted": "PASS — verified /app/frontend/src/app/dashboard/shipments/_components/ contains no StoneEditDialog.tsx (8 files: AddJobsToShipmentDialog, BulkStatusDialog, CreateShipmentDialog, FileViewerDialog, JobDetailDialog, JobPickerRow, PartialStonesPicker, ShipmentDetailDialog)"
+  }
+}
