@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend-only testing of the inline 'New client' affordance in the Create Job dialog and CreateClientDialog refactor. All 6 acceptance items verified end-to-end on the preview URL while logged in as admin@bashari.com. Backend Turnstile bypass was used during login (token fetched via API + injected into sessionStorage because Next.js public env vars are baked into the prod bundle and could not be blanked at runtime); /app/backend/.env restored to original at the end.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CreateClientDialog: branch preselect uses parent's formData.branch_id (job dialog) which is empty until a client is selected; for a super_admin with 'All Branches' active and no prior selection, the dialog opens with 'Select branch' (no preselect). The PRD spec said branch should preselect from selectedBranchId / user.branch_id whichever applies. For super_admin viewing 'All Branches' this is acceptable, but for an Israel-branch admin with selectedBranchId still null on first load, defaultBranchId may also be empty — consider falling back to user.branch_id at the CreateJobDialog boundary if no selectedBranchId is set. Currently only formData.branch_id is passed through.",
+    "CreateClientDialog uses native alert() for failure path (line 127). Consider replacing with a toast or inline error to stay consistent with the rest of the app.",
+    "clients/page.tsx is still 963 lines — close to the 1000-line threshold; further extraction (edit dialog, filters, table) would aid maintainability."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "100%"},
+  "test_credentials": "admin@bashari.com / admin123 (Turnstile bypass: blank TURNSTILE_SECRET_KEY in backend; for prod Next.js bundle the frontend site key is baked in, so we logged in via /api/auth/login and injected token+auth-storage into sessionStorage).",
+  "seed_data_creation": "Two TEST_-prefixed clients created in Israel Office during the run: 'TEST Inline <ts>' (created from Create Job modal) and 'TEST Regr <ts>' (created from /dashboard/clients). They were not deleted — main agent may clean if desired.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login: prod Next.js bundle bakes NEXT_PUBLIC_TURNSTILE_SITE_KEY into the build, so blanking frontend/.env does NOT remove the widget without a rebuild. Reliable bypass: blank backend TURNSTILE_SECRET_KEY, POST /api/auth/login via page.request, then page.evaluate to set sessionStorage 'token' and 'auth-storage' ({state:{token,user,isAuthenticated:true},version:0}). Then navigate to /dashboard/*. Restore backend .env when done. All 6 acceptance items for the inline New-client feature passed: (1) job-add-new-client-button visible inside Create Job, (2) CreateClientDialog opens with all 8 fields (name, company, primary email/phone, secondary email/phone, branch, address, notes), (3) submit auto-fills parent client picker + branch info 'Israel Office (IL)' line + refreshes /clients list, (4) Cancel returns to Create Job dialog intact, (5) /clients Add Client regression works end-to-end, (6) /clients Edit dialog opens populated with the row's data.",
+  "rca of the issue": "N/A — no defects found."
+}

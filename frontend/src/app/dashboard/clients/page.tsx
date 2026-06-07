@@ -4,6 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { clientsApi, branchesApi, authApi, notificationsApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { usePendingAccessRequestsStore } from '@/lib/usePendingAccessRequests';
+import { CreateClientDialog } from './_components/CreateClientDialog';
+import type { Client, Branch } from './_types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,27 +38,6 @@ import {
 import { Users, Plus, Search, Loader2, Pencil, FileText, KeyRound, Mail, CheckCircle2, XCircle, AlertCircle, Trash2, Inbox } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AccessRequestsTab } from './_components/AccessRequestsTab';
-
-interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  secondary_email?: string;
-  secondary_phone?: string;
-  company?: string;
-  address?: string;
-  branch_id: string;
-  notes?: string;
-  user_id?: string;
-  created_at: string;
-}
-
-interface Branch {
-  id: string;
-  name: string;
-  code: string;
-}
 
 const COUNTRY_PREFIXES = [
   { code: 'IL', flag: '\ud83c\uddee\ud83c\uddf1', prefix: '+972', label: 'Israel (+972)' },
@@ -214,36 +195,6 @@ export default function ClientsPage() {
     }
   };
 
-  const handleCreateClient = async () => {
-    if (!formData.name || !formData.email || !formData.branch_id) {
-      return;
-    }
-
-    setCreating(true);
-    try {
-      // Convert empty strings to undefined for optional fields
-      const cleanedData = {
-        name: formData.name,
-        email: formData.email,
-        branch_id: formData.branch_id,
-        phone: formData.phone ? `${phonePrefix}${formData.phone}` : undefined,
-        secondary_email: formData.secondary_email || undefined,
-        secondary_phone: formData.secondary_phone ? `${secondaryPhonePrefix}${formData.secondary_phone}` : undefined,
-        company: formData.company || undefined,
-        address: formData.address || undefined,
-        notes: formData.notes || undefined,
-      };
-      await clientsApi.create(cleanedData);
-      setCreateDialogOpen(false);
-      setFormData({ name: '', email: '', phone: '', secondary_email: '', secondary_phone: '', company: '', address: '', branch_id: '', notes: '' });
-      fetchData();
-    } catch (error) {
-      console.error('Failed to create client:', error);
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const openEditDialog = (client: Client) => {
     setEditingClient(client);
     // Set phone prefixes based on client's branch
@@ -390,15 +341,7 @@ export default function ClientsPage() {
           )}
           {isSuperAdmin && (
             <Button
-              onClick={() => {
-                // Auto-set branch and phone prefix based on user
-                const defaultBranch = user?.branch_id || selectedBranchId || '';
-                const dp = defaultBranch ? getDefaultPrefix(defaultBranch, branches) : '+972';
-                setFormData(prev => ({ ...prev, branch_id: defaultBranch }));
-                setPhonePrefix(dp);
-                setSecondaryPhonePrefix(dp);
-                setCreateDialogOpen(true);
-              }}
+              onClick={() => setCreateDialogOpen(true)}
               className="bg-navy-900 hover:bg-navy-800"
               data-testid="create-client-button"
             >
@@ -608,193 +551,14 @@ export default function ClientsPage() {
       </Card>
 
       {/* Create Client Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-navy-900">Add New Client</DialogTitle>
-            <DialogDescription>Add a new client to your database</DialogDescription>
-          </DialogHeader>
+      <CreateClientDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        branches={branches}
+        defaultBranchId={user?.branch_id || selectedBranchId || ''}
+        onCreated={async () => { await fetchData(); }}
+      />
 
-          <div className="space-y-4 py-4">
-            {/* Row 1: Name & Company */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="name" className="text-sm">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Client name"
-                  className="border-navy-200"
-                  data-testid="client-name-input"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="company" className="text-sm">Company</Label>
-                <Input
-                  id="company"
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  placeholder="Company name"
-                  className="border-navy-200"
-                  data-testid="client-company-input"
-                />
-              </div>
-            </div>
-
-            {/* Row 2: Primary Email & Phone */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="email" className="text-sm">Primary Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="client@example.com"
-                  className="border-navy-200"
-                  data-testid="client-email-input"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="phone" className="text-sm">Primary Phone</Label>
-                <p className="text-[10px] text-navy-400 -mt-0.5">Used for SMS notifications</p>
-                <div className="flex gap-1">
-                  <Select value={phonePrefix} onValueChange={setPhonePrefix}>
-                    <SelectTrigger className="w-[100px] border-navy-200 text-xs flex-shrink-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COUNTRY_PREFIXES.map((c) => (
-                        <SelectItem key={c.code} value={c.prefix}>{c.flag} {c.prefix}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="54 397 5801"
-                    className="border-navy-200"
-                    data-testid="client-phone-input"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Row 3: Secondary Email & Phone */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="secondary_email" className="text-sm">Secondary Email</Label>
-                <Input
-                  id="secondary_email"
-                  type="email"
-                  value={formData.secondary_email}
-                  onChange={(e) => setFormData({ ...formData, secondary_email: e.target.value })}
-                  placeholder="secondary@example.com"
-                  className="border-navy-200"
-                  data-testid="client-secondary-email-input"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="secondary_phone" className="text-sm">Secondary Phone</Label>
-                <div className="flex gap-1">
-                  <Select value={secondaryPhonePrefix} onValueChange={setSecondaryPhonePrefix}>
-                    <SelectTrigger className="w-[100px] border-navy-200 text-xs flex-shrink-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COUNTRY_PREFIXES.map((c) => (
-                        <SelectItem key={c.code} value={c.prefix}>{c.flag} {c.prefix}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    id="secondary_phone"
-                    value={formData.secondary_phone}
-                    onChange={(e) => setFormData({ ...formData, secondary_phone: e.target.value })}
-                    placeholder="54 397 5801"
-                    className="border-navy-200"
-                    data-testid="client-secondary-phone-input"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Row 4: Branch & Address */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="branch" className="text-sm">Branch *</Label>
-                <Select
-                  value={formData.branch_id}
-                  onValueChange={(value) => {
-                    setFormData({ ...formData, branch_id: value });
-                    const dp = getDefaultPrefix(value, branches);
-                    setPhonePrefix(dp);
-                    setSecondaryPhonePrefix(dp);
-                  }}
-                >
-                  <SelectTrigger data-testid="client-branch-select">
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="address" className="text-sm">Address</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Client address"
-                  className="border-navy-200"
-                  data-testid="client-address-input"
-                />
-              </div>
-            </div>
-
-            {/* Row 5: Notes */}
-            <div className="space-y-1">
-              <Label htmlFor="notes" className="text-sm">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Additional notes about this client..."
-                className="border-navy-200 min-h-[60px]"
-                data-testid="client-notes-input"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateClient}
-              disabled={creating || !formData.name || !formData.email || !formData.branch_id}
-              className="bg-navy-900 hover:bg-navy-800"
-              data-testid="confirm-create-client-button"
-            >
-              {creating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Add Client'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Client Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

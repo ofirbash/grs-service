@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,8 +10,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Trash2, Loader2, Package, Gem } from 'lucide-react';
+import { Plus, Trash2, Loader2, Package, Gem, UserPlus } from 'lucide-react';
 import type { Client, Branch } from '../_types';
+import { CreateClientDialog } from '../../clients/_components/CreateClientDialog';
+import type { Client as ClientsClient, Branch as ClientsBranch } from '../../clients/_types';
 
 export interface JobFormData {
   client_id: string;
@@ -55,6 +57,11 @@ interface CreateJobDialogProps {
   creating: boolean;
   isFormValid: () => boolean;
   onSubmit: () => void;
+  /** Fires when an admin creates a new client from inside the job modal.
+   *  Parent should refresh its `clients` list — the dialog auto-selects
+   *  the newly-created client into `formData.client_id` so the operator
+   *  can continue creating the job without leaving the modal. */
+  onClientCreated?: (client: Client) => void | Promise<void>;
 }
 
 export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
@@ -76,7 +83,12 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
   creating,
   isFormValid,
   onSubmit,
-}) => (
+  onClientCreated,
+}) => {
+  const [newClientOpen, setNewClientOpen] = useState(false);
+
+  return (
+  <>
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
@@ -99,7 +111,23 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
         {/* Job details */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Client <span className="text-red-500">*</span></Label>
+            <div className="flex items-center justify-between">
+              <Label>Client <span className="text-red-500">*</span></Label>
+              {/* "+ New" affordance — opens the same CreateClientDialog used
+                  on /dashboard/clients. After save, the newly-created
+                  client is auto-selected via onCreated → setFormData. */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-navy-700 hover:text-navy-900"
+                onClick={() => setNewClientOpen(true)}
+                data-testid="job-add-new-client-button"
+              >
+                <UserPlus className="h-3.5 w-3.5 mr-1" />
+                New client
+              </Button>
+            </div>
             <SearchableSelect
               value={formData.client_id}
               onValueChange={(value) => {
@@ -466,4 +494,30 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
       </DialogFooter>
     </DialogContent>
   </Dialog>
+  <CreateClientDialog
+    open={newClientOpen}
+    onOpenChange={setNewClientOpen}
+    // The CreateClientDialog has its own Branch type but the shapes are
+    // identical (id/name/code). Cast at the boundary to keep both type
+    // modules independent.
+    branches={branches as unknown as ClientsBranch[]}
+    defaultBranchId={formData.branch_id || ''}
+    onCreated={async (newClient) => {
+      // Auto-select the new client in the job form and adopt its branch.
+      setFormData({
+        ...formData,
+        client_id: newClient.id,
+        branch_id: newClient.branch_id,
+      });
+      // Let the parent refresh its `clients` list so the SearchableSelect
+      // shows the new entry on next interaction.
+      if (onClientCreated) {
+        // The ClientsClient type already extends our Client shape (same
+        // fields). Cast at the boundary.
+        await onClientCreated(newClient as unknown as Client);
+      }
+    }}
+  />
+  </>
 );
+};

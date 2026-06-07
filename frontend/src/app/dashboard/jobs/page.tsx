@@ -1481,6 +1481,12 @@ function JobsPageContent() {
         creating={creating}
         isFormValid={isFormValid}
         onSubmit={handleCreateJob}
+        onClientCreated={async () => {
+          // The job dialog already auto-selected the new client into
+          // formData.client_id; we just need to refresh the `clients`
+          // list so the SearchableSelect can render the new label.
+          await fetchData();
+        }}
       />
 
       {/* View Job Dialog */}
