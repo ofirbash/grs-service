@@ -22,6 +22,7 @@ from pricing import (
 )
 from utils import generate_sku
 from jobs_helpers import active_stones, recompute_job_totals, is_parcel, physical_stone_count
+from activity_log import Action, log_activity
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 
@@ -307,6 +308,15 @@ async def create_job(job: JobCreate, user: dict = Depends(require_admin)):
     result = await db.jobs.insert_one(job_doc)
     branch = await db.branches.find_one({"_id": ObjectId(job.branch_id)})
 
+    await log_activity(
+        Action.JOB_CREATED,
+        actor=user,
+        job_id=str(result.inserted_id),
+        client_id=job.client_id,
+        branch_id=job.branch_id,
+        summary=f"Job #{job_number} \u00b7 {len(stones)} stones",
+    )
+
     return JobResponse(
         id=str(result.inserted_id),
         job_number=job_number,
@@ -382,6 +392,14 @@ async def update_job_status(job_id: str, status_update: JobStatusUpdate, user: d
     if status_update.status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
 
+    # Read old status so we can label the activity row (no diff payload, but
+    # the action label "X → Y" is the one piece of context that's
+    # genuinely useful on a timeline).
+    existing = await db.jobs.find_one({"_id": ObjectId(job_id)}, {"status": 1, "branch_id": 1, "job_number": 1})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Job not found")
+    old_status = existing.get("status")
+
     result = await db.jobs.update_one(
         {"_id": ObjectId(job_id)},
         {"$set": {"status": status_update.status, "updated_at": datetime.utcnow()}}
@@ -389,6 +407,15 @@ async def update_job_status(job_id: str, status_update: JobStatusUpdate, user: d
 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Job not found")
+
+    await log_activity(
+        Action.JOB_STATUS_CHANGED,
+        actor=user,
+        job_id=job_id,
+        branch_id=existing.get("branch_id"),
+        summary=f"{old_status} \u2192 {status_update.status}",
+        metadata={"from": old_status, "to": status_update.status},
+    )
 
     return await get_job(job_id, user)
 

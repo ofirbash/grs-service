@@ -11,6 +11,7 @@ from models import (
 )
 from pricing import get_color_stability_fee_from_db, get_mounted_fee_from_db
 from jobs_helpers import active_stones, recompute_job_totals
+from activity_log import Action, log_activity
 
 router = APIRouter()
 
@@ -110,6 +111,15 @@ async def update_stone_verbal(stone_id: str, data: VerbalFindingsUpdate, user: d
         {"$set": update_data}
     )
 
+    await log_activity(
+        Action.STONE_VERBAL_ENTERED,
+        actor=user,
+        job_id=str(job["_id"]),
+        stone_id=stone_id,
+        branch_id=job.get("branch_id"),
+        summary=f"Job #{job.get('job_number', '?')} \u00b7 Stone {stone_id[-6:]}",
+    )
+
     return {"message": "Verbal findings updated successfully"}
 
 
@@ -204,6 +214,15 @@ async def update_stone_fees(stone_id: str, data: StoneFeeUpdate, user: dict = De
     updated_job = await db.jobs.find_one({"_id": job["_id"]})
     updated_stone = next((s for s in updated_job.get('stones', []) if s.get('id') == stone_id), None)
 
+    await log_activity(
+        Action.STONE_FEES_UPDATED,
+        actor=user,
+        job_id=str(job["_id"]),
+        stone_id=stone_id,
+        branch_id=job.get("branch_id"),
+        summary=f"Job #{job.get('job_number', '?')} \u00b7 fees updated",
+    )
+
     return {
         "message": "Stone fees updated successfully",
         "stone": updated_stone,
@@ -233,6 +252,15 @@ async def upload_group_certificate_scan(data: GroupCertificateScanUpload, user: 
         {"$set": {"updated_at": datetime.utcnow()}}
     )
 
+    await log_activity(
+        Action.STONE_CERT_UPLOADED,
+        actor=user,
+        job_id=str(job["_id"]),
+        branch_id=job.get("branch_id"),
+        summary=f"Job #{job.get('job_number', '?')} \u00b7 group {data.certificate_group} ({len(stones_in_group)} stones)",
+        metadata={"certificate_group": data.certificate_group, "stone_count": len(stones_in_group)},
+    )
+
     return {"message": f"Certificate scan uploaded for {len(stones_in_group)} stones in group {data.certificate_group}"}
 
 
@@ -246,6 +274,15 @@ async def upload_stone_certificate_scan(stone_id: str, data: CertificateScanUplo
     await db.jobs.update_one(
         {"_id": job["_id"], "stones.id": stone_id},
         {"$set": {"stones.$.certificate_scan_url": data.file_data, "updated_at": datetime.utcnow()}}
+    )
+
+    await log_activity(
+        Action.STONE_CERT_UPLOADED,
+        actor=user,
+        job_id=str(job["_id"]),
+        stone_id=stone_id,
+        branch_id=job.get("branch_id"),
+        summary=f"Job #{job.get('job_number', '?')} \u00b7 single-stone cert",
     )
 
     return {"message": "Certificate scan uploaded successfully", "filename": data.filename}
