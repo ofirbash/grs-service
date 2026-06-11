@@ -5,7 +5,34 @@
 
 ---
 
+## Feb 25, 2026 — Activity Log Phase 1 (admin-only audit timeline)
+
+Per-job operational audit trail so admins can see who did what and when. **No JSON diffs** (per product decision Feb 25 2026): timeline rows are intentionally minimal — action label + actor + when + short summary — so they stay scannable. The underlying records keep the full state.
+
+### Backend
+- **`/app/backend/activity_log.py`** — `log_activity()` helper + `Action` constants. Fire-and-forget (any DB error is logged but never re-raised, so a logging hiccup can't break the business write that triggered it). 365-day TTL via Mongo index — auto-prune, no separate cron. Lazy `ensure_indexes()` runs once per process so we don't try to touch the DB at import time.
+- **`/app/backend/routes/activity.py`** — `GET /api/activity?job_id=&branch_id=&limit=` (require_admin). `branch_admin` is silently scoped to their own branch even if they pass a different `branch_id`. `super_admin` sees all.
+- **Instrumented write paths** (one row per business write, no diffs):
+  - `jobs.py` → `JOB_CREATED`, `JOB_UPDATED` (lists changed fields by name), `JOB_STATUS_CHANGED` (from→to in summary), `STONE_CANCELLED`.
+  - `stones.py` → `STONE_VERBAL_ENTERED`, `STONE_FEES_UPDATED`, `STONE_CERT_UPLOADED` (single + group), `STONE_CANCELLED`.
+  - `manual_payments.py` → `PAYMENT_RECORDED` (amount + destination + paid-in-full flag).
+  - `shipments.py` → `SHIPMENT_CREATED` (one row per included job + one shipment-only row so it appears in each job's filtered timeline and in the global feed). `SHIPMENT_STATUS_CHANGED` (one row per included job; from→to in summary).
+  - `notifications.py` → `JOB_NOTIFICATION_SENT` (email + SMS, ONLY on success — failed sends already get a toast; logging "failed" rows would just clutter the timeline).
+  - `clients.py` → `CLIENT_CREATED`, `CLIENT_UPDATED` (lists changed fields).
+  - `auth_routes.py` → `LOGIN_SUCCESS` for admins only (customer logins are noisy and not operationally interesting).
+
+### Frontend
+- **`/app/frontend/src/lib/api.ts`** — new `activityApi.listForJob(jobId, limit?)` + exported `ActivityRow` type.
+- **`/app/frontend/src/app/dashboard/jobs/_components/JobActivityList.tsx`** — admin-only compact timeline card. One-line rows: icon (lucide-react) + action label + summary + actor + relative time (`5m ago`, `3h ago`, falls back to absolute date past 7d). Test IDs: `job-activity-list`, `job-activity-empty`, `job-activity-error`, `activity-row-{action}`.
+- **`jobs/page.tsx`** — wires `<JobActivityList jobId={selectedJob.id} />` inside the Job Detail dialog, below the Payment + Notifications grid, gated by `isAdmin && selectedJob`.
+
+### Tests
+- Testing agent iter-36 — backend 11/12 pass (1 skipped — manual-payment test fixture had $0 balance, validation correctly rejected it; no defect). Frontend Playwright was blocked by the preview environment being asleep; code review confirms wiring is correct.
+
+---
+
 ## Feb 25, 2026 — Inline "+ New client" affordance in Create Job dialog
+
 
 Admins reported workflow friction: when creating a job for a brand-new client, they had to abandon the half-filled job modal, switch to `/dashboard/clients`, create the client, switch back, and re-open the Create Job dialog. Now they can do it from the same screen.
 

@@ -10,6 +10,9 @@ _None currently._
 
 ## P1 — High Priority
 
+- [x] **Activity Log Phase 1** — admin-only per-job audit timeline. ✅ done Feb 25 2026. Backend `log_activity()` helper + GET `/api/activity` endpoint with `branch_admin` scoping. Instrumented 7 route files (jobs, stones, manual_payments, shipments, notifications, clients, auth_routes — `LOGIN_SUCCESS` for admins only). Frontend `JobActivityList` card rendered inside Job Detail dialog (`isAdmin` gated). One-line rows, no JSON diffs (per product decision). 365-day Mongo TTL. Tests: iter-36 11/12 pass.
+- [ ] **Activity Log Phase 2** — global activity feed page (`/dashboard/activity`?) + per-action filter + actor filter + date range. Phase 1 only exposes the per-job timeline.
+- [ ] **Bulk notify clients per shipment.** Admin action: pick a shipment → send the same notification (intake / dispatched / delivered) to every client whose jobs are contained in it.
 - [ ] **Refactor: consolidate duplicate dialogs.** User-flagged Feb 25 2026 — multiple copies of the same UI cause feature drift (e.g. parcels worked on /dashboard/jobs but not /dashboard/stones). Sequence:
   1. `<StoneVerbalSection>` ✅ done (used by both stone modals)
   2. `<ShipmentDetailDialog>` ✅ done Feb 25 2026 — extracted to `shipments/_components/ShipmentDetailDialog.tsx` along with CreateShipmentDialog, AddJobsToShipmentDialog, BulkStatusDialog, FileViewerDialog, JobDetailDialog, StoneEditDialog. `shipments/page.tsx` dropped from 2317 → 1149 lines.
