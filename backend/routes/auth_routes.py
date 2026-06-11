@@ -24,6 +24,7 @@ from login_security import (
     clear_login_failures,
     verify_turnstile,
 )
+from activity_log import Action, log_activity
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,17 @@ async def login(credentials: UserLogin, request: Request):
 
     user_id = str(user["_id"])
     access_token = create_access_token({"sub": user_id, "email": user["email"], "role": user["role"]})
+
+    # Activity log: only audit admin logins. Customer logins are noisy and
+    # not operationally interesting on the per-job timeline.
+    if user.get("role") in ("super_admin", "branch_admin"):
+        await log_activity(
+            Action.LOGIN_SUCCESS,
+            actor=user,
+            branch_id=user.get("branch_id"),
+            summary=f"{user.get('email')} \u00b7 {ip}",
+            metadata={"ip": ip},
+        )
 
     return TokenResponse(
         access_token=access_token,

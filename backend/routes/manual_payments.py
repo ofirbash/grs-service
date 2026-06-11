@@ -18,6 +18,7 @@ from auth import require_admin, get_current_user
 from email_async import send_email_async
 from email_templates import build_notification_email_html
 from sms import send_sms, build_sms_message
+from activity_log import Action, log_activity
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -174,6 +175,22 @@ async def record_manual_payment(
         notify_results["sms"] = await _send_payment_sms(job_for_template, client_doc)
 
     payment_out = {**payment, "recorded_at": payment["recorded_at"].isoformat()}
+
+    await log_activity(
+        Action.PAYMENT_RECORDED,
+        actor=user,
+        job_id=job_id,
+        client_id=str(job.get("client_id")) if job.get("client_id") else None,
+        branch_id=job.get("branch_id"),
+        summary=f"${payload.amount:,.2f} \u00b7 {payload.destination} \u00b7 {'paid in full' if is_fully_paid else 'partial'}",
+        metadata={
+            "amount": payload.amount,
+            "destination": payload.destination,
+            "payment_id": payment["id"],
+            "fully_paid": is_fully_paid,
+        },
+    )
+
     return {
         "payment": payment_out,
         "payment_status": "paid" if is_fully_paid else "partial",

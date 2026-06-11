@@ -88,6 +88,7 @@ import { JobPaymentCard } from './_components/JobPaymentCard';
 import { JobNotificationsCard } from './_components/JobNotificationsCard';
 import { StoneStatusBadges } from './_components/StoneStatusBadges';
 import { JobDocumentsRow } from './_components/JobDocumentsRow';
+import { JobActivityList } from './_components/JobActivityList';
 
 /** Stable per-row UID for newly-created stone rows in the Create Job form.
  * Avoids using the array index as a React `key`, which loses focus + state when rows are removed. */
@@ -1862,6 +1863,15 @@ function JobsPageContent() {
                       onPreview={handlePreviewNotification}
                       onSendSms={handleSendSms}
                     />
+                  </div>
+                )}
+
+                {/* Activity timeline — admin-only audit trail of operational
+                    actions on this job. Compact one-line rows, no JSON diffs
+                    (per product decision). Backend RBAC also enforces admin-only. */}
+                {isAdmin && selectedJob && (
+                  <div className="border-t border-navy-200 pt-4 mt-4">
+                    <JobActivityList jobId={selectedJob.id} />
                   </div>
                 )}
             </div>

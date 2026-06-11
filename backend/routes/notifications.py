@@ -13,6 +13,7 @@ from models import SendEmailRequest
 from email_async import send_email_async
 from email_templates import build_notification_email_html
 from sms import send_sms, check_balance, build_sms_message
+from activity_log import Action, log_activity
 
 logger = logging.getLogger(__name__)
 
@@ -235,6 +236,20 @@ async def send_notification_email(
         }
     )
 
+    # Activity timeline: only log successful/mocked sends. We intentionally
+    # skip "failed" rows here because the operator already sees the error
+    # toast — adding a noisy "failed to send" row would clutter the timeline.
+    if notification_log["status"] in ("sent", "mocked"):
+        await log_activity(
+            Action.JOB_NOTIFICATION_SENT,
+            actor=user,
+            job_id=job_id,
+            client_id=str(job.get("client_id")) if job.get("client_id") else None,
+            branch_id=job.get("branch_id"),
+            summary=f"Email \u00b7 {notification_type} \u2192 {request.recipient_email}",
+            metadata={"channel": "email", "notification_type": notification_type},
+        )
+
     return {
         "message": f"Notification sent successfully" if notification_log["status"] == "sent" else f"Notification logged (status: {notification_log['status']})",
         "notification_id": notification_log["id"],
@@ -354,6 +369,17 @@ async def send_sms_notification(job_id: str, notification_type: str, user: dict 
             "$set": {"updated_at": datetime.utcnow()}
         }
     )
+
+    if result["success"]:
+        await log_activity(
+            Action.JOB_NOTIFICATION_SENT,
+            actor=user,
+            job_id=job_id,
+            client_id=str(job.get("client_id")) if job.get("client_id") else None,
+            branch_id=job.get("branch_id"),
+            summary=f"SMS \u00b7 {notification_type} \u2192 {phone}",
+            metadata={"channel": "sms", "notification_type": notification_type},
+        )
 
     if not result["success"]:
         raise HTTPException(status_code=502, detail=f"SMS send failed: {result['message']}")

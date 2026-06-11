@@ -8,6 +8,7 @@ from auth import get_current_user, require_admin
 from models import (
     ShipmentCreate, ShipmentUpdate, ShipmentJobsUpdate, ShipmentResponse
 )
+from activity_log import Action, log_activity
 
 SHIPMENT_TYPES = ["send_stones_to_lab", "stones_from_lab", "certificates_from_lab"]
 # "completed" is a terminal status applied automatically to `certificates_from_lab`
@@ -213,6 +214,26 @@ async def create_shipment(shipment: ShipmentCreate, user: dict = Depends(require
                 }
             )
 
+    # Activity log: log one row against the shipment itself (no specific job)
+    # plus one row per included job so the per-job timeline surfaces it.
+    summary_str = f"Shipment #{shipment_number} \u00b7 {shipment.shipment_type} \u00b7 {len(valid_job_ids)} jobs / {total_stones} stones"
+    await log_activity(
+        Action.SHIPMENT_CREATED,
+        actor=user,
+        shipment_id=shipment_id,
+        summary=summary_str,
+        metadata={"shipment_type": shipment.shipment_type, "courier": shipment.courier},
+    )
+    for job_id in valid_job_ids:
+        await log_activity(
+            Action.SHIPMENT_CREATED,
+            actor=user,
+            job_id=job_id,
+            shipment_id=shipment_id,
+            summary=summary_str,
+            metadata={"shipment_type": shipment.shipment_type, "courier": shipment.courier},
+        )
+
     return ShipmentResponse(
         id=shipment_id,
         shipment_number=shipment_number,
@@ -368,10 +389,32 @@ async def update_shipment_status(
     if _is_lifecycle_complete(shipment, status):
         status = "completed"
 
+    old_status = shipment.get("status")
+
     await db.shipments.update_one(
         {"_id": ObjectId(shipment_id)},
         {"$set": {"status": status, "updated_at": datetime.utcnow()}}
     )
+
+    # Log status change once per included job so it shows on each job's timeline.
+    if old_status != status:
+        summary_str = f"Shipment #{shipment.get('shipment_number', '?')} \u00b7 {old_status} \u2192 {status}"
+        await log_activity(
+            Action.SHIPMENT_STATUS_CHANGED,
+            actor=user,
+            shipment_id=shipment_id,
+            summary=summary_str,
+            metadata={"from": old_status, "to": status},
+        )
+        for job_id in shipment.get("job_ids", []):
+            await log_activity(
+                Action.SHIPMENT_STATUS_CHANGED,
+                actor=user,
+                job_id=job_id,
+                shipment_id=shipment_id,
+                summary=summary_str,
+                metadata={"from": old_status, "to": status},
+            )
 
     # Stone-level lifecycle (partial-return aware). Runs regardless of the
     # job-cascade flag so new tracked stones always reflect their shipment state.

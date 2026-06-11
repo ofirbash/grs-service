@@ -619,6 +619,15 @@ async def delete_stone_from_job(job_id: str, stone_id: str, user: dict = Depends
         },
     )
 
+    await log_activity(
+        Action.STONE_CANCELLED,
+        actor=user,
+        job_id=job_id,
+        stone_id=stone_id,
+        branch_id=job.get("branch_id"),
+        summary=f"Job #{job.get('job_number', '?')} \u00b7 stone {target.get('sku') or stone_id[-6:]} removed",
+    )
+
     return {
         "message": "Stone removed",
         "stone_id": stone_id,
@@ -651,6 +660,16 @@ async def update_job(job_id: str, job_update: JobUpdate, user: dict = Depends(re
         {"_id": ObjectId(job_id)},
         {"$set": update_data}
     )
+
+    changed_fields = sorted(update_data.keys() - {"updated_at"})
+    if changed_fields:
+        await log_activity(
+            Action.JOB_UPDATED,
+            actor=user,
+            job_id=job_id,
+            branch_id=job.get("branch_id"),
+            summary=f"Job #{job.get('job_number', '?')} \u00b7 {', '.join(changed_fields)}",
+        )
 
     return await get_job(job_id, user)
 

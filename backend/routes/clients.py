@@ -12,6 +12,7 @@ from database import db
 from auth import get_current_user, require_admin
 from email_async import send_email_async
 from models import ClientCreate, ClientUpdate, ClientResponse
+from activity_log import Action, log_activity
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +111,14 @@ async def create_client(client: ClientCreate, user: dict = Depends(require_admin
             except Exception as e:
                 logger.error(f"Failed to send setup email to {email_lower}: {e}")
 
+    await log_activity(
+        Action.CLIENT_CREATED,
+        actor=user,
+        client_id=client_id,
+        branch_id=client.branch_id,
+        summary=f"{client.name} \u00b7 {client.email}",
+    )
+
     return ClientResponse(id=client_id, **client.dict(), created_at=client_doc["created_at"])
 
 
@@ -166,6 +175,14 @@ async def update_client(client_id: str, client_update: ClientUpdate, user: dict 
     await db.clients.update_one(
         {"_id": ObjectId(client_id)},
         {"$set": update_data}
+    )
+
+    await log_activity(
+        Action.CLIENT_UPDATED,
+        actor=user,
+        client_id=client_id,
+        branch_id=client.get("branch_id"),
+        summary=f"{client.get('name', '?')} \u00b7 {', '.join(sorted(update_data.keys() - {'updated_at'}))}",
     )
 
     updated = await db.clients.find_one({"_id": ObjectId(client_id)})

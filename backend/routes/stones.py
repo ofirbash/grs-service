@@ -323,4 +323,15 @@ async def delete_stone(stone_id: str, user: dict = Depends(require_admin)):
             "updated_at": datetime.utcnow(),
         }},
     )
+
+    target = next((s for s in job.get("stones", []) if s.get("id") == stone_id), None)
+    await log_activity(
+        Action.STONE_CANCELLED,
+        actor=user,
+        job_id=str(job["_id"]),
+        stone_id=stone_id,
+        branch_id=job.get("branch_id"),
+        summary=f"Job #{job.get('job_number', '?')} \u00b7 stone {(target or {}).get('sku') or stone_id[-6:]} removed",
+    )
+
     return {"message": "Stone deleted", "totals": totals}

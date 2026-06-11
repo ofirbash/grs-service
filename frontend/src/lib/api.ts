@@ -642,6 +642,35 @@ export const notificationsApi = {
   },
 };
 
+// Activity Log API
+export const activityApi = {
+  // Per-job timeline. Admins only on the backend; calling as a customer
+  // returns 403 — the UI should only render this when the current user
+  // has admin role.
+  listForJob: async (jobId: string, limit: number = 100) => {
+    const response = await api.get('/activity', {
+      params: { job_id: jobId, limit },
+    });
+    return response.data as ActivityRow[];
+  },
+};
+
+export interface ActivityRow {
+  id: string;
+  action: string;
+  actor_id: string | null;
+  actor_name: string;
+  actor_role: string | null;
+  job_id: string | null;
+  stone_id: string | null;
+  shipment_id: string | null;
+  client_id: string | null;
+  branch_id: string | null;
+  summary: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
 // Cloudinary Upload API
 export const cloudinaryApi = {
   getSignature: async (folder: string = 'uploads', resourceType: 'image' | 'raw' = 'image') => {
