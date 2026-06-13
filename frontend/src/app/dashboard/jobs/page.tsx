@@ -89,14 +89,7 @@ import { JobNotificationsCard } from './_components/JobNotificationsCard';
 import { StoneStatusBadges } from './_components/StoneStatusBadges';
 import { JobDocumentsRow } from './_components/JobDocumentsRow';
 import { JobActivityList } from './_components/JobActivityList';
-
-/** Stable per-row UID for newly-created stone rows in the Create Job form.
- * Avoids using the array index as a React `key`, which loses focus + state when rows are removed. */
-let _stoneUidCounter = 0;
-const makeStoneUid = (): string =>
-  (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-    ? crypto.randomUUID()
-    : `stone-${Date.now()}-${++_stoneUidCounter}`;
+import { useJobStones } from './_hooks/useJobStones';
 
 export default function JobsPage() {
   // Wrap the actual page in <Suspense> so `useSearchParams()` is allowed during
@@ -174,32 +167,29 @@ function JobsPageContent() {
     notes: '',
     recheck_reasons: [],
   });
-  const [stones, setStones] = useState<Array<{
-    _uid: string;
-    stone_type: string;
-    weight: string;
-    shape: string;
-    value: string;
-    color_stability_test: boolean;
-    is_parcel?: boolean;
-    stone_count?: string;
-  }>>([{ _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
+  const {
+    stones,
+    addStone,
+    removeStone,
+    changeStone,
+    resetStones,
+    hasStoneData,
+    hasValidStone,
+  } = useJobStones();
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // Check if form has any data (for unsaved changes warning)
   const hasUnsavedChanges = () => {
     const hasFormData = formData.client_id || formData.branch_id || formData.service_type || formData.notes;
-    const hasStoneData = stones.some(s => s.stone_type || s.weight || s.value || s.shape);
-    return hasFormData || hasStoneData;
+    return hasFormData || hasStoneData();
   };
 
   // Check if form is valid for submission (all required fields filled)
   const isFormValid = (): boolean => {
     const hasRequiredFields = Boolean(formData.client_id && formData.branch_id && formData.service_type);
-    const hasValidStone = stones.some(s => Boolean(s.stone_type && s.weight && s.value));
     // Recheck jobs additionally require at least one reason selected.
     const recheckOk = formData.service_type !== 'Recheck' || (formData.recheck_reasons && formData.recheck_reasons.length > 0);
-    return hasRequiredFields && hasValidStone && Boolean(recheckOk);
+    return hasRequiredFields && hasValidStone() && Boolean(recheckOk);
   };
 
   // Handle dialog close with unsaved changes warning
@@ -213,7 +203,7 @@ function JobsPageContent() {
       // Reset form when closing
       setValidationErrors([]);
       setFormData({ client_id: '', branch_id: '', service_type: '', notes: '', recheck_reasons: [] });
-      setStones([{ _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
+      resetStones();
     }
   };
 
@@ -421,26 +411,9 @@ function JobsPageContent() {
     }
   };
 
-  const handleAddStone = () => {
-    setStones([...stones, { _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
-  };
-
-  const handleRemoveStone = (index: number) => {
-    if (stones.length > 1) {
-      setStones(stones.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleStoneChange = (index: number, field: string, value: string | boolean) => {
-    const newStones = [...stones];
-    newStones[index] = { ...newStones[index], [field]: value };
-    // When a row flips OFF parcel, clear the count so it doesn't ride along
-    // as a stale string.
-    if (field === 'is_parcel' && value === false) {
-      newStones[index].stone_count = '';
-    }
-    setStones(newStones);
-  };
+  // Stone add / remove / change now live in `useJobStones` — see the
+  // destructured `addStone`, `removeStone`, `changeStone` above. The
+  // hook also owns row UIDs and the parcel-toggle side-effect.
 
   // Helper to open stone dialog with proper initialization
   const handleDeleteStone = async (stoneId: string, sku: string) => {
@@ -698,7 +671,7 @@ function JobsPageContent() {
       // Close dialog and reset form (handleCreateDialogClose handles cleanup)
       setCreateDialogOpen(false);
       setFormData({ client_id: '', branch_id: '', service_type: '', notes: '', recheck_reasons: [] });
-      setStones([{ _uid: makeStoneUid(), stone_type: '', weight: '', shape: '', value: '', color_stability_test: false }]);
+      resetStones();
       setValidationErrors([]);
       fetchData();
     } catch (error) {
@@ -1476,9 +1449,9 @@ function JobsPageContent() {
         stoneTypes={stoneTypes}
         shapes={shapes}
         stones={stones}
-        onStoneChange={(index, field, value) => handleStoneChange(index, field, value)}
-        onAddStone={handleAddStone}
-        onRemoveStone={handleRemoveStone}
+        onStoneChange={changeStone}
+        onAddStone={addStone}
+        onRemoveStone={removeStone}
         creating={creating}
         isFormValid={isFormValid}
         onSubmit={handleCreateJob}

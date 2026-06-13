@@ -40,8 +40,8 @@ _None currently._
 - [x] Decompose `routes/jobs.py:create_job` into `_enforce_client_branch_consistency` / `_assign_next_job_number` / `_build_stones_for_create` (done Feb 18, 2026).
 - [x] Pin `jobs_helpers` behaviour with pytest (done — 15 tests, includes a direct repro of the cancel-leak class of bug as `test_payable_amount_excludes_cancelled_stones`).
 - [ ] **Extract `_components/StoneEditDialog.tsx`** (~400 LOC) — the stone-details modal is now visually identical between `jobs/page.tsx` and `stones/page.tsx`. Risky: 10+ pieces of state to plumb (modal open, viewing stone, edit mode, structured findings, color-stability + mounted toggles, save handler, unsaved-changes guard, cert-scan upload). Recommend tackling in a dedicated session with the testing agent on standby.
-- [ ] Extract `_components/CreateJobDialog.tsx` from `jobs/page.tsx`.
-- [ ] Extract `_hooks/useJobStones.ts` from `jobs/page.tsx`.
+- [ ] Extract `_components/CreateJobDialog.tsx` from `jobs/page.tsx`. ✅ done earlier — lives at `jobs/_components/CreateJobDialog.tsx` (530 lines).
+- [x] **Extract `_hooks/useJobStones.ts` from `jobs/page.tsx`.** ✅ done Feb 25 2026 — Create Job dialog's stone list (UIDs + add/remove/change + parcel side-effect + form predicates) now lives in `jobs/_hooks/useJobStones.ts`. Build verified, lint clean.
 - [ ] Extract `_components/ShipmentDetailDialog.tsx` from `shipments/page.tsx`.
 - [ ] More PRD bookkeeping: as CHANGELOG grows past ~1500 lines we may want to archive the older `Iter N` entries into `CHANGELOG.archive.md` or by quarter.
 

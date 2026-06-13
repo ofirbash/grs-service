@@ -31,6 +31,11 @@ export interface StoneInput {
   weight: string;
   shape: string;
   value: string;
+  // Tracked at the page level for inclusion in the create payload; the
+  // dialog itself doesn't render a CS toggle on the create form (CS is
+  // toggled post-receipt from the stone detail dialog). Kept on the shape
+  // so `useJobStones` and the create POST both have a single source of truth.
+  color_stability_test?: boolean;
   // Parcel support (Feb 25, 2026). When `is_parcel` is true, this row
   // represents N physical stones rolled up under a single certificate;
   // `stone_count` holds N (>=2), weight/value are TOTALS.

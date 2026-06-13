@@ -5,6 +5,23 @@
 
 ---
 
+## Feb 25, 2026 — Extract `useJobStones` hook from `jobs/page.tsx`
+
+Continuing the long-running `jobs/page.tsx` decomposition (still the largest page in the app — 2086 → 2058 LOC after this pass; net win is more about isolation than line count). The Create Job dialog's in-progress stone list now lives in a dedicated hook so the page doesn't carry its own UID counter, parcel-toggle side-effect, or row predicates.
+
+### New
+- **`/app/frontend/src/app/dashboard/jobs/_hooks/useJobStones.ts`** — owns `stones` array + UID generation + `addStone` / `removeStone` / `changeStone` / `resetStones`, plus `hasStoneData()` and `hasValidStone()` predicates used by the page-level "unsaved changes" guard and the submit-enabled check. Module-local `_stoneUidCounter` fallback for browsers without `crypto.randomUUID()`.
+
+### Touched
+- `CreateJobDialog.tsx` — `StoneInput.color_stability_test?: boolean` added to the public type (the page already tracked it on the row; declaring it on the shared type removes a `@ts-expect-error`).
+- `jobs/page.tsx` — replaced inline `useState<Array<{...}>>([...])` + `handleAddStone` + `handleRemoveStone` + `handleStoneChange` (~30 LOC) with `const { stones, addStone, removeStone, changeStone, resetStones, hasStoneData, hasValidStone } = useJobStones();`. Dialog callsite passes the hook handlers directly (`onStoneChange={changeStone}` etc).
+
+### Verified
+- `yarn build` succeeds; `/dashboard/jobs` route static-export size unchanged at 30 kB.
+- Lint clean (TS, ESLint).
+
+---
+
 ## Feb 25, 2026 — Activity Log Phase 1 (admin-only audit timeline)
 
 Per-job operational audit trail so admins can see who did what and when. **No JSON diffs** (per product decision Feb 25 2026): timeline rows are intentionally minimal — action label + actor + when + short summary — so they stay scannable. The underlying records keep the full state.
