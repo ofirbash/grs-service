@@ -9,7 +9,7 @@ The TTL index handles 12-month auto-prune in the background.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -44,7 +44,16 @@ _ACTION_LABELS: dict[str, str] = {
 
 def _serialise(row: dict) -> dict:
     """Mongo doc → JSON-safe dict. Drops `_id` (Bson is not serialisable)
-    and `expires_at` (internal TTL field — operators don't need to see it)."""
+    and `expires_at` (internal TTL field — operators don't need to see it).
+    `created_at` is force-stamped UTC on the way out so JS `new Date(iso)`
+    interprets it the same in every browser locale."""
+    created_at = row.get("created_at")
+    if isinstance(created_at, datetime):
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        created_iso = created_at.isoformat()
+    else:
+        created_iso = None
     return {
         "id": str(row.get("_id")),
         "action": row.get("action"),
@@ -58,7 +67,7 @@ def _serialise(row: dict) -> dict:
         "branch_id": row.get("branch_id"),
         "summary": row.get("summary"),
         "metadata": row.get("metadata") or {},
-        "created_at": row.get("created_at").isoformat() if row.get("created_at") else None,
+        "created_at": created_iso,
     }
 
 

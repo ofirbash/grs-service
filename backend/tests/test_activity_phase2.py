@@ -207,8 +207,9 @@ class TestActorFilter:
 class TestDateFilters:
     def test_date_window_inclusive_lower_exclusive_upper(self, auth_headers, seeded_activity):
         # Choose a tight window that includes the seeded events: now-1h..now+1h
-        # Note: API returns created_at as naive UTC ISO (no offset), so we
-        # build naive bounds for the comparison.
+        # API returns created_at as UTC-aware ISO (with +00:00 offset);
+        # build naive bounds and strip tz from the parsed value before
+        # comparing.
         now = datetime.utcnow().replace(microsecond=0)
         frm = (now - timedelta(hours=1)).isoformat()
         to = (now + timedelta(hours=1)).isoformat()
@@ -224,7 +225,7 @@ class TestDateFilters:
         frm_dt = datetime.fromisoformat(frm)
         to_dt = datetime.fromisoformat(to)
         for row in rows:
-            created = datetime.fromisoformat(row["created_at"])
+            created = datetime.fromisoformat(row["created_at"]).replace(tzinfo=None)
             assert frm_dt <= created < to_dt, (
                 f"row created_at {row['created_at']} outside [{frm}, {to})"
             )
@@ -241,7 +242,7 @@ class TestDateFilters:
         assert r.status_code == 200, r.text
         rows = r.json()
         for row in rows:
-            created = datetime.fromisoformat(row["created_at"])
+            created = datetime.fromisoformat(row["created_at"]).replace(tzinfo=None)
             assert created < yesterday, f"row {row['created_at']} not strictly older than {yesterday}"
 
     def test_from_date_invalid_returns_400(self, auth_headers):

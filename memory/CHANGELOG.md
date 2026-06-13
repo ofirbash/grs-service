@@ -5,6 +5,37 @@
 
 ---
 
+## Feb 25, 2026 — Activity Log Phase 2 (global feed + filters)
+
+Per-job timeline (Phase 1) wasn't enough — admins also wanted to scan everything that happened across the system in the last week without opening 30 jobs. Phase 2 adds a global feed page, three filters, and cursor pagination. The presentation layer is now a single shared component (`<ActivityRowItem>`) used by both surfaces, so the per-job list and the global feed are guaranteed identical.
+
+### Backend
+- **`/app/backend/routes/activity.py`** — extended `GET /api/activity` with:
+  - `action` (repeatable, `?action=a&action=b`) — `$in` filter.
+  - `actor_id` — single actor narrow.
+  - `from_date` / `to_date` — `[from, to)` window on `created_at`, both ISO. Invalid → 400.
+  - `before` — cursor (returns rows strictly older than this `created_at`); combined with `to_date`, the older of the two wins.
+  - `limit` bounded `[1, 500]`, default 200.
+  - `created_at` is now force-stamped UTC (`+00:00`) on serialisation so JS `new Date(iso)` is locale-independent. Previously naive — fixed in response to iter-37 code review.
+- **`GET /api/activity/actions`** — static label table (14 codes) for the filter dropdown. Single source of truth for human-readable action names.
+- **`GET /api/activity/actors`** — distinct (actor_id, name, role, last_seen) tuples that appear in the log; branch-admins scoped to their own branch; capped at 200 actors (typeahead is the right escape valve if we ever exceed it).
+
+### Frontend
+- **`/app/frontend/src/components/activity/ActivityRowItem.tsx`** — shared compact one-line row component. Action-code → (label, icon) map lives here; unknown codes fall back to the raw code + `Mail` icon. Optional `showJobBadge` flag adds a 6-char monospace job-id chip for the global feed.
+- **`/app/frontend/src/app/dashboard/activity/page.tsx`** — new admin-only feed page. Sticky filter bar with toggleable action pills (multi-select), Actor `<Select>`, From/To date inputs, Clear + Refresh buttons. Default lookback = 7 days. Cursor pagination via "Load more" — visible only when the prior page returned a full 200 rows.
+- **`/app/frontend/src/lib/api.ts`** — `activityApi.listGlobal(params)` (uses `paramsSerializer={indexes:null}` for repeated `action` keys), `listActions()`, `listActors()`.
+- **`/app/frontend/src/app/dashboard/jobs/_components/JobActivityList.tsx`** — refactored to delegate row rendering to `<ActivityRowItem>`. Same data, same look — no duplicated label table.
+- **`/app/frontend/src/app/dashboard/layout.tsx`** — added "Activity" nav item (super_admin + branch_admin only) with the `History` icon.
+- **`/app/frontend/src/app/page.tsx`** — SPA router maps `/dashboard/activity` → `ActivityPage`.
+
+### Tests
+- **`/app/backend/tests/test_activity_notification.py`** (NEW, 3 tests) — monkeypatches `send_email_async` / `send_sms` / `build_notification_email_html` to skip the network, then verifies `job_notification_sent` is logged for successful email + SMS sends. Also asserts failed sends do NOT log a row (the per-job timeline is success-only by design).
+- **`/app/backend/tests/test_activity_phase2.py`** (NEW, 13 tests, iter-37 testing agent) — covers `/actions`, `/actors`, repeated `action` filter, `actor_id` filter, `from_date`/`to_date` window with [from, to) semantics, invalid date → 400, cursor pagination via `before`, unauth 401.
+- **`/app/backend/tests/test_activity_log.py`** (iter-36, regression) — still passing.
+- Combined: **27 passed, 1 skipped** (skip is the manual-payment $0-balance fixture, unchanged from iter-36 — no defect).
+
+---
+
 ## Feb 25, 2026 — Extract `useJobStones` hook from `jobs/page.tsx`
 
 Continuing the long-running `jobs/page.tsx` decomposition (still the largest page in the app — 2086 → 2058 LOC after this pass; net win is more about isolation than line count). The Create Job dialog's in-progress stone list now lives in a dedicated hook so the page doesn't carry its own UID counter, parcel-toggle side-effect, or row predicates.
