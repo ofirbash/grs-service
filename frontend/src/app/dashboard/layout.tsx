@@ -30,6 +30,7 @@ import {
   MoreHorizontal,
   X,
   User,
+  History,
 } from 'lucide-react';
 
 const allNavigation = [
@@ -38,6 +39,7 @@ const allNavigation = [
   { name: 'Stones', href: '/dashboard/stones', icon: Diamond, roles: ['super_admin', 'branch_admin', 'customer'], mobileOrder: 3 },
   { name: 'Clients', href: '/dashboard/clients', icon: Users, roles: ['super_admin', 'branch_admin'], mobileOrder: 4 },
   { name: 'Shipments', href: '/dashboard/shipments', icon: Package, roles: ['super_admin', 'branch_admin'], mobileOrder: 0 },
+  { name: 'Activity', href: '/dashboard/activity', icon: History, roles: ['super_admin', 'branch_admin'], mobileOrder: 0 },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['super_admin', 'branch_admin'], mobileOrder: 0 },
 ];
 

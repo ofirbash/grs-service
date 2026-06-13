@@ -3,76 +3,23 @@
 /**
  * JobActivityList — admin-only per-job audit timeline.
  *
- * Renders a compact one-line-per-event list (action + actor + relative time)
- * with a short summary suffix. No JSON diffs (per product decision Feb 25 2026):
- * the timeline is meant to be scannable; details live in the underlying record.
+ * Compact one-line-per-event list (action + actor + relative time + short summary).
+ * No JSON diffs (per product decision Feb 25 2026): the timeline is meant to be
+ * scannable; details live in the underlying record.
+ *
+ * Row presentation lives in the shared `<ActivityRowItem>` component so this
+ * list and the global activity feed (/dashboard/activity) stay visually
+ * identical.
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowLeftRight,
-  Briefcase,
-  CheckCircle2,
-  CircleDot,
-  CreditCard,
-  FileCheck2,
-  FileText,
-  LogIn,
-  Mail,
-  Package,
-  Pencil,
-  Send,
-  Trash2,
-  User as UserIcon,
-  X,
-} from 'lucide-react';
+import { CheckCircle2, X } from 'lucide-react';
 
 import { activityApi, type ActivityRow } from '@/lib/api';
+import { ActivityRowItem } from '@/components/activity/ActivityRowItem';
 
 interface Props {
   jobId: string;
-}
-
-// Map action codes → (label, icon) so the timeline renders the same way
-// regardless of how the backend phrased the `summary` string. Anything not
-// in the table falls back to the raw action code (which keeps the UI
-// resilient if a new action is added on the backend before the frontend
-// learns about it).
-const ACTION_META: Record<string, { label: string; Icon: React.ComponentType<{ className?: string }> }> = {
-  job_created: { label: 'Job created', Icon: Briefcase },
-  job_updated: { label: 'Job updated', Icon: Pencil },
-  job_status_changed: { label: 'Status changed', Icon: ArrowLeftRight },
-  job_notification_sent: { label: 'Notification sent', Icon: Send },
-
-  stone_verbal_entered: { label: 'Verbal findings saved', Icon: FileText },
-  stone_fees_updated: { label: 'Stone fees updated', Icon: CircleDot },
-  stone_cert_uploaded: { label: 'Certificate uploaded', Icon: FileCheck2 },
-  stone_cancelled: { label: 'Stone removed', Icon: Trash2 },
-
-  shipment_created: { label: 'Shipment created', Icon: Package },
-  shipment_status_changed: { label: 'Shipment status', Icon: ArrowLeftRight },
-
-  payment_recorded: { label: 'Payment recorded', Icon: CreditCard },
-
-  client_created: { label: 'Client created', Icon: UserIcon },
-  client_updated: { label: 'Client updated', Icon: UserIcon },
-
-  login_success: { label: 'Admin login', Icon: LogIn },
-};
-
-function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return '';
-  const diff = Date.now() - then;
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString();
 }
 
 export function JobActivityList({ jobId }: Props) {
@@ -141,36 +88,9 @@ export function JobActivityList({ jobId }: Props) {
 
       {items.length > 0 && (
         <ul className="divide-y divide-navy-100 max-h-72 overflow-y-auto">
-          {items.map((row) => {
-            const meta = ACTION_META[row.action] ?? { label: row.action, Icon: Mail };
-            const Icon = meta.Icon;
-            return (
-              <li
-                key={row.id}
-                className="px-4 py-2 flex items-center gap-3 text-sm"
-                data-testid={`activity-row-${row.action}`}
-              >
-                <Icon className="h-4 w-4 text-navy-500 flex-shrink-0" />
-                <span className="font-medium text-navy-900 flex-shrink-0">
-                  {meta.label}
-                </span>
-                {row.summary && (
-                  <span className="text-navy-600 truncate flex-1 min-w-0">
-                    · {row.summary}
-                  </span>
-                )}
-                <span className="text-xs text-navy-500 flex-shrink-0">
-                  {row.actor_name}
-                </span>
-                <span
-                  className="text-xs text-navy-400 flex-shrink-0 tabular-nums"
-                  title={new Date(row.created_at).toLocaleString()}
-                >
-                  {formatRelative(row.created_at)}
-                </span>
-              </li>
-            );
-          })}
+          {items.map((row) => (
+            <ActivityRowItem key={row.id} row={row} />
+          ))}
         </ul>
       )}
     </div>

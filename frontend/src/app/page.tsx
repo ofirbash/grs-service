@@ -30,6 +30,7 @@ const StonesPage = lazy(() => import('./dashboard/stones/page'));
 const ClientsPage = lazy(() => import('./dashboard/clients/page'));
 const ShipmentsPage = lazy(() => import('./dashboard/shipments/page'));
 const SettingsPage = lazy(() => import('./dashboard/settings/page'));
+const ActivityPage = lazy(() => import('./dashboard/activity/page'));
 
 const LoadingScreen = () => (
   <div className="min-h-screen flex items-center justify-center bg-navy-900">
@@ -44,6 +45,7 @@ function pickDashboardPage(pathname: string): ComponentType {
   if (pathname.startsWith('/dashboard/clients')) return ClientsPage;
   if (pathname.startsWith('/dashboard/shipments')) return ShipmentsPage;
   if (pathname.startsWith('/dashboard/settings')) return SettingsPage;
+  if (pathname.startsWith('/dashboard/activity')) return ActivityPage;
   return DashboardHome;
 }
 

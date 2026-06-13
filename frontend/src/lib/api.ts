@@ -653,6 +653,38 @@ export const activityApi = {
     });
     return response.data as ActivityRow[];
   },
+  // Global feed for /dashboard/activity. All params are optional; the
+  // backend `require_admin` dep silently scopes branch-admins to their own
+  // branch. `action` is a list and is serialised with axios's default
+  // `paramsSerializer` (`?action=a&action=b`).
+  listGlobal: async (params: {
+    action?: string[];
+    actor_id?: string;
+    from_date?: string;
+    to_date?: string;
+    before?: string;
+    limit?: number;
+  }) => {
+    const response = await api.get('/activity', {
+      params,
+      // Repeated query keys for the `action` list.
+      paramsSerializer: { indexes: null },
+    });
+    return response.data as ActivityRow[];
+  },
+  listActions: async () => {
+    const response = await api.get('/activity/actions');
+    return response.data as Array<{ code: string; label: string }>;
+  },
+  listActors: async () => {
+    const response = await api.get('/activity/actors');
+    return response.data as Array<{
+      actor_id: string;
+      name: string;
+      role: string | null;
+      last_seen: string | null;
+    }>;
+  },
 };
 
 export interface ActivityRow {
