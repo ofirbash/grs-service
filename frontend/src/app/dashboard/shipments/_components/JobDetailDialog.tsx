@@ -5,7 +5,6 @@ import {
   Eye,
   FileText,
   Gem,
-  Link2,
   Loader2,
   Pencil,
   Printer,
@@ -30,15 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { escapeHtml as esc } from '@/lib/sanitize';
+import { JOB_STATUSES } from '@/lib/jobStatuses';
+import { JobStonesTable } from '@/components/jobs/JobStonesTable';
 import type { Job, Stone } from '../_types';
 
 interface EditJobFormData {
@@ -73,16 +65,7 @@ interface Props {
   onOpenStone: (stone: Stone) => void;
 }
 
-const JOB_STATUSES: Array<[string, string]> = [
-  ['draft', 'Draft'],
-  ['stones_accepted', 'Stones Accepted'],
-  ['sent_to_lab', 'Sent to Lab'],
-  ['verbal_uploaded', 'Verbal Uploaded'],
-  ['stones_returned', 'Stones Returned'],
-  ['cert_uploaded', 'Cert. Uploaded'],
-  ['cert_returned', 'Cert. Returned'],
-  ['done', 'Done'],
-];
+const JOB_STATUSES_LOCAL = JOB_STATUSES;
 
 /** Read-only-ish job detail dialog opened from the shipment view (and a few
  *  other places). Includes edit-status + edit-notes form, signed-memo upload,
@@ -153,7 +136,7 @@ export const JobDetailDialog: React.FC<Props> = ({
                   <Select value={editForm.status} onValueChange={(value) => setEditForm({ ...editForm, status: value })}>
                     <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {JOB_STATUSES.map(([value, label]) => (
+                      {JOB_STATUSES_LOCAL.map(([value, label]) => (
                         <SelectItem key={value} value={value}>{label}</SelectItem>
                       ))}
                     </SelectContent>
@@ -243,98 +226,19 @@ export const JobDetailDialog: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Stones Table with Certificate Grouping */}
+          {/* Stones Table with Certificate Grouping — uses the canonical
+              `<JobStonesTable variant='compact'>` so cert-grouping logic
+              stays in lockstep with the jobs page. */}
           <div className="border-t pt-4">
             <Label className="text-base font-semibold mb-3 block flex items-center gap-2">
               <Gem className="h-4 w-4" />
               Stones ({job.stones?.length || 0})
             </Label>
-            {job.stones && job.stones.length > 0 ? (
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-navy-50">
-                      <TableHead className="text-navy-700">SKU</TableHead>
-                      <TableHead className="text-navy-700">Type</TableHead>
-                      <TableHead className="text-navy-700">Weight</TableHead>
-                      <TableHead className="text-navy-700">Shape</TableHead>
-                      <TableHead className="text-navy-700">Value</TableHead>
-                      <TableHead className="text-navy-700">Certificate</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {/* Ungrouped stones first */}
-                    {job.stones
-                      .filter((s) => !s.certificate_group)
-                      .map((stone) => (
-                        <TableRow
-                          key={stone.id}
-                          className="cursor-pointer hover:bg-navy-100"
-                          onClick={() => onOpenStone(stone)}
-                          data-testid={`job-stone-row-${esc(stone.sku)}`}
-                        >
-                          <TableCell className="font-mono text-sm">{stone.sku}</TableCell>
-                          <TableCell>{stone.stone_type}</TableCell>
-                          <TableCell>{stone.weight} ct</TableCell>
-                          <TableCell>{stone.shape}</TableCell>
-                          <TableCell>${stone.value.toLocaleString()}</TableCell>
-                          <TableCell>-</TableCell>
-                        </TableRow>
-                      ))}
-
-                    {/* Grouped stones */}
-                    {(() => {
-                      const groupedStones = job.stones.filter((s) => s.certificate_group);
-                      const groups = new Map<number, typeof groupedStones>();
-                      groupedStones.forEach((s) => {
-                        const group = groups.get(s.certificate_group!) || [];
-                        group.push(s);
-                        groups.set(s.certificate_group!, group);
-                      });
-
-                      return Array.from(groups.entries())
-                        .sort(([a], [b]) => a - b)
-                        .map(([groupNum, stones]) => (
-                          <React.Fragment key={groupNum}>
-                            <TableRow className="bg-navy-800">
-                              <TableCell colSpan={6} className="py-2">
-                                <div className="flex items-center justify-between text-white">
-                                  <span className="font-medium flex items-center gap-2">
-                                    <Link2 className="h-4 w-4" />
-                                    Certificate {groupNum} ({stones.length} stones)
-                                  </span>
-                                  <span className="text-sm opacity-80">
-                                    Total: ${stones.reduce((sum, s) => sum + s.value, 0).toLocaleString()}
-                                  </span>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                            {stones.map((stone) => (
-                              <TableRow
-                                key={stone.id}
-                                className="cursor-pointer hover:bg-navy-100 bg-navy-50/50"
-                                onClick={() => onOpenStone(stone)}
-                                data-testid={`job-stone-row-${esc(stone.sku)}`}
-                              >
-                                <TableCell className="font-mono text-sm">{stone.sku}</TableCell>
-                                <TableCell>{stone.stone_type}</TableCell>
-                                <TableCell>{stone.weight} ct</TableCell>
-                                <TableCell>{stone.shape}</TableCell>
-                                <TableCell>${stone.value.toLocaleString()}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="bg-navy-100">Cert {groupNum}</Badge>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </React.Fragment>
-                        ));
-                    })()}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <p className="text-navy-400 text-center py-4">No stones in this job</p>
-            )}
+            <JobStonesTable
+              variant="compact"
+              stones={(job.stones ?? []) as unknown as React.ComponentProps<typeof JobStonesTable>['stones']}
+              onOpenStone={(stone) => onOpenStone(stone as unknown as Stone)}
+            />
           </div>
         </div>
       )}

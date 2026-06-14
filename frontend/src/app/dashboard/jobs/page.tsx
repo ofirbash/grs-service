@@ -90,6 +90,8 @@ import { StoneStatusBadges } from './_components/StoneStatusBadges';
 import { JobDocumentsRow } from './_components/JobDocumentsRow';
 import { JobActivityList } from './_components/JobActivityList';
 import { useJobStones } from './_hooks/useJobStones';
+import { JobStonesTable } from '@/components/jobs/JobStonesTable';
+import { JOB_STATUSES_WITH_CANCEL } from '@/lib/jobStatuses';
 
 export default function JobsPage() {
   // Wrap the actual page in <Suspense> so `useSearchParams()` is allowed during
@@ -1490,15 +1492,9 @@ function JobsPageContent() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="stones_accepted">Stones Accepted</SelectItem>
-                      <SelectItem value="sent_to_lab">Sent to Lab</SelectItem>
-                      <SelectItem value="verbal_uploaded">Verbal Uploaded</SelectItem>
-                      <SelectItem value="stones_returned">Stones Returned</SelectItem>
-                      <SelectItem value="cert_uploaded">Cert. Uploaded</SelectItem>
-                      <SelectItem value="cert_returned">Cert. Returned</SelectItem>
-                      <SelectItem value="done">Done</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      {JOB_STATUSES_WITH_CANCEL.map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}
@@ -1646,171 +1642,25 @@ function JobsPageContent() {
                   ))}
                 </div>
 
-                {/* Stones Table - Desktop */}
-                <div className="hidden md:block border rounded-lg overflow-hidden">
-                  <Table className="table-fixed w-full">
-                    <TableHeader>
-                      <TableRow className="bg-navy-50">
-                        <TableHead className="w-10">
-                          <CheckSquare className="h-4 w-4 text-navy-500" />
-                        </TableHead>
-                        <TableHead className="text-navy-700">SKU</TableHead>
-                        <TableHead className="text-navy-700">Type</TableHead>
-                        <TableHead className="text-navy-700">Weight</TableHead>
-                        <TableHead className="text-navy-700">Shape</TableHead>
-                        <TableHead className="text-navy-700">Value</TableHead>
-                        <TableHead className="text-navy-700">Fee</TableHead>
-                        <TableHead className="text-navy-700 w-24">Certificate</TableHead>
-                        {editMode && isAdmin && <TableHead className="text-navy-700 w-10"></TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {/* Ungrouped stones first - simple list */}
-                      {selectedJobUngroupedStones
-                        .map((stone) => (
-                          <TableRow 
-                            key={stone.id}
-                            className={`cursor-pointer hover:bg-navy-100 ${selectedStones.includes(stone.id) ? 'bg-navy-100' : ''}`}
-                            onClick={() => openStoneDialog(stone)}
-                          >
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={selectedStones.includes(stone.id)}
-                                onChange={() => toggleStoneSelection(stone.id)}
-                                className="h-4 w-4 rounded border-navy-300"
-                                data-testid={`select-stone-${stone.id}`}
-                              />
-                            </TableCell>
-                            <TableCell className="font-mono text-sm">{stone.sku}<StoneStatusBadges stone={stone} /></TableCell>
-                            <TableCell>{stone.stone_type}</TableCell>
-                            <TableCell>{stone.weight} ct</TableCell>
-                            <TableCell>{stone.shape}</TableCell>
-                            <TableCell>${stone.value.toLocaleString()}</TableCell>
-                            <TableCell>
-                              <span>${stone.fee.toLocaleString()}</span>
-                            </TableCell>
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              {stone.certificate_scan_url ? (
-                                <button
-                                  onClick={() => {
-                                    setViewingStone(stone);
-                                    setViewCertScanOpen(true);
-                                  }}
-                                  className="text-navy-600 hover:text-navy-900 p-1 rounded hover:bg-navy-50"
-                                  title="View Certificate Scan"
-                                  data-testid={`view-cert-${stone.id}`}
-                                >
-                                  <FileText className="h-4 w-4" />
-                                </button>
-                              ) : (
-                                <span className="text-navy-400">-</span>
-                              )}
-                            </TableCell>
-                            {editMode && isAdmin && (
-                              <TableCell onClick={(e) => e.stopPropagation()}>
-                                <button
-                                  onClick={() => handleDeleteStone(stone.id, stone.sku)}
-                                  className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
-                                  title="Remove stone from job"
-                                  data-testid={`delete-stone-${stone.id}`}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        ))}
-                      
-                      {/* Grouped stones with visual separation */}
-                      {(() => {
-                        const groupedStones = selectedJobActiveStones.filter(s => s.certificate_group);
-                        const groups = new Map<number, Stone[]>();
-                        groupedStones.forEach(s => {
-                          const group = s.certificate_group!;
-                          if (!groups.has(group)) groups.set(group, []);
-                          groups.get(group)!.push(s);
-                        });
-                        
-                        return Array.from(groups.entries())
-                          .sort(([a], [b]) => a - b)
-                          .map(([groupNum, stones]) => (
-                            <React.Fragment key={groupNum}>
-                              {/* Group header row - no hover effect */}
-                              <TableRow className="bg-navy-800 hover:bg-navy-800">
-                                <TableCell colSpan={editMode && isAdmin ? 9 : 8} className="py-2">
-                                  <div className="flex items-center justify-between text-white">
-                                    <span className="font-medium flex items-center gap-2">
-                                      <Link2 className="h-4 w-4" />
-                                      Certificate {groupNum} - {getCertificateLabel(stones.length)} ({stones.length} stone{stones.length > 1 ? 's' : ''})
-                                    </span>
-                                    <span className="text-sm opacity-80">
-                                      Total: ${stones.reduce((sum, s) => sum + s.value, 0).toLocaleString()}
-                                    </span>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                              {/* Stones in this group */}
-                              {stones.map((stone) => (
-                                <TableRow 
-                                  key={stone.id}
-                                  className={`cursor-pointer hover:bg-navy-100 ${selectedStones.includes(stone.id) ? 'bg-navy-100' : 'bg-navy-50/50'}`}
-                                  onClick={() => openStoneDialog(stone)}
-                                >
-                                  <TableCell onClick={(e) => e.stopPropagation()}>
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedStones.includes(stone.id)}
-                                      onChange={() => toggleStoneSelection(stone.id)}
-                                      className="h-4 w-4 rounded border-navy-300"
-                                      data-testid={`select-stone-${stone.id}`}
-                                    />
-                                  </TableCell>
-                                  <TableCell className="font-mono text-sm">{stone.sku}<StoneStatusBadges stone={stone} /></TableCell>
-                                  <TableCell>{stone.stone_type}</TableCell>
-                                  <TableCell>{stone.weight} ct</TableCell>
-                                  <TableCell>{stone.shape}</TableCell>
-                                  <TableCell>${stone.value.toLocaleString()}</TableCell>
-                                  <TableCell>
-                                    <span>${stone.fee.toLocaleString()}</span>
-                                  </TableCell>
-                                  <TableCell onClick={(e) => e.stopPropagation()}>
-                                    <div className="flex items-center gap-1">
-                                      <Badge variant="outline" className="bg-navy-100">Cert {groupNum}</Badge>
-                                      {stone.certificate_scan_url && (
-                                        <button
-                                          onClick={() => {
-                                            setViewingStone(stone);
-                                            setViewCertScanOpen(true);
-                                          }}
-                                          className="text-navy-600 hover:text-navy-900 p-1 rounded hover:bg-navy-50"
-                                          title="View Certificate Scan"
-                                          data-testid={`view-cert-${stone.id}`}
-                                        >
-                                          <FileText className="h-4 w-4" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                  {editMode && isAdmin && (
-                                    <TableCell onClick={(e) => e.stopPropagation()}>
-                                      <button
-                                        onClick={() => handleDeleteStone(stone.id, stone.sku)}
-                                        className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
-                                        title="Remove stone from job"
-                                        data-testid={`delete-stone-${stone.id}`}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
-                                    </TableCell>
-                                  )}
-                                </TableRow>
-                              ))}
-                            </React.Fragment>
-                          ));
-                      })()}
-                    </TableBody>
-                  </Table>
+                {/* Stones Table - Desktop. Uses the canonical
+                    `<JobStonesTable variant='full'>` shared with the
+                    shipments page (the compact variant). One source of
+                    truth for cert-grouping. */}
+                <div className="hidden md:block">
+                  <JobStonesTable
+                    variant="full"
+                    stones={selectedJobActiveStones}
+                    selectedStones={selectedStones}
+                    onToggleStone={toggleStoneSelection}
+                    onOpenStone={(stone) => openStoneDialog(stone as Stone)}
+                    onViewCertScan={(stone) => {
+                      setViewingStone(stone as Stone);
+                      setViewCertScanOpen(true);
+                    }}
+                    onDeleteStone={handleDeleteStone}
+                    editMode={editMode}
+                    isAdmin={isAdmin}
+                  />
                 </div>
 
                 {/* Payment + Notifications — stays in the scroll body */}

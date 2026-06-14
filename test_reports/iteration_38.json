@@ -1,0 +1,40 @@
+{
+  "summary": "Iter-38 frontend-only verification of the JobStonesTable / jobStatuses consolidation. The public preview URL (lab-traceability.preview.emergentagent.com) still serves the Emergent 'Not Found' webflow page (asleep / deprovisioned, same blocker as iter-36/37). Worked around by Playwright-routing /api/** in the browser to localhost:8001 after seeding sessionStorage with a real admin token. End-to-end verified on /dashboard/jobs against job #584 (2 stones, draft, Parcel of 3 badge). Code review of the refactor matches the spec exactly: JobStonesTable.tsx exposes both 'compact' and 'full' variants, owns cert-grouping with sorted (cert#-asc) navy header rows, and gates checkboxes/fee/status badges/cert-scan/delete behind the 'full' variant + appropriate props. jobStatuses.ts exports JOB_STATUSES (8) and JOB_STATUSES_WITH_CANCEL (9). Jobs page (page.tsx:1650) passes variant='full' + selectedStones + onToggleStone + onOpenStone + onViewCertScan + onDeleteStone + editMode + isAdmin (all 8 props per spec). Shipments dialog (JobDetailDialog.tsx:237) passes variant='compact' + onOpenStone only and uses JOB_STATUSES (8 entries, no Cancelled) per spec. job-activity-list still renders at the bottom of the /jobs dialog. NO regressions detected. Build artefacts present at /app/frontend/build/dashboard/{jobs,shipments}/index.html.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_38.json"
+  ],
+  "action_items": [
+    "Wake the preview env so the next browser run can hit the public URL directly. Same advice as iter-37.",
+    "(Low-priority observation, not introduced by this refactor) /dashboard/jobs dialog shows 4 delete-stone buttons for a 2-stone job in edit mode — duplication is likely the mobile-breakpoint card view also rendering deletes. The refactor only consolidated the desktop md:block table, so this pre-dates iter-38. Worth confirming the mobile stone cards weren't also expected to use JobStonesTable."
+  ],
+  "critical_code_review_comments": [
+    "JobStonesTable.tsx colCount math (lines 111-114) correctly tracks SKU/Type/Weight/Shape/Value/Certificate (6) + Fee (full) + select (full+onToggle) + delete (full+edit+admin+onDelete). The cert-group <TableCell colSpan={colCount}> header therefore aligns across all variant combinations — LGTM.",
+    "JobStonesTable.tsx getCertificateLabel is imported from /app/dashboard/jobs/_helpers — that's a cross-route import from a shared component into a route-private _helpers folder. Works fine because Next is import-graph-based, but flagging it as a smell: when this component is reused from /shipments it now silently couples to /jobs internals. Consider moving getCertificateLabel into /lib alongside jobStatuses.ts.",
+    "JobStonesTable.tsx lines 162-189: the cert-scan button is rendered inline inside the Certificate cell only for full+certificate_scan_url+onViewCertScan. Compact variant always shows '-' or the Cert badge — matches spec ('NO cert-scan FileText icon' on shipments side).",
+    "JobStonesTable.tsx StoneStatusBadges cast on line 148 uses `stone as unknown as Parameters<typeof StoneStatusBadges>[0]['stone']` — pragmatic but loose. As `cancelled`, `stone_status`, `cert_status` are all optional on StonesTableStone, this is safe today; a future required field added to the badges' Stone type would silently start crashing only the /shipments side (since /jobs is the one that already has full Stone shape).",
+    "jobStatuses.ts JOB_STATUSES_WITH_CANCEL is built with `[...JOB_STATUSES, ['cancelled','Cancelled']]` — verified 9 options render in the live edit-status-select dropdown in the exact order: Draft, Stones Accepted, Sent to Lab, Verbal Uploaded, Stones Returned, Cert. Uploaded, Cert. Returned, Done, Cancelled.",
+    "shipments/_components/JobDetailDialog.tsx line 68 reassigns JOB_STATUSES to a local const JOB_STATUSES_LOCAL — harmless re-aliasing, but the variable is now dead-code-equivalent. Could just `JOB_STATUSES.map(...)` directly to drop one line."
+  ],
+  "updated_files": [
+    "/app/backend/.env (TURNSTILE_SECRET_KEY temporarily blanked during the Playwright run, RESTORED to original value at end of test)"
+  ],
+  "success_rate": {
+    "backend": "N/A (not in scope this iteration; iter-37 backend suite still applies — 27 passed, 1 skipped)",
+    "frontend": "Live-verified 9/12 spec items on /dashboard/jobs (jobs dialog + stones table + select + edit-mode delete + 9-status select including Cancelled + activity timeline). 3 items code-review-verified only because the test data lacked certificate_scan_url and certificate_group values (cert-scan icon, cert-group navy header) and because shipments uses card layout (Playwright tbody selector didn't find rows — code-review-confirmed variant='compact' + JOB_STATUSES wiring instead). No bugs detected in either path."
+  },
+  "test_credentials": "admin@bashari.com / admin123 — TURNSTILE_SECRET_KEY blanked during run, restored at end.",
+  "seed_data_creation": "None — used existing job #584 (2 stones, Parcel of 3, draft) from the existing seed dataset.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview URL still asleep — pattern to test against localhost: (1) blank backend/.env TURNSTILE_SECRET_KEY, restart backend; (2) POST localhost:8001/api/auth/login → token; (3) Playwright page.route('**/api/**', rewriting localhost:3000/api -> localhost:8001/api); (4) sessionStorage.setItem('token', t); sessionStorage.setItem('auth-storage', JSON.stringify({state:{token,user,isAuthenticated:true},version:0})); (5) goto /dashboard/jobs/. Shipments page renders 6 shipment CARDS (not table rows) — selector should be by data-testid or `.card` class on /dashboard/shipments/, not `table tbody tr`. To exercise the cert-group navy header you'll need to seed or pick a job whose stones[i].certificate_group is set (job #584 has Parcel of 3 but no certificate_group field set on the individual stones — that's a parcel grouping, not a cert grouping). Restore TURNSTILE_SECRET_KEY=0x4AAAAAADE3zaagPiHzIFhauOwCqpNvlCk in /app/backend/.env after the run.",
+  "rca of the issue": "N/A — refactor is correct. The 'parcel of 3' badge displays as expected (the StoneStatusBadges component, unchanged by this refactor, renders kind==='parcel' / stone_count metadata). All originally-supported affordances are preserved in the /jobs full variant; all originally-omitted affordances on the /shipments compact variant are confirmed absent in the code path."
+}
