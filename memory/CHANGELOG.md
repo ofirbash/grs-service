@@ -5,6 +5,54 @@
 
 ---
 
+## Feb 25, 2026 — Digital Signatures Phase 1 (dedicated tablet model)
+
+After exploring QR/SMS handoff, the user chose the simpler **dedicated tablet at the desk** model: a tablet/phone sits permanently at the front desk, always logged in as a `signing_pad` role account scoped to that branch, polling every 2 seconds. Admin clicks "Capture signature" on their desktop → the pad picks it up → client signs → desktop polls and shows the captured PNG. Multi-branch ready from day one — Israel pad never sees NY requests.
+
+### New role: `signing_pad`
+- Restricted to two endpoints (`GET /signatures/pending` + `POST /signatures/{id}/submit`).
+- Per-branch scoping: pad's `branch_id` is the only filter that matters. Routing **follows the JOB's branch**, not the actor's — so a super_admin sitting at IL can capture a NY job and the request lands on the NY pad.
+- `POST /api/users/signing-pad` (super_admin only) creates new pad accounts. Existing user-list endpoint also returns them.
+
+### Backend (`/app/backend/routes/signatures.py`)
+- `POST /api/signatures/request` — admin creates a pending row. Replaces (cancels) any prior pending row for the same (job, role).
+- `GET /api/signatures/pending` — pad polls; oldest pending row in caller's branch (or all branches for global catch-all pad).
+- `POST /api/signatures/{id}/submit` — pad uploads PNG to Cloudinary; validates payload (rejects empty <100 B, oversize >2 MiB, malformed base64); stores `user_agent` + `ip` audit fields.
+- `GET /api/signatures/{id}` — desktop polls to learn when signed.
+- `GET /api/jobs/{job_id}/signatures` — admin lists all rows for the gallery.
+- `POST /api/signatures/{id}/cancel` — admin cancels a pending row.
+- `DELETE /api/signatures/{id}` — admin removes a captured signature; destroys the Cloudinary asset (best-effort).
+- 4 new `Action` codes (`SIGNATURE_REQUESTED/CAPTURED/CANCELLED/DELETED`) wired into the Activity feed labels.
+
+### Frontend
+- **`/dashboard/signing-pad`** — full-bleed kiosk page (sidebar hidden via layout bypass). Idle state ("Signing pad ready, waiting…") swaps to a full-screen `react-signature-canvas` when a request appears. Clear + Submit buttons. After submit shows a 4-second "Thank you" then returns to idle.
+- **`<SignatureSection>`** — admin widget inside the Job Detail dialog. Shows a thumbnail gallery of signed captures (with role, signer name, capture time, delete button), a "Capture signature ▾" dropdown with 4 role buttons, a modal asking for the signer's name, and an amber "Waiting for signature on pad…" banner while a request is pending.
+- **Job memo PDF (`buildJobMemoHtml.ts`)** — when a `signed` signature exists for `client_drop_off`/`client_collection`/`cert_collection` (newest wins), the captured PNG renders in place of the blank "Client signature: ____" line, with the signer's name + capture timestamp underneath. Lab-representative line still blank for pen signatures.
+- Sidebar: new "Signing Pad" nav item visible to `signing_pad` + admin roles.
+- Login: `signing_pad` users redirect to `/dashboard/signing-pad` (not the dashboard home, which they have no permission for).
+
+### Multi-branch by design
+| Pad | branch_id | Sees pending for |
+|---|---|---|
+| IL pad | Israel | Only IL jobs |
+| NY pad | NY | Only NY jobs |
+| Global pad | (none) | All branches (super_admin catch-all) |
+
+### Tests
+- **`/app/backend/tests/test_signatures.py`** (14 pytest) — full happy path + branch isolation + duplicate replacement + invalid payload paths. Cloudinary monkeypatched.
+- **`/app/backend/tests/test_signatures_http.py`** (9 HTTP-level, created by iter-39 testing agent) — live-API smoke tests against the preview URL.
+- iter-39 testing agent: **23/23 backend + 100% frontend live-verified, zero bugs, zero regressions.**
+
+### Seeded pad accounts (for testing)
+- `pad-il@bashari.com / pad123` (branch_id: Israel Office)
+- `pad-ny@bashari.com / pad123` (branch_id: USA-NY)
+
+### Deferred to Phase 2
+- SMS/email signing link for absent clients (additive — `signature_requests` shape doesn't change).
+- Admin "acknowledgment" signature for verbal authorizations.
+
+---
+
 ## Feb 25, 2026 — Consolidate JobDetailDialog stones-table + status list
 
 The `/jobs` and `/shipments` Job Detail dialogs had drifted enough that a parcel-display fix landed in one but not the other. Minimum-scope consolidation (per user direction): extract the pieces that actually drifted, leave each dialog shell intact.

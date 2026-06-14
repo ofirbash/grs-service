@@ -19,9 +19,10 @@ _None currently._
   3. `<StoneEditDialog>` ✅ done Feb 25 2026 — canonical lives at `/app/frontend/src/components/dialogs/StoneEditDialog.tsx` (421 lines). All 3 callers (jobs, stones, shipments) migrated. Removed ~600 LOC of duplication; parcel-on-stones-page bug verified fixed (iter-34, 13/13 pass).
   4. `<JobDetailDialog>` — ✅ partially consolidated Feb 25 2026. The two dialogs have *intentional* scope divergence (full admin vs focused subset), so we extracted only the pieces that actually drifted: `<JobStonesTable variant='compact'|'full'>` (one source of truth for cert grouping) and `JOB_STATUSES` / `JOB_STATUSES_WITH_CANCEL` constants in `lib/jobStatuses.ts`. Each page keeps its own dialog shell. jobs/page.tsx: -150 LOC; shipments JobDetailDialog: -97 LOC. iter-38: 9/12 live + 3 code-review verified, no regressions.
 - [ ] **Bulk notify clients per shipment.** Admin action: pick a shipment → send the same notification (intake / dispatched / delivered) to every client whose jobs are contained in it.
-- [ ] **Apply the `asyncio.to_thread` wrapper to all Resend sites.** ✅ done Feb 25 2026 — shared helper `email_async.send_email_async()` now wraps all 6 sites (access_requests, manual_payments, clients, notifications ×2, auth_routes ×2). Any future Resend slowness fails fast with a 502/None instead of blocking the event loop. Verified with 6 unit tests in `tests/test_email_async_helper.py` (timeout, sdk-exception, missing-key, parallel-offload, response-coercion).
-- [ ] **Domain verification for Resend email** ✅ done Feb 25 2026 — `bashari.co` is now verified in Resend. Sender is `lab@bashari.co`.
-- [ ] **Printable shipment document** (similar to job memo).
+- [x] **Digital Signatures Phase 1** — ✅ done Feb 25 2026. Dedicated-tablet model: `signing_pad` role + branch-scoped polling, 4 capture roles (client_drop_off, client_collection, cert_collection, courier_drop_off), Cloudinary-backed PNG storage, gallery + cancel/delete in Job Detail dialog, captured signature replaces blank line on job memo PDF, multi-branch ready from day one. iter-39: 23/23 backend tests, 100% frontend live, zero bugs/regressions.
+- [ ] **Digital Signatures Phase 2** (defer until needed). Two additive paths atop Phase 1 schema, no migration required:
+  1. SMS/email remote-signing link for absent clients (admin clicks "Send remote link" → client gets URL → signs on their phone). Reuses `signature_requests`; adds a token-bound mobile signing page.
+  2. Admin acknowledgment signature — admin signs on desktop on behalf with `acknowledged_by_admin: true` flag, clearly labeled on the PDF (for verbal authorization cases).
 
 ## P2 — Medium Priority
 
