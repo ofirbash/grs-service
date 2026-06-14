@@ -31,6 +31,7 @@ import {
   X,
   User,
   History,
+  PenLine,
 } from 'lucide-react';
 
 const allNavigation = [
@@ -40,6 +41,7 @@ const allNavigation = [
   { name: 'Clients', href: '/dashboard/clients', icon: Users, roles: ['super_admin', 'branch_admin'], mobileOrder: 4 },
   { name: 'Shipments', href: '/dashboard/shipments', icon: Package, roles: ['super_admin', 'branch_admin'], mobileOrder: 0 },
   { name: 'Activity', href: '/dashboard/activity', icon: History, roles: ['super_admin', 'branch_admin'], mobileOrder: 0 },
+  { name: 'Signing Pad', href: '/dashboard/signing-pad', icon: PenLine, roles: ['signing_pad', 'super_admin', 'branch_admin'], mobileOrder: 0 },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings, roles: ['super_admin', 'branch_admin'], mobileOrder: 0 },
 ];
 
@@ -126,6 +128,14 @@ export default function DashboardLayout({
         <div className="animate-pulse text-navy-400">Loading...</div>
       </div>
     );
+  }
+
+  // Kiosk pages render full-bleed with no sidebar/header/topbar. The signing
+  // pad lives behind the dashboard auth gate (we still want `signing_pad`
+  // accounts to be logged in via /login) but doesn't need any of the admin
+  // chrome around it.
+  if (pathname.startsWith('/dashboard/signing-pad')) {
+    return <>{children}</>;
   }
 
   return (

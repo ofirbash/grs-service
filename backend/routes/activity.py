@@ -38,6 +38,10 @@ _ACTION_LABELS: dict[str, str] = {
     Action.PAYMENT_RECORDED: "Payment recorded",
     Action.CLIENT_CREATED: "Client created",
     Action.CLIENT_UPDATED: "Client updated",
+    Action.SIGNATURE_REQUESTED: "Signature requested",
+    Action.SIGNATURE_CAPTURED: "Signature captured",
+    Action.SIGNATURE_CANCELLED: "Signature cancelled",
+    Action.SIGNATURE_DELETED: "Signature deleted",
     Action.LOGIN_SUCCESS: "Admin login",
 }
 

@@ -82,3 +82,13 @@ async def require_super_admin(user: dict = Depends(get_current_user)):
     if user.get("role") != "super_admin":
         raise HTTPException(status_code=403, detail="Super admin access required")
     return user
+
+
+async def require_signing_pad(user: dict = Depends(get_current_user)):
+    """The tablet/phone running the dedicated signing pad logs in as a
+    `signing_pad` user. They can only call the signing-pad endpoints
+    (poll for pending requests + submit captured PNGs). Admins are also
+    allowed so they can preview/debug the pad behaviour."""
+    if user.get("role") not in ["signing_pad", "super_admin", "branch_admin"]:
+        raise HTTPException(status_code=403, detail="Signing pad access required")
+    return user

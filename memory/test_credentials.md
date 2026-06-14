@@ -6,6 +6,10 @@
 - **Israel Branch Admin**: ofir1@bashds.com / admin123
 - **USA Branch Admin**: ofir2@bashds.com / admin123
 
+## Signing Pad Accounts (kiosk role, can only call signing-pad endpoints)
+- **Israel Pad**: pad-il@bashari.com / pad123 (branch_id: Israel Office)
+- **NY Pad**: pad-ny@bashari.com / pad123 (branch_id: USA-NY)
+
 ## Customer Accounts
 - **Test Customer**: customer@test.com / customer123
 

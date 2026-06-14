@@ -56,6 +56,11 @@ class Action:
     CLIENT_CREATED = "client_created"
     CLIENT_UPDATED = "client_updated"
 
+    SIGNATURE_REQUESTED = "signature_requested"
+    SIGNATURE_CAPTURED = "signature_captured"
+    SIGNATURE_CANCELLED = "signature_cancelled"
+    SIGNATURE_DELETED = "signature_deleted"
+
     LOGIN_SUCCESS = "login_success"
 
 

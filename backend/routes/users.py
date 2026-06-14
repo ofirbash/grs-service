@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("/users", response_model=List[UserResponse])
 async def get_users(user: dict = Depends(require_super_admin)):
-    users = await db.users.find({"role": {"$in": ["super_admin", "branch_admin"]}}).to_list(1000)
+    users = await db.users.find({"role": {"$in": ["super_admin", "branch_admin", "signing_pad"]}}).to_list(1000)
     return [
         UserResponse(
             id=str(u["_id"]),
@@ -67,6 +67,49 @@ async def create_admin_user(data: AdminUserCreate, user: dict = Depends(require_
         email_verified=True,
         two_factor_enabled=False,
         created_at=user_doc["created_at"]
+    )
+
+
+@router.post("/users/signing-pad")
+async def create_signing_pad_user(
+    data: AdminUserCreate,
+    user: dict = Depends(require_super_admin),
+):
+    """Create a `signing_pad` kiosk account. One per branch (or one global
+    catch-all without a branch_id). These accounts log in once on the
+    tablet and stay logged in — they can only call the signing-pad
+    polling + submit endpoints, nothing else."""
+    existing = await db.users.find_one({"email": data.email.lower()})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    user_doc = {
+        "email": data.email.lower(),
+        "password_hash": get_password_hash(data.password),
+        "full_name": data.full_name,
+        "role": "signing_pad",
+        # branch_id is optional — leaving it None creates a "global"
+        # catch-all pad that sees all branches' pending requests.
+        "branch_id": data.branch_id,
+        "phone": data.phone,
+        "email_verified": True,
+        "verification_token": None,
+        "two_factor_enabled": False,
+        "two_factor_secret": None,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    }
+    result = await db.users.insert_one(user_doc)
+    return UserResponse(
+        id=str(result.inserted_id),
+        email=user_doc["email"],
+        full_name=user_doc["full_name"],
+        role=user_doc["role"],
+        branch_id=user_doc["branch_id"],
+        phone=user_doc["phone"],
+        email_verified=True,
+        two_factor_enabled=False,
+        created_at=user_doc["created_at"],
     )
 
 

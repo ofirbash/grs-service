@@ -73,7 +73,10 @@ export default function LoginPage() {
         setStep('2fa');
       } else if (response.access_token) {
         setAuth(response.access_token, response.user);
-        router.push('/dashboard');
+        // Signing-pad accounts go straight to the kiosk page — they have
+        // no dashboard permissions and the home route would just bounce
+        // them back to /login otherwise.
+        router.push(response.user?.role === 'signing_pad' ? '/dashboard/signing-pad' : '/dashboard');
       }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string }; status?: number } };
@@ -101,7 +104,7 @@ export default function LoginPage() {
       });
       if (response.access_token) {
         setAuth(response.access_token, response.user);
-        router.push('/dashboard');
+        router.push(response.user?.role === 'signing_pad' ? '/dashboard/signing-pad' : '/dashboard');
       }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };

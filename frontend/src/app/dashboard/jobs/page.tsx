@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi, cloudinaryApi, notificationsApi, manualPaymentsApi } from '@/lib/api';
+import { jobsApi, clientsApi, branchesApi, stonesApi, settingsApi, cloudinaryApi, notificationsApi, manualPaymentsApi, signaturesApi } from '@/lib/api';
 import { openPrintWindow } from '@/lib/sanitize';
 import { buildJobMemoHtml } from './_lib/buildJobMemoHtml';
 import { useAuthStore, useBranchFilterStore } from '@/lib/store';
@@ -92,6 +92,7 @@ import { JobActivityList } from './_components/JobActivityList';
 import { useJobStones } from './_hooks/useJobStones';
 import { JobStonesTable } from '@/components/jobs/JobStonesTable';
 import { JOB_STATUSES_WITH_CANCEL } from '@/lib/jobStatuses';
+import { SignatureSection } from '@/components/signatures/SignatureSection';
 
 export default function JobsPage() {
   // Wrap the actual page in <Suspense> so `useSearchParams()` is allowed during
@@ -771,11 +772,20 @@ function JobsPageContent() {
     }
   };
 
-  const handlePrintJob = (job: Job) => {
+  const handlePrintJob = async (job: Job) => {
     const clientFull = clients.find((c) => c.id === job.client_id);
     const branchFull = branches.find((b) => b.id === job.branch_id);
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const html = buildJobMemoHtml({ job, client: clientFull, branch: branchFull, origin });
+    // Fetch captured signatures so the memo can embed them in place of
+    // the printed blank line. Soft-fail: if the API errors we still print
+    // the memo with blank signature lines (legacy behaviour).
+    let signatures: Awaited<ReturnType<typeof signaturesApi.listForJob>> = [];
+    try {
+      signatures = await signaturesApi.listForJob(job.id);
+    } catch {
+      signatures = [];
+    }
+    const html = buildJobMemoHtml({ job, client: clientFull, branch: branchFull, origin, signatures });
     const printWindow = openPrintWindow(html);
     if (!printWindow) {
       alert("Please allow popups to print");
@@ -1693,7 +1703,11 @@ function JobsPageContent() {
                     actions on this job. Compact one-line rows, no JSON diffs
                     (per product decision). Backend RBAC also enforces admin-only. */}
                 {isAdmin && selectedJob && (
-                  <div className="border-t border-navy-200 pt-4 mt-4">
+                  <div className="border-t border-navy-200 pt-4 mt-4 space-y-4">
+                    <SignatureSection
+                      jobId={selectedJob.id}
+                      defaultSignerName={selectedJob.client_name || ''}
+                    />
                     <JobActivityList jobId={selectedJob.id} />
                   </div>
                 )}

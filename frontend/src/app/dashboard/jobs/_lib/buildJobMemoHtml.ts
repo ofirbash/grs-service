@@ -16,12 +16,17 @@
 import { escapeHtml as esc } from "@/lib/sanitize";
 import { COMPANY_INFO } from "../_helpers";
 import type { Job, Stone, Client, Branch } from "../_types";
+import type { SignatureRow } from "@/lib/api";
 
 interface BuildJobMemoArgs {
   job: Job;
   client: Client | undefined;
   branch: Branch | undefined;
   origin: string;
+  /** Captured digital signatures for this job. When present, the
+   *  matching block (client_drop_off / client_collection) renders the
+   *  PNG over the printed line instead of a blank rule. */
+  signatures?: SignatureRow[];
 }
 
 const fmt = (n: number): string =>
@@ -69,6 +74,7 @@ export function buildJobMemoHtml({
   client,
   branch,
   origin,
+  signatures = [],
 }: BuildJobMemoArgs): string {
   // Zero-pad job number to 5 digits for memo display (e.g. 500 → "00500").
   const paddedJobNumber = String(job.job_number).padStart(5, "0");
@@ -326,8 +332,31 @@ export function buildJobMemoHtml({
       <div class="signatures">
         <div class="sig-block">
           <p>Client Signature</p>
-          <div class="sig-line"></div>
-          <div class="sig-caption">Date: ____________________</div>
+          ${(() => {
+            // Prefer the most recent signed client signature (drop_off or
+            // collection — whichever matches the current job phase best).
+            // We always show the freshest one; the captured-at line below
+            // makes it unambiguous which event it represents.
+            const clientSig = signatures
+              .filter((s) =>
+                s.status === "signed" &&
+                (s.role === "client_drop_off" || s.role === "client_collection" || s.role === "cert_collection") &&
+                s.signed_url,
+              )
+              .sort((a, b) => (b.signed_at || "").localeCompare(a.signed_at || ""))[0];
+            if (clientSig) {
+              const when = clientSig.signed_at ? new Date(clientSig.signed_at).toLocaleString() : "";
+              return `
+                <img src="${esc(clientSig.signed_url || "")}" alt="Client signature"
+                     style="height:54px;object-fit:contain;max-width:100%;display:block;" />
+                <div class="sig-caption" style="margin-top:4px;">
+                  ${esc(clientSig.signer_name)} · ${esc(when)}
+                </div>`;
+            }
+            return `
+              <div class="sig-line"></div>
+              <div class="sig-caption">Date: ____________________</div>`;
+          })()}
         </div>
         <div class="sig-block">
           <p>Lab Representative</p>

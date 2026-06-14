@@ -642,6 +642,65 @@ export const notificationsApi = {
   },
 };
 
+// Signature Capture API (Feb 25, 2026 — Phase 1)
+export interface SignatureRow {
+  id: string;
+  job_id: string;
+  branch_id: string | null;
+  role: 'client_drop_off' | 'client_collection' | 'cert_collection' | 'courier_drop_off';
+  signer_name: string;
+  status: 'pending' | 'signed' | 'cancelled';
+  signed_url: string | null;
+  signed_public_id: string | null;
+  created_at: string;
+  created_by: string | null;
+  created_by_name: string | null;
+  signed_at: string | null;
+  signed_by_user_agent: string | null;
+  signed_by_ip: string | null;
+  cancelled_at: string | null;
+}
+
+export const signaturesApi = {
+  request: async (job_id: string, role: SignatureRow['role'], signer_name: string) => {
+    const response = await api.post('/signatures/request', { job_id, role, signer_name });
+    return response.data as SignatureRow;
+  },
+  /** Pad polls this every 2s. Returns null when nothing is pending. */
+  pending: async () => {
+    const response = await api.get('/signatures/pending');
+    return response.data as SignatureRow | null;
+  },
+  /** Desktop polls this to learn when the pad has signed. */
+  getOne: async (request_id: string) => {
+    const response = await api.get(`/signatures/${request_id}`);
+    return response.data as SignatureRow;
+  },
+  listForJob: async (job_id: string) => {
+    const response = await api.get(`/jobs/${job_id}/signatures`);
+    return response.data as SignatureRow[];
+  },
+  submit: async (request_id: string, image_base64: string) => {
+    const response = await api.post(`/signatures/${request_id}/submit`, { image_base64 });
+    return response.data as SignatureRow;
+  },
+  cancel: async (request_id: string) => {
+    const response = await api.post(`/signatures/${request_id}/cancel`);
+    return response.data as SignatureRow;
+  },
+  delete: async (request_id: string) => {
+    const response = await api.delete(`/signatures/${request_id}`);
+    return response.data as { deleted: boolean };
+  },
+};
+
+export const SIGNATURE_ROLE_LABELS: Record<SignatureRow['role'], string> = {
+  client_drop_off: 'Client drop-off',
+  client_collection: 'Client collection',
+  cert_collection: 'Certificate collection',
+  courier_drop_off: 'Courier drop-off',
+};
+
 // Activity Log API
 export const activityApi = {
   // Per-job timeline. Admins only on the backend; calling as a customer
