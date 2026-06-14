@@ -1,5 +1,7 @@
 import React from 'react';
 import type { Stone } from '../_types';
+import { isStoneVerbalComplete, isStoneCertComplete } from '@/lib/stoneCompleteness';
+import { CompletenessBadges } from '@/components/jobs/CompletenessBadges';
 
 type ExtStone = Stone & {
   stone_status?: string;
@@ -13,11 +15,17 @@ type ExtStone = Stone & {
  * Only renders when the stone carries the new `stone_status` / `cert_status`
  * fields (legacy stones show nothing, preserving the old UI). Parcels also
  * surface a "Parcel of N" amber pill so admins can spot them at a glance.
+ *
+ * Feb 25 2026 — also surfaces the two completeness checks (Verbal / Cert)
+ * inline via <CompletenessBadges> so admins can scan a job and instantly
+ * see which stones still need work.
  */
 export const StoneStatusBadges: React.FC<{ stone: ExtStone }> = ({ stone }) => {
   const isParcel = stone.kind === 'parcel';
   const parcelCount = isParcel ? (stone.stone_count ?? 1) : 0;
-  const hasTracking = stone.stone_status || stone.cert_status || isParcel;
+  const verbalComplete = isStoneVerbalComplete(stone);
+  const certComplete = isStoneCertComplete(stone);
+  const hasTracking = stone.stone_status || stone.cert_status || isParcel || verbalComplete || certComplete;
   if (!hasTracking) return null;
 
   const stoneLabel: Record<string, { text: string; cls: string }> = {
@@ -56,6 +64,12 @@ export const StoneStatusBadges: React.FC<{ stone: ExtStone }> = ({ stone }) => {
           {c.text}
         </span>
       )}
+      <CompletenessBadges
+        verbalComplete={verbalComplete}
+        certComplete={certComplete}
+        size="sm"
+        testIdSuffix={`stone-${stone.id}`}
+      />
     </span>
   );
 };

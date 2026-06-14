@@ -49,6 +49,8 @@ import { Switch } from '@/components/ui/switch';
 import { DoubleConfirmDialog } from '@/components/DoubleConfirmDialog';
 import { StoneVerbalSection, seedStructuredFindings } from '@/components/StoneVerbalSection';
 import { StoneEditDialog } from '@/components/dialogs/StoneEditDialog';
+import { CompletenessBadges } from '@/components/jobs/CompletenessBadges';
+import { isStoneVerbalComplete, isStoneCertComplete } from '@/lib/stoneCompleteness';
 
 interface StructuredVerbalFindings {
   certificate_id?: string;
@@ -435,7 +437,17 @@ export default function StonesPage() {
                   onClick={() => handleOpenDetails(stone)}
                   data-testid={`stone-row-${stone.sku}`}
                 >
-                  <TableCell className="font-mono text-sm font-medium">{stone.sku}</TableCell>
+                  <TableCell className="font-mono text-sm font-medium">
+                    <span className="inline-flex items-center">
+                      {stone.sku}
+                      <CompletenessBadges
+                        verbalComplete={isStoneVerbalComplete(stone)}
+                        certComplete={isStoneCertComplete(stone)}
+                        size="xs"
+                        testIdSuffix={`stone-${stone.sku}`}
+                      />
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <span className="text-navy-600">#{stone.job_number}</span>
                     {stone.client_name && (

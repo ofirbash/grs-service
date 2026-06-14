@@ -93,6 +93,8 @@ import { useJobStones } from './_hooks/useJobStones';
 import { JobStonesTable } from '@/components/jobs/JobStonesTable';
 import { JOB_STATUSES_WITH_CANCEL } from '@/lib/jobStatuses';
 import { SignatureSection } from '@/components/signatures/SignatureSection';
+import { CompletenessBadges } from '@/components/jobs/CompletenessBadges';
+import { isJobVerbalComplete, isJobCertComplete } from '@/lib/stoneCompleteness';
 
 export default function JobsPage() {
   // Wrap the actual page in <Suspense> so `useSearchParams()` is allowed during
@@ -1302,7 +1304,17 @@ function JobsPageContent() {
                   data-testid={`job-card-${job.job_number}`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-semibold text-navy-900">#{job.job_number}</span>
+                    <span className="font-semibold text-navy-900 inline-flex items-center">
+                      #{job.job_number}
+                      {job.stones && job.stones.length > 0 && (
+                        <CompletenessBadges
+                          verbalComplete={isJobVerbalComplete(job.stones)}
+                          certComplete={isJobCertComplete(job.stones)}
+                          size="xs"
+                          testIdSuffix={`mobile-job-${job.job_number}`}
+                        />
+                      )}
+                    </span>
                     {getStatusBadge(job.status)}
                   </div>
                   <div className="text-sm text-navy-600 mb-1">{job.client_name || 'N/A'} &middot; {job.branch_name || 'N/A'}</div>
@@ -1379,7 +1391,21 @@ function JobsPageContent() {
                         className="font-semibold text-navy-900"
                         onClick={() => openJobDetails(job)}
                       >
-                        #{job.job_number}
+                        <span className="inline-flex items-center">
+                          #{job.job_number}
+                          {/* Completeness chips — collapsed icon-only here
+                              to keep the column tight; admins hover to see
+                              "Verbal findings complete" / "Certificate
+                              uploaded" tooltips. */}
+                          {job.stones && job.stones.length > 0 && (
+                            <CompletenessBadges
+                              verbalComplete={isJobVerbalComplete(job.stones)}
+                              certComplete={isJobCertComplete(job.stones)}
+                              size="xs"
+                              testIdSuffix={`job-${job.job_number}`}
+                            />
+                          )}
+                        </span>
                       </TableCell>
                       <TableCell className="text-navy-600 truncate" onClick={() => openJobDetails(job)}>
                         <div className="truncate font-medium text-navy-900">{job.client_name || 'N/A'}</div>

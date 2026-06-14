@@ -5,6 +5,30 @@
 
 ---
 
+## Feb 25, 2026 — Verbal + Certificate completeness indicators
+
+At-a-glance green checks so admins can scan a job/stone list and instantly see which records still need verbal findings or a certificate scan.
+
+### Decisions captured (in pure functions, so the rule is one place)
+- **Verbal complete** = every structured field except `comment` is filled. Free-text legacy verbals count as complete if non-empty.
+- **Parcels**: top-level fields complete AND every per-stone entry's core fields (weight / identification / color / origin) complete.
+- **Cert complete (stone)** = `certificate_scan_url` is set.
+- **Cert complete (job)** = every certificate_group has at least one stone with a scan URL (one upload per cert, even when 5 stones share it); ungrouped stones each need their own.
+- **Cancelled stones excluded** from job-level checks.
+
+### New
+- **`/app/frontend/src/lib/stoneCompleteness.ts`** — `isStoneVerbalComplete`, `isStoneCertComplete`, `isJobVerbalComplete`, `isJobCertComplete`. Pure, dep-free, easy to test.
+- **`/app/frontend/src/components/jobs/CompletenessBadges.tsx`** — small green-check pills. Two sizes: `'sm'` (icon + label) for stone rows inside dialogs, `'xs'` (icon-only, circular) for tight surfaces like the jobs table.
+- **`/app/frontend/src/lib/__tests__/stoneCompleteness.test.ts`** — 12 unit tests (run via `npx tsx --test`). All pass.
+
+### Wired in
+- **Stone level**: `StoneStatusBadges` (used inside Job Detail dialog stones table) now shows the green checks after the existing status pills. Also added to the dedicated `/dashboard/stones` page next to each stone's SKU.
+- **Job level**: Jobs list table (desktop) and the mobile job card both surface compact icon-only checks next to the job number.
+
+### Visual: emerald green = Verbal, blue = Cert. Tooltips ("Verbal findings complete" / "Certificate uploaded") on hover. **No icon shown for incomplete state** — keeps the UI clean.
+
+---
+
 ## Feb 25, 2026 — Signing Pad accounts UI in Settings
 
 After Phase 1 shipped, user redeployed to production and got "invalid credentials" trying to log into the kiosk: the two seeded pad accounts only existed in preview's MongoDB. Building an admin UI is the right fix — they never have to think about it again, and adding a third/fourth branch is a 30-second click.
