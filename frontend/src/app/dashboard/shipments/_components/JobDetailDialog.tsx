@@ -65,8 +65,6 @@ interface Props {
   onOpenStone: (stone: Stone) => void;
 }
 
-const JOB_STATUSES_LOCAL = JOB_STATUSES;
-
 /** Read-only-ish job detail dialog opened from the shipment view (and a few
  *  other places). Includes edit-status + edit-notes form, signed-memo upload,
  *  and a stones table with certificate grouping. Extracted from
@@ -136,7 +134,7 @@ export const JobDetailDialog: React.FC<Props> = ({
                   <Select value={editForm.status} onValueChange={(value) => setEditForm({ ...editForm, status: value })}>
                     <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {JOB_STATUSES_LOCAL.map(([value, label]) => (
+                      {JOB_STATUSES.map(([value, label]) => (
                         <SelectItem key={value} value={value}>{label}</SelectItem>
                       ))}
                     </SelectContent>

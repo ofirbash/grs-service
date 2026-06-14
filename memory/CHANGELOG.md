@@ -5,6 +5,27 @@
 
 ---
 
+## Feb 25, 2026 — Consolidate JobDetailDialog stones-table + status list
+
+The `/jobs` and `/shipments` Job Detail dialogs had drifted enough that a parcel-display fix landed in one but not the other. Minimum-scope consolidation (per user direction): extract the pieces that actually drifted, leave each dialog shell intact.
+
+### New
+- **`/app/frontend/src/components/jobs/JobStonesTable.tsx`** — canonical stones table with two variants:
+  - `compact` (shipments side): SKU/Type/Weight/Shape/Value/Certificate; read-only; clicking a row opens the stone.
+  - `full` (jobs side): adds selection checkboxes, fee column, status badges, certificate-scan icon, delete button (edit-mode + admin only).
+  - Cert-grouping logic (sorted by cert# ascending, navy header row with totals, indented stones) is now in ONE place. `getCertificateLabel` inlined here so the shared component doesn't reach into a route-private `_helpers.ts`.
+- **`/app/frontend/src/lib/jobStatuses.ts`** — `JOB_STATUSES` (8 entries) and `JOB_STATUSES_WITH_CANCEL` (9, includes Cancelled). One source of truth for status `<Select>` options.
+
+### Touched
+- `jobs/page.tsx`: replaced ~150 lines of inline `<Table>` + cert-grouping IIFE + delete/checkbox markup with `<JobStonesTable variant='full'>`. Also swapped the inline 9-entry `<SelectItem>` list for `JOB_STATUSES_WITH_CANCEL.map`. **2058 → 1908 LOC** (-150).
+- `shipments/_components/JobDetailDialog.tsx`: replaced ~97 lines of inline table + cert grouping with `<JobStonesTable variant='compact'>`. Dropped the inline `JOB_STATUSES` array. **348 → 251 LOC** (-97).
+
+### Verified
+- `yarn build` ✅; `/dashboard/jobs` route bundle shrank 30 kB → 28.4 kB; `/dashboard/shipments` unchanged at 22.1 kB.
+- iter-38 testing agent — 9/12 spec items live-verified, 3 code-review-verified (cert-scan + cert-group navy header + compact-side parity). **Zero regressions detected.**
+
+---
+
 ## Feb 25, 2026 — Activity Log Phase 2 (global feed + filters)
 
 Per-job timeline (Phase 1) wasn't enough — admins also wanted to scan everything that happened across the system in the last week without opening 30 jobs. Phase 2 adds a global feed page, three filters, and cursor pagination. The presentation layer is now a single shared component (`<ActivityRowItem>`) used by both surfaces, so the per-job list and the global feed are guaranteed identical.

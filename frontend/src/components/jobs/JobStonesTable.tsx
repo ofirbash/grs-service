@@ -32,8 +32,19 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { escapeHtml as esc } from '@/lib/sanitize';
-import { getCertificateLabel } from '@/app/dashboard/jobs/_helpers';
 import { StoneStatusBadges } from '@/app/dashboard/jobs/_components/StoneStatusBadges';
+
+/** Human label for a certificate group based on how many stones it
+ *  contains. Inlined here (rather than imported from a route-private
+ *  `_helpers.ts`) so this shared component doesn't reach into any one
+ *  page's internals. */
+function getCertificateLabel(stoneCount: number): string {
+  if (stoneCount === 1) return 'Single';
+  if (stoneCount === 2) return 'Pair';
+  if (stoneCount >= 3 && stoneCount <= 6) return 'Layout';
+  if (stoneCount > 6) return 'Multi-Stone';
+  return 'Group';
+}
 
 /** Structural Stone — the minimum the table needs to render. Both
  *  /jobs and /shipments `Stone` types satisfy this. */
