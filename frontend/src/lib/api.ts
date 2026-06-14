@@ -233,6 +233,11 @@ export const usersApi = {
     const response = await api.post('/users/admin', data);
     return response.data;
   },
+  /** Create a `signing_pad` kiosk account. Super-admin only on the backend. */
+  createSigningPad: async (data: { email: string; full_name: string; password: string; branch_id?: string | null }) => {
+    const response = await api.post('/users/signing-pad', data);
+    return response.data;
+  },
   update: async (id: string, data: { full_name?: string; role?: string; branch_id?: string; phone?: string; password?: string }) => {
     const response = await api.put(`/users/${id}`, data);
     return response.data;

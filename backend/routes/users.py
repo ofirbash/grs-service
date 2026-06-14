@@ -5,7 +5,7 @@ from bson import ObjectId
 
 from database import db
 from auth import get_current_user, require_admin, require_super_admin, get_password_hash
-from models import UserResponse, AdminUserCreate, AdminUserUpdate
+from models import UserResponse, AdminUserCreate, AdminUserUpdate, SigningPadCreate
 
 router = APIRouter()
 
@@ -72,7 +72,7 @@ async def create_admin_user(data: AdminUserCreate, user: dict = Depends(require_
 
 @router.post("/users/signing-pad")
 async def create_signing_pad_user(
-    data: AdminUserCreate,
+    data: SigningPadCreate,
     user: dict = Depends(require_super_admin),
 ):
     """Create a `signing_pad` kiosk account. One per branch (or one global
@@ -91,7 +91,7 @@ async def create_signing_pad_user(
         # branch_id is optional — leaving it None creates a "global"
         # catch-all pad that sees all branches' pending requests.
         "branch_id": data.branch_id,
-        "phone": data.phone,
+        "phone": None,
         "email_verified": True,
         "verification_token": None,
         "two_factor_enabled": False,
@@ -106,7 +106,7 @@ async def create_signing_pad_user(
         full_name=user_doc["full_name"],
         role=user_doc["role"],
         branch_id=user_doc["branch_id"],
-        phone=user_doc["phone"],
+        phone=None,
         email_verified=True,
         two_factor_enabled=False,
         created_at=user_doc["created_at"],

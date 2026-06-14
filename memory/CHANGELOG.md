@@ -5,6 +5,27 @@
 
 ---
 
+## Feb 25, 2026 — Signing Pad accounts UI in Settings
+
+After Phase 1 shipped, user redeployed to production and got "invalid credentials" trying to log into the kiosk: the two seeded pad accounts only existed in preview's MongoDB. Building an admin UI is the right fix — they never have to think about it again, and adding a third/fourth branch is a 30-second click.
+
+### Frontend
+- New **"Signing Pads"** tab inside `/dashboard/settings` (super_admin only). Lists existing pads (email, display name, branch chip — Global catch-all gets a special amber badge). "Create signing pad" button opens a modal: email + display name + plaintext password (admin types it on the tablet, shown plainly on purpose) + branch dropdown (defaults to "Global catch-all"). Delete-per-row with confirm dialog.
+- A small grey "How to set up the tablet" callout under the table walks the admin through the kiosk setup (login URL + Guided Access / Screen Pinning hints).
+- The existing "Admin Users" tab now filters to admin roles only (signing_pad rows no longer appear mixed in).
+
+### Backend
+- New `SigningPadCreate` pydantic model — fixes the bug from initial Phase 1 where the endpoint reused `AdminUserCreate` and rejected requests for missing `role`. Now clean: only the 4 fields the pad needs.
+- `/api/users/signing-pad` route updated to use the new schema; verified end-to-end via curl (create → login → 14/14 pytest regression).
+
+### Touched files
+- `/app/backend/models.py` — `SigningPadCreate` model
+- `/app/backend/routes/users.py` — switched pad endpoint to `SigningPadCreate`
+- `/app/frontend/src/lib/api.ts` — `usersApi.createSigningPad`
+- `/app/frontend/src/app/dashboard/settings/page.tsx` — new tab + state + Create/Delete dialogs (~200 LOC)
+
+---
+
 ## Feb 25, 2026 — Digital Signatures Phase 1 (dedicated tablet model)
 
 After exploring QR/SMS handoff, the user chose the simpler **dedicated tablet at the desk** model: a tablet/phone sits permanently at the front desk, always logged in as a `signing_pad` role account scoped to that branch, polling every 2 seconds. Admin clicks "Capture signature" on their desktop → the pad picks it up → client signs → desktop polls and shows the captured PNG. Multi-branch ready from day one — Israel pad never sees NY requests.

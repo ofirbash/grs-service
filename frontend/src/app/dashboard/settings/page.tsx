@@ -50,6 +50,7 @@ import {
   CreditCard,
   Truck,
   RotateCcw,
+  Tablet,
 } from 'lucide-react';
 
 import type {
@@ -154,6 +155,80 @@ export default function SettingsPage() {
     branch_id: '',
     phone: '',
   });
+
+  // Signing Pad Accounts State (Feb 25 2026)
+  // Pads are listed alongside admin users via GET /users (already returns
+  // role=signing_pad). Creating uses POST /users/signing-pad. Deleting
+  // uses the same DELETE /users/{id} as admins.
+  const [padDialogOpen, setPadDialogOpen] = useState(false);
+  const [savingPad, setSavingPad] = useState(false);
+  const [confirmDeletePad, setConfirmDeletePad] = useState<AdminUser | null>(null);
+  const [padForm, setPadForm] = useState({
+    email: '',
+    full_name: '',
+    password: '',
+    branch_id: '__global__',
+  });
+  const [padFormError, setPadFormError] = useState<string | null>(null);
+
+  const openPadDialog = () => {
+    setPadForm({ email: '', full_name: '', password: '', branch_id: '__global__' });
+    setPadFormError(null);
+    setPadDialogOpen(true);
+  };
+
+  const handleSavePad = async () => {
+    if (!padForm.email.trim() || !padForm.full_name.trim() || !padForm.password) {
+      setPadFormError('Email, name and password are all required.');
+      return;
+    }
+    if (padForm.password.length < 6) {
+      setPadFormError('Password must be at least 6 characters.');
+      return;
+    }
+    setSavingPad(true);
+    setPadFormError(null);
+    try {
+      await usersApi.createSigningPad({
+        email: padForm.email.trim().toLowerCase(),
+        full_name: padForm.full_name.trim(),
+        password: padForm.password,
+        branch_id: padForm.branch_id === '__global__' ? null : padForm.branch_id,
+      });
+      // Refresh the users list — pads come through the same GET /users.
+      const fresh = await usersApi.getAll();
+      setAdminUsers(fresh);
+      setPadDialogOpen(false);
+    } catch (err: unknown) {
+      // axios error shape: err.response.data.detail
+      const e = err as { response?: { data?: { detail?: string } }; message?: string };
+      setPadFormError(e?.response?.data?.detail || e?.message || 'Failed to create signing pad account.');
+    } finally {
+      setSavingPad(false);
+    }
+  };
+
+  const handleDeletePad = async () => {
+    if (!confirmDeletePad) return;
+    setDeletingAdminId(confirmDeletePad.id);
+    try {
+      await usersApi.delete(confirmDeletePad.id);
+      const fresh = await usersApi.getAll();
+      setAdminUsers(fresh);
+      setConfirmDeletePad(null);
+    } finally {
+      setDeletingAdminId(null);
+    }
+  };
+
+  const signingPads = useMemo(
+    () => adminUsers.filter((u) => u.role === 'signing_pad'),
+    [adminUsers],
+  );
+  const adminOnlyUsers = useMemo(
+    () => adminUsers.filter((u) => u.role === 'super_admin' || u.role === 'branch_admin'),
+    [adminUsers],
+  );
 
   // Addresses State
   interface Address {
@@ -674,6 +749,16 @@ export default function SettingsPage() {
           >
             <Shield className="h-4 w-4 mr-2" />
             Admin Users
+          </TabsTrigger>
+          )}
+          {isSuperAdmin && (
+          <TabsTrigger
+            value="signing_pads"
+            className="data-[state=active]:bg-white data-[state=active]:text-navy-900 text-xs sm:text-sm whitespace-nowrap"
+            data-testid="tab-signing-pads"
+          >
+            <Tablet className="h-4 w-4 mr-2" />
+            Signing Pads
           </TabsTrigger>
           )}
         </TabsList>
@@ -1823,7 +1908,7 @@ export default function SettingsPage() {
             <CardContent>
               {/* Mobile Cards */}
               <div className="md:hidden space-y-2">
-                {adminUsers.map((admin) => (
+                {adminOnlyUsers.map((admin) => (
                   <div key={admin.id} className="border border-navy-200 rounded-lg p-3">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-navy-900 text-sm">{admin.full_name}</span>
@@ -1855,14 +1940,14 @@ export default function SettingsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {adminUsers.length === 0 ? (
+                    {adminOnlyUsers.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-navy-500">
                           No admin users found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      adminUsers.map((admin) => (
+                      adminOnlyUsers.map((admin) => (
                         <TableRow key={admin.id} className="hover:bg-navy-50" data-testid={`admin-row-${admin.id}`}>
                           <TableCell className="font-medium text-navy-900">{admin.full_name}</TableCell>
                           <TableCell className="text-navy-600">{admin.email}</TableCell>
@@ -1906,6 +1991,119 @@ export default function SettingsPage() {
                   </TableBody>
                 </Table>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        )}
+
+        {/* ==================== SIGNING PADS TAB ==================== */}
+        {isSuperAdmin && (
+        <TabsContent value="signing_pads" className="space-y-6">
+          <Card className="border-navy-200">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
+                  <Tablet className="h-5 w-5" />
+                  Signing Pads
+                </CardTitle>
+                <CardDescription>
+                  Kiosk accounts for the front-desk tablet at each branch.
+                  Each pad logs into <code className="bg-navy-50 px-1 rounded text-xs">/dashboard/signing-pad</code> and
+                  receives signature requests scoped to its branch.
+                </CardDescription>
+              </div>
+              <Button
+                onClick={openPadDialog}
+                className="bg-navy-900 hover:bg-navy-800"
+                data-testid="add-signing-pad-button"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create signing pad
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {/* Desktop table */}
+              <div className="hidden md:block border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-navy-50">
+                      <TableHead className="font-semibold text-navy-700">Name</TableHead>
+                      <TableHead className="font-semibold text-navy-700">Email</TableHead>
+                      <TableHead className="font-semibold text-navy-700">Branch</TableHead>
+                      <TableHead className="font-semibold text-navy-700 w-20">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {signingPads.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-navy-500" data-testid="signing-pads-empty">
+                          No signing pad accounts yet. Click <strong>Create signing pad</strong> to add one.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      signingPads.map((pad) => (
+                        <TableRow key={pad.id} className="hover:bg-navy-50" data-testid={`pad-row-${pad.id}`}>
+                          <TableCell className="font-medium text-navy-900">{pad.full_name}</TableCell>
+                          <TableCell className="text-navy-600 font-mono text-sm">{pad.email}</TableCell>
+                          <TableCell className="text-navy-600">
+                            {pad.branch_id
+                              ? branches.find((b) => b.id === pad.branch_id)?.name || pad.branch_id
+                              : <Badge className="bg-amber-100 text-amber-800">Global catch-all</Badge>}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setConfirmDeletePad(pad)}
+                              className="h-7 w-7 p-0"
+                              data-testid={`delete-pad-${pad.id}`}
+                              title="Delete signing pad"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2">
+                {signingPads.length === 0 ? (
+                  <div className="text-center py-8 text-navy-500 text-sm">
+                    No signing pad accounts yet.
+                  </div>
+                ) : (
+                  signingPads.map((pad) => (
+                    <div key={pad.id} className="border border-navy-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-navy-900 text-sm">{pad.full_name}</span>
+                        <Button variant="ghost" size="sm" onClick={() => setConfirmDeletePad(pad)} className="h-7 w-7 p-0">
+                          <Trash2 className="h-3 w-3 text-red-600" />
+                        </Button>
+                      </div>
+                      <div className="text-xs text-navy-500 mt-0.5 font-mono">{pad.email}</div>
+                      <div className="mt-1.5 text-xs text-navy-600">
+                        {pad.branch_id
+                          ? branches.find((b) => b.id === pad.branch_id)?.name || pad.branch_id
+                          : 'Global catch-all'}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick-start callout below the table */}
+          <Card className="border-navy-100 bg-navy-50/50">
+            <CardContent className="py-3 text-sm text-navy-700">
+              <strong>How to set up the tablet:</strong> Open the tablet, navigate to
+              {' '}<code className="bg-white px-1 rounded">/login</code>, log in with the pad credentials,
+              and the kiosk page loads automatically. Enable <em>Guided Access</em> (iPad)
+              or <em>Screen Pinning</em> (Android) to lock the tablet to the signing-pad page.
             </CardContent>
           </Card>
         </TabsContent>
@@ -2057,6 +2255,127 @@ export default function SettingsPage() {
               ) : (
                 <><Trash2 className="h-4 w-4 mr-2" />Remove</>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== SIGNING PAD CREATE DIALOG ==================== */}
+      <Dialog open={padDialogOpen} onOpenChange={setPadDialogOpen}>
+        <DialogContent className="sm:max-w-md" data-testid="create-signing-pad-dialog">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-navy-900">Create signing pad</DialogTitle>
+            <DialogDescription>
+              The tablet at this branch will log in with these credentials and receive signature requests.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="pad-email">Email *</Label>
+              <Input
+                id="pad-email"
+                type="email"
+                value={padForm.email}
+                onChange={(e) => setPadForm({ ...padForm, email: e.target.value })}
+                placeholder="pad-il@bashari.com"
+                data-testid="pad-email-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pad-name">Display name *</Label>
+              <Input
+                id="pad-name"
+                value={padForm.full_name}
+                onChange={(e) => setPadForm({ ...padForm, full_name: e.target.value })}
+                placeholder="Israel Signing Pad"
+                data-testid="pad-name-input"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pad-password">Password *</Label>
+              <Input
+                id="pad-password"
+                type="text"
+                value={padForm.password}
+                onChange={(e) => setPadForm({ ...padForm, password: e.target.value })}
+                placeholder="At least 6 characters"
+                data-testid="pad-password-input"
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-navy-500">
+                Shown as plain text — you&apos;ll need to type this on the tablet.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Branch</Label>
+              <Select
+                value={padForm.branch_id}
+                onValueChange={(v) => setPadForm({ ...padForm, branch_id: v })}
+              >
+                <SelectTrigger data-testid="pad-branch-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__global__">Global catch-all (all branches)</SelectItem>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-navy-500">
+                Scoped pads only see signature requests for jobs in their branch. Pick <em>Global catch-all</em> for a single shared pad.
+              </p>
+            </div>
+
+            {padFormError && (
+              <div className="text-sm text-red-600 flex items-start gap-2" data-testid="pad-form-error">
+                <X className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>{padFormError}</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPadDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleSavePad}
+              disabled={savingPad}
+              className="bg-navy-900 hover:bg-navy-800"
+              data-testid="save-pad-button"
+            >
+              {savingPad && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Create signing pad
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ==================== DELETE SIGNING PAD CONFIRM ==================== */}
+      <Dialog open={!!confirmDeletePad} onOpenChange={(open) => { if (!open) setConfirmDeletePad(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-navy-900">Delete signing pad?</DialogTitle>
+            <DialogDescription>
+              <strong>{confirmDeletePad?.full_name}</strong> ({confirmDeletePad?.email}) will be
+              removed. The tablet logged into this account will be signed out.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeletePad(null)}>Cancel</Button>
+            <Button
+              onClick={handleDeletePad}
+              disabled={deletingAdminId === confirmDeletePad?.id}
+              className="bg-red-600 hover:bg-red-700"
+              data-testid="confirm-delete-pad-button"
+            >
+              {deletingAdminId === confirmDeletePad?.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

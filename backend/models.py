@@ -470,3 +470,13 @@ class AdminUserUpdate(BaseModel):
     branch_id: Optional[str] = None
     phone: Optional[str] = None
     password: Optional[str] = None
+
+
+class SigningPadCreate(BaseModel):
+    """Payload for `POST /users/signing-pad`. Role is fixed to `signing_pad`
+    by the route, so callers don't pass it. `branch_id` is optional — leaving
+    it None creates a global catch-all pad."""
+    email: EmailStr
+    full_name: str
+    password: str
+    branch_id: Optional[str] = None
