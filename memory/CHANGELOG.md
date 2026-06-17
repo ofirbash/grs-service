@@ -5,6 +5,36 @@
 
 ---
 
+## Feb 26, 2026 — Pickup history wired up + idempotent /finalize endpoint
+
+Closed out the integrated Pickup → Signature → PDF-archive flow that the previous session left half-mounted:
+
+### 1. `<PickupHistorySection>` now mounted in the Job dialog
+Imported into `/app/frontend/src/app/dashboard/jobs/page.tsx` and rendered between `<SignatureSection>` and `<JobActivityList>` for admins. Shows one row per pickup event with: type label, stone count, timestamp + actor, "Awaiting signature" amber badge OR "View signed PDF" link to Cloudinary, plus an "Undo" button visible only to super_admin. Polls every 4s so the "Awaiting → Signed" transition surfaces automatically once the client signs on the pad.
+
+A `catch` block was added so future fetch failures surface in `console.error` instead of silently returning null (the previous silent swallow masked an iter-40 stale-build issue for hours).
+
+### 2. New `POST /api/pickups/{id}/finalize` endpoint (idempotent)
+The internal helper `finalize_pickup_if_linked` was the only path that ever compiled a memo into a PDF — there was no way to retry or re-finalize. Added a public endpoint:
+
+- **Idempotent fast-path**: if the pickup already has `signed_pdf_url`, return it without touching Cloudinary (timestamp-based public_id would otherwise leak orphan assets).
+- **Branch RBAC**: branch_admin from a different branch → 403.
+- **Validation**: 404 unknown pickup, 400 if no `memo_html_template` stored, 400 if no signature available (neither explicit payload nor linked-and-signed request).
+- **Helper extraction**: shared `_render_and_upload(pickup, signature_url, signer_name)` keeps the HTML→PDF→Cloudinary path in one place for both call paths.
+
+The helper is also now idempotent — `finalize_pickup_if_linked` checks for an existing `signed_pdf_url` first, so duplicate signature submissions don't produce duplicate Cloudinary assets.
+
+### Code touched
+- `/app/frontend/src/app/dashboard/jobs/page.tsx` — import + mount
+- `/app/frontend/src/components/pickups/PickupHistorySection.tsx` — `catch` block
+- `/app/backend/routes/pickups.py` — new `/finalize` route, `_render_and_upload` helper, idempotent guard
+- `/app/backend/tests/test_pickups_http.py` — 4 new tests (10/10 PASS)
+
+### Test status
+Iter-41 testing agent: backend 10/10 PASS, frontend section renders with rows on real data (job #595).
+
+
+
 ## Feb 25, 2026 — Pickup follow-ups (returned chip + cert-data + checkbox fix)
 
 Three small but meaningful follow-ups after the Memo Return / Cert Collection ship:
