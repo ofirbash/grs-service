@@ -47,6 +47,21 @@ function isFilled(value: unknown): boolean {
   return Boolean(value);
 }
 
+/** Returned-stones summary for job-level visual indication.
+ *  - none: no active stones have been returned
+ *  - partial: some but not all
+ *  - all: every active stone is returned */
+export type ReturnedSummary = 'none' | 'partial' | 'all';
+
+export function getJobReturnedSummary(stones: CompletenessStone[]): ReturnedSummary {
+  const active = stones.filter((s) => !s.cancelled);
+  if (active.length === 0) return 'none';
+  const returned = active.filter((s) => (s as { stone_status?: string }).stone_status === 'returned');
+  if (returned.length === 0) return 'none';
+  if (returned.length === active.length) return 'all';
+  return 'partial';
+}
+
 const CORE_FIELDS: Array<keyof StructuredVerbal> = [
   'certificate_id',
   'weight',

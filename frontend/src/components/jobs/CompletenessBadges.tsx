@@ -18,6 +18,8 @@ import { CheckCircle2 } from 'lucide-react';
 interface Props {
   verbalComplete: boolean;
   certComplete: boolean;
+  /** Job-level only: 'partial' or 'all' triggers a Returned chip; 'none' (default) hides it. */
+  returnedSummary?: 'none' | 'partial' | 'all';
   size?: 'sm' | 'xs';
   /** Test-id suffix so callers (stone row vs job row) can identify their
    *  own instance without collisions. */
@@ -27,10 +29,17 @@ interface Props {
 export const CompletenessBadges: React.FC<Props> = ({
   verbalComplete,
   certComplete,
+  returnedSummary = 'none',
   size = 'sm',
   testIdSuffix,
 }) => {
-  if (!verbalComplete && !certComplete) return null;
+  const showReturned = returnedSummary !== 'none';
+  if (!verbalComplete && !certComplete && !showReturned) return null;
+
+  const returnedLabel = returnedSummary === 'all' ? 'All returned' : 'Partial pickup';
+  const returnedCls = returnedSummary === 'all'
+    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    : 'bg-amber-50 text-amber-800 border-amber-200';
 
   if (size === 'xs') {
     return (
@@ -51,6 +60,15 @@ export const CompletenessBadges: React.FC<Props> = ({
             data-testid={testIdSuffix ? `cert-complete-${testIdSuffix}` : 'cert-complete'}
           >
             <CheckCircle2 className="h-3 w-3 text-blue-600" />
+          </span>
+        )}
+        {showReturned && (
+          <span
+            className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${returnedCls}`}
+            title={returnedSummary === 'all' ? 'All stones returned to client' : 'Some stones returned to client'}
+            data-testid={testIdSuffix ? `returned-${returnedSummary}-${testIdSuffix}` : `returned-${returnedSummary}`}
+          >
+            {returnedLabel}
           </span>
         )}
       </span>
@@ -77,6 +95,16 @@ export const CompletenessBadges: React.FC<Props> = ({
         >
           <CheckCircle2 className="h-3 w-3" />
           Cert
+        </span>
+      )}
+      {showReturned && (
+        <span
+          className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${returnedCls}`}
+          title={returnedSummary === 'all' ? 'All stones returned to client' : 'Some stones returned to client'}
+          data-testid={testIdSuffix ? `returned-${returnedSummary}-${testIdSuffix}` : `returned-${returnedSummary}`}
+        >
+          <CheckCircle2 className="h-3 w-3" />
+          {returnedLabel}
         </span>
       )}
     </span>

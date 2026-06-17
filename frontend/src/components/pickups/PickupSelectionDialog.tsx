@@ -288,6 +288,7 @@ export function PickupSelectionDialog({
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => !allDisabled && toggleGroup(bucket)}
+                          onClick={(e) => e.stopPropagation()}
                           disabled={allDisabled}
                           className="h-4 w-4 rounded border-navy-300"
                         />

@@ -14,6 +14,7 @@ import {
   isStoneCertComplete,
   isJobVerbalComplete,
   isJobCertComplete,
+  getJobReturnedSummary,
 } from '../stoneCompleteness';
 
 const fullVerbal = {
@@ -130,4 +131,37 @@ test('isJobCertComplete — cancelled stones are excluded', () => {
     { id: 'b', cancelled: true },
   ];
   assert.equal(isJobCertComplete(stones), true);
+});
+
+test('getJobReturnedSummary — none / partial / all', () => {
+  assert.equal(getJobReturnedSummary([]), 'none');
+  assert.equal(
+    getJobReturnedSummary([
+      { id: 'a', stone_status: 'at_office' },
+      { id: 'b', stone_status: 'at_office' },
+    ]),
+    'none',
+  );
+  assert.equal(
+    getJobReturnedSummary([
+      { id: 'a', stone_status: 'returned' },
+      { id: 'b', stone_status: 'at_office' },
+    ]),
+    'partial',
+  );
+  assert.equal(
+    getJobReturnedSummary([
+      { id: 'a', stone_status: 'returned' },
+      { id: 'b', stone_status: 'returned' },
+    ]),
+    'all',
+  );
+  // Cancelled stones should be ignored.
+  assert.equal(
+    getJobReturnedSummary([
+      { id: 'a', stone_status: 'returned' },
+      { id: 'b', cancelled: true },
+    ]),
+    'all',
+  );
 });

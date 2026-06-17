@@ -77,20 +77,33 @@ export function buildPickupMemoHtml({
       }
       return Array.from(groups.values())
         .map((bucket) => {
+          // Pull certificate-relevant fields from the first stone's verbal
+          // findings — these are filled in by the lab during the analysis
+          // step and are what the printed certificate actually carries.
           const head = bucket[0];
-          const certLabel =
-            head.certificate_group != null ? `Cert ${head.certificate_group}` : "Single";
-          const stoneSummary = bucket
-            .map((s) => `${esc(s.sku)} (${esc(s.stone_type)})`)
-            .join(", ");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const vf: any = (head.verbal_findings && typeof head.verbal_findings === 'object')
+            ? head.verbal_findings : {};
+          // For pair/parcel certs we still want one row, but identification
+          // and color may differ per stone — show the head stone's values
+          // and indicate "+N more" so admins can spot when the group is
+          // mixed.
+          const certId = vf.certificate_id || (head.certificate_group != null
+            ? `Group ${head.certificate_group}`
+            : "—");
+          const identification = vf.identification || head.stone_type || "—";
           const totalCt = bucket.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
-          const totalVal = bucket.reduce((sum, s) => sum + (Number(s.value) || 0), 0);
+          const color = vf.color || "—";
+          const stonesNote = bucket.length > 1
+            ? `${bucket.length} stones (${bucket.map((s) => esc(s.sku)).join(", ")})`
+            : esc(head.sku);
           return `
             <tr>
-              <td>${certLabel}</td>
-              <td>${stoneSummary}</td>
+              <td>${esc(certId)}</td>
+              <td>${esc(identification)}</td>
               <td>${totalCt.toFixed(2)} ct</td>
-              <td>$${totalVal.toLocaleString()}</td>
+              <td>${esc(color)}</td>
+              <td style="font-size:11px;color:#4a5a7a;">${stonesNote}</td>
             </tr>
           `;
         })

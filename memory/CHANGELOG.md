@@ -5,6 +5,31 @@
 
 ---
 
+## Feb 25, 2026 — Pickup follow-ups (returned chip + cert-data + checkbox fix)
+
+Three small but meaningful follow-ups after the Memo Return / Cert Collection ship:
+
+### 1. Job-level "returned" indicator
+`getJobReturnedSummary(stones)` returns `'none' | 'partial' | 'all'`. `CompletenessBadges` now also renders a chip when partial/all: **amber "Partial pickup"** or **emerald "All returned"** next to the job number on both the Jobs list table and the mobile card. Per-stone "Returned" pills (`StoneStatusBadges`) were already there from the original status-tracking work — this new chip lets the admin see the same fact at the job level without opening the dialog.
+
+### 2. Cert Collection memo now shows certificate fields
+The cert_collection table previously printed SKU/Type/Weight/Value. It now prints what the printed certificate actually carries: **Certificate ID / Identification / Weight / Color**, pulled from each stone's `verbal_findings`. For pair/parcel certs (one cert covering multiple stones), the head stone's values render in the row plus a "N stones (SKU1, SKU2, …)" caption so admins can tell mixed groups apart.
+
+### 3. Checkbox click bug in Memo Return dialog
+The row's `onClick` AND the checkbox's `onChange` were both firing, cancelling each other out — admins could only toggle by clicking next-to the box, not the box itself. Fixed with `onClick={(e) => e.stopPropagation()}` on the checkbox so:
+- Clicking the row → `onClick` fires → row toggles. ✅
+- Clicking the checkbox → `onChange` fires; `stopPropagation` keeps the row's `onClick` from firing too. ✅
+
+### Code touched
+- `/app/frontend/src/lib/stoneCompleteness.ts` — `getJobReturnedSummary` + `ReturnedSummary` type
+- `/app/frontend/src/components/jobs/CompletenessBadges.tsx` — optional `returnedSummary` prop
+- `/app/frontend/src/app/dashboard/jobs/page.tsx` — pass `returnedSummary` to both the table and mobile-card badges
+- `/app/frontend/src/app/dashboard/jobs/_lib/buildPickupMemoHtml.ts` — cert_collection table columns + verbal_findings extraction
+- `/app/frontend/src/components/pickups/PickupSelectionDialog.tsx` — checkbox `stopPropagation`
+- `/app/frontend/src/lib/__tests__/stoneCompleteness.test.ts` — new test for `getJobReturnedSummary` (none/partial/all/cancelled-ignored). **13/13 unit tests pass.**
+
+---
+
 ## Feb 25, 2026 — Pickup memos (Memo Return + Certificate Collection)
 
 Two new printable receipts for when clients collect stones/certs from the lab, with full DB tracking so the system can answer "which stones haven't been collected yet?" and prevent double-pickup.

@@ -95,7 +95,7 @@ import { JOB_STATUSES_WITH_CANCEL } from '@/lib/jobStatuses';
 import { SignatureSection } from '@/components/signatures/SignatureSection';
 import { PickupSelectionDialog } from '@/components/pickups/PickupSelectionDialog';
 import { CompletenessBadges } from '@/components/jobs/CompletenessBadges';
-import { isJobVerbalComplete, isJobCertComplete } from '@/lib/stoneCompleteness';
+import { isJobVerbalComplete, isJobCertComplete, getJobReturnedSummary } from '@/lib/stoneCompleteness';
 
 export default function JobsPage() {
   // Wrap the actual page in <Suspense> so `useSearchParams()` is allowed during
@@ -1314,6 +1314,7 @@ function JobsPageContent() {
                         <CompletenessBadges
                           verbalComplete={isJobVerbalComplete(job.stones)}
                           certComplete={isJobCertComplete(job.stones)}
+                          returnedSummary={getJobReturnedSummary(job.stones)}
                           size="xs"
                           testIdSuffix={`mobile-job-${job.job_number}`}
                         />
@@ -1405,6 +1406,7 @@ function JobsPageContent() {
                             <CompletenessBadges
                               verbalComplete={isJobVerbalComplete(job.stones)}
                               certComplete={isJobCertComplete(job.stones)}
+                              returnedSummary={getJobReturnedSummary(job.stones)}
                               size="xs"
                               testIdSuffix={`job-${job.job_number}`}
                             />
