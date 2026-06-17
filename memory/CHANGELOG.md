@@ -5,6 +5,37 @@
 
 ---
 
+## Feb 26, 2026 — Pickup return docs styled to match the main memo
+
+User request:
+> "Both return docs should look very much like the memo doc. The 'terms and conditions' part is not needed on return but the whole doc should look very similar."
+
+Rewrote `/app/frontend/src/app/dashboard/jobs/_lib/buildPickupMemoHtml.ts` to use the **exact same** CSS / DOM structure as `buildJobMemoHtml.ts`:
+
+- Same Helvetica body + 22px/32px padding + 900px max-width
+- Same `.company-header` with logo + display name + legal name and 2px black bottom border
+- Same `.doc-title-bar` ("Memo Return #00576" / "Certificate Collection #00576" + formatted date right-aligned)
+- Same gray rounded `.job-meta-row` with Client (email/phone subs) + Branch
+- Same `.section h3` (uppercase, letter-spaced, underline)
+- Same bordered table with `.group-separator`, `.grouped-row`, `.totals-row`, `.flags` styling
+- Same `.signatures` 1fr/1fr grid (Picked Up By + Lab Representative) including the captured-signature PNG embed path
+- Same `.footer` (legal name, address, phones, email, VAT, printed timestamp)
+- **Terms & Conditions section dropped** — return docs are receipts; the client agreed to the T&Cs at drop-off.
+
+memo_return-specific:
+- Same 7-column table as the intake memo *minus the Fee column* (fees were settled before pickup, so a Fee column would be noise).
+- Same grouped/ungrouped sorting + label generation (`single`, `pair-N`, `layout-N`, `multi-stone-N`).
+- Totals row mirrors the intake memo's footer (count, certificates, total ct, total value).
+
+cert_collection-specific:
+- 5-column table (Certificate / Identification / Weight / Color / Stones) grouped by `certificate_group` so paired/parcel certs render as one line covering N stones.
+- Verbal findings (`certificate_id`, `identification`, `color`) are surfaced — this is what the printed certificate actually carries.
+
+### Verified
+Live preview, Memo Return on job #576 → AI vision check confirms: corporate header ✅, doc-title-bar ✅, client meta row ✅, stones table with totals ✅, signatures grid ✅, footer ✅, **no T&C section** ✅. Same for the Cert Collection doc.
+
+
+
 ## Feb 26, 2026 — Signing pad delete bug
 
 User report:

@@ -3,11 +3,22 @@
  * "Certificate Collection" documents the client signs when collecting
  * stones / certificates from the lab.
  *
- * Reuses the visual language of the intake memo (`buildJobMemoHtml.ts`)
- * but renders only the subset of stones included in the pickup, plus the
- * appropriate title and signature block. When a digital `client_collection`
- * or `cert_collection` signature is captured, its PNG embeds in place of
- * the printed signature line.
+ * As of Feb 26 2026 the visual language mirrors the main job memo
+ * (`buildJobMemoHtml.ts`): same company header, doc-title-bar, gray
+ * job-meta-row, section/table styles, signatures grid and footer. The
+ * only intentional differences vs. the intake memo:
+ *
+ *   - No "Terms & Conditions" block (the client already agreed to those
+ *     at drop-off; return docs are just receipts).
+ *   - No "Fee" column (fees were already settled before pickup).
+ *   - cert_collection groups rows by `certificate_group` so paired/parcel
+ *     certs render as one line covering N stones.
+ *
+ * When a digital `client_collection` or `cert_collection` signature is
+ * captured, its PNG embeds in place of the printed signature line. The
+ * backend-side `{{SIGNATURE_BLOCK}}` placeholder is emitted when the
+ * caller passes `signature: { __template: true }` so xhtml2pdf can swap
+ * in the captured PNG when archiving the immutable PDF.
  */
 
 import { escapeHtml as esc } from "@/lib/sanitize";
@@ -41,6 +52,44 @@ const SUBTITLES: Record<BuildPickupMemoArgs["type"], string> = {
     "By signing below I confirm receipt of the certificates listed in this memo.",
 };
 
+const fmt = (n: number): string =>
+  n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const labelKey = (count: number): string => {
+  if (count === 1) return "single";
+  if (count === 2) return "pair";
+  if (count >= 3 && count <= 6) return "layout";
+  return "multi-stone";
+};
+
+/** Memo-return row — mirrors buildJobMemoHtml's stoneRow() minus the Fee
+ *  column (fees were settled before pickup, so they'd be noise here). */
+const memoReturnRow = (
+  index: number,
+  stone: Stone,
+  isGrouped: boolean,
+): string => {
+  const flags: string[] = [];
+  if (stone.color_stability_test) flags.push("CS");
+  if (stone.mounted) flags.push("Mtd");
+  const flagsStr = flags.length > 0 ? flags.join(", ") : "—";
+  const isParcel = stone.kind === "parcel";
+  const typeCell = isParcel
+    ? `${esc(stone.stone_type)} <span style="color:#a16207;font-weight:600;">· parcel of ${stone.stone_count || 0}</span>`
+    : esc(stone.stone_type);
+  return `
+    <tr class="${isGrouped ? "grouped-row" : ""}${isParcel ? " parcel-row" : ""}">
+      <td>${index}</td>
+      <td>${esc(stone.sku)}</td>
+      <td>${typeCell}</td>
+      <td>${esc(String(stone.weight))} ct${isParcel ? ` <span style="color:#71717a;font-size:9px;">(total)</span>` : ""}</td>
+      <td>${esc(stone.shape)}</td>
+      <td class="flags">${flagsStr}</td>
+      <td>$${fmt(stone.value || 0)}</td>
+    </tr>
+  `;
+};
+
 export function buildPickupMemoHtml({
   job,
   client,
@@ -53,84 +102,168 @@ export function buildPickupMemoHtml({
   const idSet = new Set(pickedStoneIds);
   const picked: Stone[] = (job.stones || []).filter((s) => idSet.has(s.id));
 
-  // Totals (only over the picked subset).
-  const totalCount = picked.length;
-  const totalWeight = picked.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
-  const totalValue = picked.reduce((sum, s) => sum + (Number(s.value) || 0), 0);
   const paddedJobNumber = String(job.job_number).padStart(5, "0");
-  const today = new Date().toLocaleDateString();
   const title = TITLES[type];
   const subtitle = SUBTITLES[type];
+  const docTitle = `${title} #${paddedJobNumber}`;
 
-  // Group stones by certificate_group so paired/parcel certs render as
-  // ONE row in the cert_collection case (client takes one cert covering
-  // multiple stones).
-  const rowsHtml = (() => {
-    if (type === "cert_collection") {
-      // Bucket by cert group; ungrouped stones each form their own bucket.
-      const groups = new Map<string, Stone[]>();
-      for (const s of picked) {
-        const key = s.certificate_group != null ? `g:${s.certificate_group}` : `s:${s.id}`;
-        const bucket = groups.get(key) || [];
-        bucket.push(s);
-        groups.set(key, bucket);
-      }
-      return Array.from(groups.values())
-        .map((bucket) => {
-          // Pull certificate-relevant fields from the first stone's verbal
-          // findings — these are filled in by the lab during the analysis
-          // step and are what the printed certificate actually carries.
-          const head = bucket[0];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const vf: any = (head.verbal_findings && typeof head.verbal_findings === 'object')
-            ? head.verbal_findings : {};
-          // For pair/parcel certs we still want one row, but identification
-          // and color may differ per stone — show the head stone's values
-          // and indicate "+N more" so admins can spot when the group is
-          // mixed.
-          const certId = vf.certificate_id || (head.certificate_group != null
-            ? `Group ${head.certificate_group}`
-            : "—");
-          const identification = vf.identification || head.stone_type || "—";
-          const totalCt = bucket.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
-          const color = vf.color || "—";
-          const stonesNote = bucket.length > 1
-            ? `${bucket.length} stones (${bucket.map((s) => esc(s.sku)).join(", ")})`
-            : esc(head.sku);
-          return `
-            <tr>
-              <td>${esc(certId)}</td>
-              <td>${esc(identification)}</td>
-              <td>${totalCt.toFixed(2)} ct</td>
-              <td>${esc(color)}</td>
-              <td style="font-size:11px;color:#4a5a7a;">${stonesNote}</td>
-            </tr>
-          `;
-        })
-        .join("");
-    }
-    // memo_return — one row per stone.
-    return picked
-      .map(
-        (s) => `
-        <tr>
-          <td>${esc(s.sku)}</td>
-          <td>${esc(s.stone_type)}</td>
-          <td>${(Number(s.weight) || 0).toFixed(2)} ct</td>
-          <td>${esc(s.shape || "—")}</td>
-          <td>$${(Number(s.value) || 0).toLocaleString()}</td>
-          <td>${s.certificate_group != null ? `Cert ${s.certificate_group}` : "—"}</td>
-        </tr>
-      `,
-      )
+  const absoluteLogo = COMPANY_INFO.logoUrl.startsWith("http")
+    ? COMPANY_INFO.logoUrl
+    : origin + COMPANY_INFO.logoUrl;
+
+  const formattedDate = new Date().toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const formattedPrintedAt = new Date().toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  // ---- Build the body (table + section) -----------------------------------
+  let sectionHtml = "";
+
+  if (type === "memo_return") {
+    // Mirror the memo's grouped-by-certificate layout so the pickup
+    // table reads like a familiar subset of the original intake memo.
+    const ungrouped = picked.filter((s) => !s.certificate_group);
+    const groupedMap = new Map<number, Stone[]>();
+    picked
+      .filter((s) => s.certificate_group)
+      .forEach((s) => {
+        const g = s.certificate_group!;
+        if (!groupedMap.has(g)) groupedMap.set(g, []);
+        groupedMap.get(g)!.push(s);
+      });
+    const sortedGroups = Array.from(groupedMap.entries()).sort(([a], [b]) => a - b);
+    const groupLabels = new Map<number, string>();
+    const typeCounters: Record<string, number> = {};
+    sortedGroups.forEach(([groupNum, stones]) => {
+      const key = labelKey(stones.length);
+      typeCounters[key] = (typeCounters[key] || 0) + 1;
+      groupLabels.set(groupNum, `${key}-${typeCounters[key]}`);
+    });
+
+    let rowIndex = 1;
+    const ungroupedRows = ungrouped.map((s) => memoReturnRow(rowIndex++, s, false)).join("");
+    const groupedRows = sortedGroups
+      .map(([groupNum, stones]) => {
+        const label = groupLabels.get(groupNum) || "group";
+        const header = `
+          <tr class="group-separator">
+            <td colspan="7">
+              <strong>${label}</strong> (${stones.length} stone${stones.length > 1 ? "s" : ""})
+            </td>
+          </tr>`;
+        const rows = stones.map((s) => memoReturnRow(rowIndex++, s, true)).join("");
+        return header + rows;
+      })
       .join("");
-  })();
 
-  // Client signature block — embedded PNG if captured, blank line otherwise.
-  // The special token `__SIGNATURE_BLOCK_TEMPLATE__` (passed via the
-  // `signature` arg as a sentinel) tells us to emit the backend-side
-  // `{{SIGNATURE_BLOCK}}` placeholder so xhtml2pdf can swap in the
-  // captured signature later when finalizing the archive PDF.
+    const totalWeight = picked.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
+    const totalValue = picked.reduce((sum, s) => sum + (Number(s.value) || 0), 0);
+    const totalStonesCount = picked.reduce(
+      (sum, s) => sum + (s.kind === "parcel" ? (s.stone_count || 1) : 1),
+      0,
+    );
+    const totalCertificates = groupedMap.size + ungrouped.length;
+
+    sectionHtml = `
+      <div class="section">
+        <h3>Stones Returned</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 28px;">#</th>
+              <th>SKU</th>
+              <th>Type</th>
+              <th>Weight</th>
+              <th>Shape</th>
+              <th style="width: 70px; text-align: center;">Flags</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ungroupedRows}
+            ${groupedRows}
+            ${picked.length === 0
+              ? `<tr><td colspan="7" style="text-align:center;color:#a1a1aa;padding:18px;">No items selected</td></tr>`
+              : ""}
+          </tbody>
+          <tfoot>
+            <tr class="totals-row">
+              <td colspan="3"><strong>Total — ${totalStonesCount} stone${totalStonesCount === 1 ? "" : "s"} · ${totalCertificates} certificate${totalCertificates === 1 ? "" : "s"}</strong></td>
+              <td><strong>${totalWeight.toFixed(2)} ct</strong></td>
+              <td></td>
+              <td></td>
+              <td><strong>$${fmt(totalValue)}</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+        <div style="font-size: 9.5px; color: #a1a1aa; margin-top: 4px;">Flags: CS = Color Stability Test · Mtd = Mounted in jewellery</div>
+      </div>`;
+  } else {
+    // cert_collection — one row per certificate group (pair/parcel certs
+    // collapse to a single line covering N stones). Columns adapted to
+    // certificate-relevant fields pulled from verbal_findings.
+    const groups = new Map<string, Stone[]>();
+    for (const s of picked) {
+      const key = s.certificate_group != null ? `g:${s.certificate_group}` : `s:${s.id}`;
+      const bucket = groups.get(key) || [];
+      bucket.push(s);
+      groups.set(key, bucket);
+    }
+    const certRows = Array.from(groups.values())
+      .map((bucket) => {
+        const head = bucket[0];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const vf: any = (head.verbal_findings && typeof head.verbal_findings === "object")
+          ? head.verbal_findings : {};
+        const certId = vf.certificate_id || (head.certificate_group != null
+          ? `Group ${head.certificate_group}`
+          : "—");
+        const identification = vf.identification || head.stone_type || "—";
+        const totalCt = bucket.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
+        const color = vf.color || "—";
+        const stonesNote = bucket.length > 1
+          ? `${bucket.length} stones (${bucket.map((s) => esc(s.sku)).join(", ")})`
+          : esc(head.sku);
+        return `
+          <tr>
+            <td>${esc(certId)}</td>
+            <td>${esc(identification)}</td>
+            <td>${totalCt.toFixed(2)} ct</td>
+            <td>${esc(color)}</td>
+            <td style="font-size:10px;color:#71717a;">${stonesNote}</td>
+          </tr>`;
+      })
+      .join("");
+
+    sectionHtml = `
+      <div class="section">
+        <h3>Certificates Collected</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Certificate</th>
+              <th>Identification</th>
+              <th>Weight</th>
+              <th>Color</th>
+              <th>Stones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${certRows || `<tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:18px;">No certificates selected</td></tr>`}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  // ---- Signature block (matches the memo's logic) -------------------------
   const clientSigBlock = (() => {
     if (signature && (signature as { __template?: boolean }).__template) {
       return `{{SIGNATURE_BLOCK}}`;
@@ -146,122 +279,120 @@ export function buildPickupMemoHtml({
           ${esc(signature.signer_name)} · ${esc(when)}
         </div>`;
     }
-    return `<div class="sig-line"></div>
-            <div class="sig-caption">Date: ____________________</div>`;
+    return `
+      <div class="sig-line"></div>
+      <div class="sig-caption">Date: ____________________</div>`;
   })();
 
-  const tableHeader =
-    type === "cert_collection"
-      ? `<th>Certificate</th><th>Stones</th><th>Total Weight</th><th>Total Value</th>`
-      : `<th>SKU</th><th>Type</th><th>Weight</th><th>Shape</th><th>Value</th><th>Certificate</th>`;
-  const colCount = type === "cert_collection" ? 4 : 6;
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <title>${title} #${job.job_number} — ${COMPANY_INFO.displayName}</title>
+      <style>
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 22px 32px; max-width: 900px; margin: 0 auto; color: #141417; line-height: 1.4; }
+        .company-header { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #141417; }
+        .company-brand { display: flex; gap: 12px; align-items: center; }
+        .company-brand img { width: 44px; height: 44px; object-fit: contain; border: 1px solid #e5e5e5; border-radius: 6px; padding: 2px; background: #ffffff; }
+        .company-brand .name-block { display: flex; flex-direction: column; }
+        .company-brand .display-name { font-size: 18px; font-weight: 700; color: #141417; }
+        .company-brand .legal-name { font-size: 10px; color: #71717a; }
+        .doc-title-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+        .doc-title-bar h1 { margin: 0; font-size: 18px; color: #141417; letter-spacing: 0.5px; }
+        .doc-title-bar .job-number { font-size: 13px; font-weight: 600; color: #3f3f46; }
+        .job-meta-row { display: flex; flex-wrap: wrap; gap: 18px; padding: 10px 14px; background: #f5f5f5; border: 1px solid #e5e5e5; border-radius: 6px; margin-bottom: 14px; }
+        .job-meta-row .cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .job-meta-row .cell.flex1 { flex: 1; }
+        .job-meta-row .meta-label { font-size: 9px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.6px; }
+        .job-meta-row .meta-value { font-size: 12px; font-weight: 600; color: #141417; line-height: 1.4; }
+        .job-meta-row .meta-value .sub { font-weight: 400; color: #3f3f46; font-size: 11px; }
+        .section { margin: 12px 0; }
+        .section h3 { margin: 0 0 6px 0; color: #141417; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #e5e5e5; padding-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        th, td { border: 1px solid #e5e5e5; padding: 5px 7px; text-align: left; font-size: 10.5px; }
+        th { background: #ffffff; color: #141417; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; font-size: 9.5px; border-bottom: 2px solid #141417; }
+        tr:nth-child(even):not(.group-separator):not(.grouped-row):not(.totals-row) { background: #fafafa; }
+        .group-separator { background: #e5e7eb !important; color: #141417; }
+        .group-separator td { padding: 4px 7px; border-color: #d4d4d8; font-size: 10.5px; text-transform: lowercase; letter-spacing: 0.3px; }
+        .group-separator strong { color: #141417; font-weight: 700; text-transform: lowercase; }
+        .grouped-row { background: #fafafa; }
+        .flags { font-weight: 600; color: #141417; font-size: 10px; text-align: center; }
+        .totals-row td { background: #f5f5f5; border-top: 2px solid #141417; font-weight: 700; color: #141417; }
+        .confirm-line { margin: 14px 0 10px; padding: 10px 14px; border: 1px solid #e5e5e5; border-radius: 6px; background: #fafafa; font-size: 10.5px; color: #3f3f46; }
+        .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 18px 0 8px; }
+        .sig-block p { margin: 0 0 18px 0; color: #141417; font-size: 11px; font-weight: 600; }
+        .sig-line { border-bottom: 1px solid #141417; height: 30px; }
+        .sig-caption { margin-top: 3px; font-size: 9.5px; color: #a1a1aa; }
+        .footer { margin-top: 16px; padding-top: 10px; border-top: 1px solid #e5e5e5; text-align: center; color: #71717a; font-size: 9.5px; line-height: 1.5; }
+        .footer strong { color: #3f3f46; }
+        @media print {
+          body { padding: 14px 20px; }
+          .page-break { page-break-before: always; }
+          .no-print { display: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="company-header">
+        <div class="company-brand">
+          <img src="${absoluteLogo}" alt="${COMPANY_INFO.displayName}" onerror="this.style.display='none'" />
+          <div class="name-block">
+            <span class="display-name">${COMPANY_INFO.displayName}</span>
+            <span class="legal-name">${COMPANY_INFO.legalName}</span>
+          </div>
+        </div>
+      </div>
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<title>${title} · Job #${paddedJobNumber}</title>
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-         color: #0a1a3f; padding: 32px; margin: 0; max-width: 880px; }
-  header { display:flex; align-items:flex-start; justify-content:space-between;
-           border-bottom: 2px solid #0a1a3f; padding-bottom: 16px; margin-bottom: 24px; }
-  .company h1 { margin: 0; font-size: 22px; }
-  .company p { margin: 2px 0; font-size: 12px; color: #4a5a7a; }
-  .doc-meta { text-align: right; }
-  .doc-meta .badge { display:inline-block; padding: 4px 10px; border-radius: 12px;
-                     background: #0a1a3f; color: #fff; font-size: 11px;
-                     letter-spacing: 0.08em; text-transform: uppercase; }
-  .doc-meta h2 { margin: 8px 0 4px; font-size: 20px; }
-  .doc-meta p { margin: 0; color: #4a5a7a; font-size: 12px; }
-  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-             margin-bottom: 18px; }
-  .summary .cell { background: #f4f6fb; border: 1px solid #d8dfee;
-                    padding: 8px 12px; border-radius: 6px; }
-  .summary .cell .k { font-size: 10px; text-transform: uppercase;
-                       letter-spacing: 0.08em; color: #4a5a7a; }
-  .summary .cell .v { font-size: 14px; font-weight: 600; margin-top: 2px; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { text-align: left; background: #f4f6fb; padding: 8px;
-       border-bottom: 1px solid #d8dfee; font-size: 11px; text-transform: uppercase;
-       letter-spacing: 0.05em; color: #4a5a7a; }
-  td { padding: 8px; border-bottom: 1px solid #eef1f7; }
-  tfoot td { font-weight: 600; background: #f4f6fb; }
-  .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
-                margin-top: 32px; padding-top: 24px; border-top: 1px solid #d8dfee; }
-  .sig-block p { margin: 0 0 8px; font-size: 11px; text-transform: uppercase;
-                  letter-spacing: 0.08em; color: #4a5a7a; }
-  .sig-line { border-bottom: 1px solid #0a1a3f; height: 40px; }
-  .sig-caption { margin-top: 4px; font-size: 11px; color: #4a5a7a; }
-  .legal { margin-top: 24px; padding: 12px; background: #f4f6fb;
-           border-left: 3px solid #0a1a3f; font-size: 11px; color: #4a5a7a;
-           line-height: 1.5; }
-  @media print { body { padding: 0; max-width: none; } }
-</style>
-</head>
-<body>
-<header>
-  <div class="company">
-    <h1>${esc(COMPANY_INFO.displayName)}</h1>
-    <p>${esc(branch?.name || "")}</p>
-    <p>${esc(branch?.address || "")}</p>
-  </div>
-  <div class="doc-meta">
-    <span class="badge">${title}</span>
-    <h2>Job #${paddedJobNumber}</h2>
-    <p>${esc(today)}</p>
-  </div>
-</header>
+      <div class="doc-title-bar">
+        <h1>${docTitle}</h1>
+        <div class="job-number">${formattedDate}</div>
+      </div>
 
-<div class="summary">
-  <div class="cell">
-    <div class="k">Client</div>
-    <div class="v">${esc(client?.name || job.client_name || "—")}</div>
-  </div>
-  <div class="cell">
-    <div class="k">Items</div>
-    <div class="v">${totalCount}</div>
-  </div>
-  <div class="cell">
-    <div class="k">Total Value</div>
-    <div class="v">$${totalValue.toLocaleString()}</div>
-  </div>
-</div>
+      <div class="job-meta-row">
+        <div class="cell flex1">
+          <span class="meta-label">Client</span>
+          <span class="meta-value">
+            ${esc(client?.name || job.client_name || "N/A")}
+            ${client?.email ? `<span class="sub"> · ${esc(client.email)}</span>` : ""}
+            ${client?.phone ? `<span class="sub"> · ${esc(client.phone)}</span>` : ""}
+          </span>
+        </div>
+        <div class="cell">
+          <span class="meta-label">Branch</span>
+          <span class="meta-value">${esc(branch?.name || job.branch_name || "—")}</span>
+        </div>
+      </div>
 
-<table>
-  <thead><tr>${tableHeader}</tr></thead>
-  <tbody>
-    ${rowsHtml || `<tr><td colspan="${colCount}" style="text-align:center;color:#4a5a7a;padding:24px;">No items selected</td></tr>`}
-  </tbody>
-  ${
-    type === "memo_return"
-      ? `<tfoot><tr>
-          <td colspan="2">TOTAL</td>
-          <td>${totalWeight.toFixed(2)} ct</td>
-          <td></td>
-          <td>$${totalValue.toLocaleString()}</td>
-          <td></td>
-        </tr></tfoot>`
-      : ""
-  }
-</table>
+      ${sectionHtml}
 
-<div class="legal">${esc(subtitle)}</div>
+      <div class="confirm-line">${esc(subtitle)}</div>
 
-<div class="signatures">
-  <div class="sig-block">
-    <p>Picked Up By</p>
-    ${clientSigBlock}
-  </div>
-  <div class="sig-block">
-    <p>Lab Representative</p>
-    <div class="sig-line"></div>
-    <div class="sig-caption">Date: ____________________</div>
-  </div>
-</div>
+      <div class="signatures">
+        <div class="sig-block">
+          <p>Picked Up By</p>
+          ${clientSigBlock}
+        </div>
+        <div class="sig-block">
+          <p>Lab Representative</p>
+          <div class="sig-line"></div>
+          <div class="sig-caption">Date: ____________________</div>
+        </div>
+      </div>
 
-<script>window.onload = () => setTimeout(() => window.print(), 200);</script>
-</body>
-</html>`;
+      <div class="footer">
+        <div><strong>${COMPANY_INFO.legalName}</strong> · ${COMPANY_INFO.address}</div>
+        <div>${COMPANY_INFO.phones.join(" · ")} · ${COMPANY_INFO.email} · VAT ${COMPANY_INFO.vat}</div>
+        <div style="margin-top:4px;">Printed ${formattedPrintedAt}</div>
+      </div>
+
+      <script>
+        window.addEventListener('load', function() {
+          setTimeout(function() { window.print(); }, 200);
+        });
+      </script>
+    </body>
+    </html>
+  `;
 }
