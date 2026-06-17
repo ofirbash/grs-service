@@ -127,7 +127,14 @@ export function buildPickupMemoHtml({
   })();
 
   // Client signature block — embedded PNG if captured, blank line otherwise.
+  // The special token `__SIGNATURE_BLOCK_TEMPLATE__` (passed via the
+  // `signature` arg as a sentinel) tells us to emit the backend-side
+  // `{{SIGNATURE_BLOCK}}` placeholder so xhtml2pdf can swap in the
+  // captured signature later when finalizing the archive PDF.
   const clientSigBlock = (() => {
+    if (signature && (signature as { __template?: boolean }).__template) {
+      return `{{SIGNATURE_BLOCK}}`;
+    }
     if (signature && signature.status === "signed" && signature.signed_url) {
       const when = signature.signed_at
         ? new Date(signature.signed_at).toLocaleString()

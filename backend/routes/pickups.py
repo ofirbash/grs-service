@@ -15,6 +15,9 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
+import cloudinary
+import cloudinary.uploader
+
 from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, Depends, HTTPException
@@ -38,6 +41,15 @@ class CreatePickupPayload(BaseModel):
     # Optional captured signature row — linked into the activity log so we
     # can later show "client X signed for this pickup" on the receipt.
     signature_request_id: Optional[str] = None
+    # Optional memo HTML template containing a `{{SIGNATURE_BLOCK}}`
+    # placeholder. When provided, the backend stores it so finalize() can
+    # swap the signature in and render a frozen PDF for archive.
+    memo_html_template: Optional[str] = None
+    # Optional signature capture trigger — when the admin uses the one-click
+    # "Approve and Print" flow, we also create a signature_request in the
+    # same call so the pad lights up. The signer_name is required for that.
+    auto_create_signature_for: Optional[str] = None  # signer name
+    signature_role: Optional[str] = None  # 'client_collection' or 'cert_collection'
 
 
 def _oid(value: str, *, field: str = "id") -> ObjectId:
@@ -62,6 +74,9 @@ def _serialise(row: dict) -> dict:
         "type": row.get("type"),
         "stone_ids": row.get("stone_ids") or [],
         "signature_request_id": row.get("signature_request_id"),
+        "signed_pdf_url": row.get("signed_pdf_url"),
+        "signed_pdf_public_id": row.get("signed_pdf_public_id"),
+        "finalized_at": _iso(row.get("finalized_at")),
         "printed_at": _iso(row.get("printed_at")),
         "printed_by": row.get("printed_by"),
         "printed_by_name": row.get("printed_by_name"),
@@ -118,13 +133,42 @@ async def create_pickup(payload: CreatePickupPayload, user: dict = Depends(requi
             ),
         )
 
+    # Auto-create a signature request if the admin used the integrated
+    # "Approve and Print" flow (real-world: client signs the printed memo
+    # they just inspected on the pad). We do this BEFORE inserting the
+    # pickup so the signature_request_id can be stored on it.
+    auto_sig_id: Optional[str] = None
+    if payload.auto_create_signature_for and payload.signature_role:
+        sig_doc = {
+            "job_id": payload.job_id,
+            "branch_id": job.get("branch_id"),
+            "role": payload.signature_role,
+            "signer_name": payload.auto_create_signature_for.strip(),
+            "status": "pending",
+            "signed_url": None,
+            "signed_public_id": None,
+            "created_at": now,
+            "created_by": str(user.get("_id")),
+            "created_by_name": user.get("full_name") or user.get("email"),
+            "signed_at": None,
+            "signed_by_user_agent": None,
+            "signed_by_ip": None,
+            "cancelled_at": None,
+        }
+        sig_result = await db.signature_requests.insert_one(sig_doc)
+        auto_sig_id = str(sig_result.inserted_id)
+
     now = datetime.now(timezone.utc)
     doc = {
         "job_id": payload.job_id,
         "branch_id": job.get("branch_id"),
         "type": payload.type,
         "stone_ids": payload.stone_ids,
-        "signature_request_id": payload.signature_request_id,
+        "signature_request_id": payload.signature_request_id or auto_sig_id,
+        "memo_html_template": payload.memo_html_template,
+        "signed_pdf_url": None,
+        "signed_pdf_public_id": None,
+        "finalized_at": None,
         "printed_at": now,
         "printed_by": str(user.get("_id")),
         "printed_by_name": user.get("full_name") or user.get("email"),
@@ -222,3 +266,72 @@ async def delete_pickup(pickup_id: str, user: dict = Depends(require_super_admin
     )
 
     return {"deleted": True}
+
+
+async def finalize_pickup_if_linked(signature_id: str, signature_url: str, signer_name: str) -> Optional[str]:
+    """Called from `submit_signature` after a successful sign. Finds the
+    pickup_event linked to this signature_request, swaps the signature
+    PNG into its stored memo template, converts to PDF via xhtml2pdf,
+    uploads to Cloudinary, and stores the URL on the pickup row.
+
+    Returns the signed PDF URL, or None if there is no linked pickup or
+    no memo template stored. Best-effort: any failure is logged but does
+    not raise (the signature itself already succeeded)."""
+    try:
+        pickup = await db.pickup_events.find_one({"signature_request_id": signature_id})
+        if not pickup or not pickup.get("memo_html_template"):
+            return None
+
+        # Swap the {{SIGNATURE_BLOCK}} placeholder for an inline-styled
+        # signature image. The frontend can also append the signer name +
+        # capture timestamp under the image — but here we just paint in
+        # the image; the template owns the surrounding caption HTML.
+        html = pickup["memo_html_template"].replace(
+            "{{SIGNATURE_BLOCK}}",
+            f'<img src="{signature_url}" alt="Picked-up signature" '
+            f'style="height:54px;object-fit:contain;max-width:100%;display:block;"/>'
+            f'<div style="margin-top:4px;font-size:11px;color:#4a5a7a;">{signer_name}</div>',
+        )
+
+        # Render PDF via xhtml2pdf. pisa.CreatePDF writes to a BytesIO; we
+        # then base64 it for the Cloudinary data-URI upload (mirrors how
+        # signature submission uploads PNGs).
+        import io
+        import base64 as _b64
+        from xhtml2pdf import pisa
+
+        pdf_buf = io.BytesIO()
+        result = pisa.CreatePDF(io.StringIO(html), dest=pdf_buf)
+        if result.err:
+            logger.warning("xhtml2pdf reported %s errors finalizing %s", result.err, pickup["_id"])
+        pdf_bytes = pdf_buf.getvalue()
+        if not pdf_bytes:
+            return None
+
+        import asyncio
+        folder = f"pickup_receipts/{pickup.get('branch_id') or 'unscoped'}"
+        public_id = f"{pickup['job_id']}_{pickup['type']}_{int(datetime.now(timezone.utc).timestamp())}"
+        upload_resp = await asyncio.to_thread(
+            cloudinary.uploader.upload,
+            f"data:application/pdf;base64,{_b64.b64encode(pdf_bytes).decode()}",
+            folder=folder,
+            public_id=public_id,
+            resource_type="raw",
+            format="pdf",
+            overwrite=True,
+        )
+        signed_url = upload_resp.get("secure_url")
+        signed_public_id = upload_resp.get("public_id")
+
+        await db.pickup_events.update_one(
+            {"_id": pickup["_id"]},
+            {"$set": {
+                "signed_pdf_url": signed_url,
+                "signed_pdf_public_id": signed_public_id,
+                "finalized_at": datetime.now(timezone.utc),
+            }},
+        )
+        return signed_url
+    except Exception:  # noqa: BLE001
+        logger.exception("finalize_pickup_if_linked failed for signature %s", signature_id)
+        return None

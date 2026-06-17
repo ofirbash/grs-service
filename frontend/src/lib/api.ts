@@ -655,6 +655,9 @@ export interface PickupEvent {
   type: 'memo_return' | 'cert_collection';
   stone_ids: string[];
   signature_request_id: string | null;
+  signed_pdf_url: string | null;
+  signed_pdf_public_id: string | null;
+  finalized_at: string | null;
   printed_at: string;
   printed_by: string | null;
   printed_by_name: string | null;
@@ -665,9 +668,19 @@ export const pickupsApi = {
     job_id: string,
     type: PickupEvent['type'],
     stone_ids: string[],
-    signature_request_id?: string,
+    opts?: {
+      signature_request_id?: string;
+      memo_html_template?: string;
+      auto_create_signature_for?: string;
+      signature_role?: 'client_collection' | 'cert_collection';
+    },
   ) => {
-    const response = await api.post('/pickups', { job_id, type, stone_ids, signature_request_id });
+    const response = await api.post('/pickups', {
+      job_id,
+      type,
+      stone_ids,
+      ...(opts || {}),
+    });
     return response.data as PickupEvent;
   },
   listForJob: async (job_id: string) => {

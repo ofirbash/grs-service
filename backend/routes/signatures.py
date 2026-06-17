@@ -308,6 +308,20 @@ async def submit_signature(
         metadata={"role": row["role"], "request_id": str(row["_id"])},
     )
 
+    # If this signature is linked to a pickup_event (one-click "Approve
+    # and Print" flow), finalize that pickup: render memo HTML → PDF →
+    # Cloudinary, store url on the row. Best-effort — failures here don't
+    # block the signature submission since the row is already signed.
+    try:
+        from routes.pickups import finalize_pickup_if_linked
+        await finalize_pickup_if_linked(
+            signature_id=str(row["_id"]),
+            signature_url=signed_url,
+            signer_name=row.get("signer_name", ""),
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("pickup finalize hook failed for signature %s", row["_id"])
+
     updated = await db.signature_requests.find_one({"_id": row["_id"]})
     return _serialise(updated)
 

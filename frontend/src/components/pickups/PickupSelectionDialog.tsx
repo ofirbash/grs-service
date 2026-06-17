@@ -177,22 +177,44 @@ export function PickupSelectionDialog({
     setSubmitting(true);
     setError(null);
     try {
-      const event = await pickupsApi.create(
-        job.id,
-        type,
-        Array.from(selected),
-        signature?.id,
-      );
-      const html = buildPickupMemoHtml({
-        job,
-        client,
-        branch,
+      // Build TWO versions of the memo HTML:
+      //   1. `printHtml` — the unsigned memo that opens in the print window
+      //      (client inspects + keeps a physical copy).
+      //   2. `templateHtml` — same memo with a `{{SIGNATURE_BLOCK}}`
+      //      placeholder where the captured signature will go later. The
+      //      backend stores this and uses it to render the frozen PDF
+      //      archive once the client signs on the pad.
+      const ctx = {
+        job, client, branch,
         origin: typeof window !== 'undefined' ? window.location.origin : '',
         type,
-        pickedStoneIds: event.stone_ids,
-        signature,
-      });
-      const win = openPrintWindow(html);
+        pickedStoneIds: Array.from(selected),
+      };
+      const printHtml = buildPickupMemoHtml({ ...ctx, signature });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const templateHtml = buildPickupMemoHtml({ ...ctx, signature: { __template: true } as any });
+
+      // Default signer name = the client's name (admin can still override
+      // via the standalone Signature menu, but this one-click flow auto-
+      // populates it for the common case).
+      const signerName = client?.name || job.client_name || 'Client';
+      const sigRole = type === 'memo_return' ? 'client_collection' : 'cert_collection';
+
+      const event = await pickupsApi.create(
+        job.id, type, Array.from(selected),
+        {
+          signature_request_id: signature?.id,
+          memo_html_template: templateHtml,
+          // Skip auto-signature if a captured signature is ALREADY attached
+          // (admin pre-captured one via the standalone menu — don't queue a
+          // duplicate on the pad).
+          ...(signature ? {} : {
+            auto_create_signature_for: signerName,
+            signature_role: sigRole,
+          }),
+        },
+      );
+      const win = openPrintWindow(printHtml);
       if (!win) {
         window.alert('Please allow popups to print');
       }
@@ -246,20 +268,24 @@ export function PickupSelectionDialog({
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                 <div className="flex-1">
                   <div className="font-medium text-emerald-900">
-                    Signature attached: {signature.signer_name}
+                    Signature already captured: {signature.signer_name}
                   </div>
                   <div className="text-xs text-emerald-700">
                     {signature.signed_at && new Date(signature.signed_at).toLocaleString()} ·
-                    will be embedded in the printed memo
+                    will be embedded in the printed memo and signed PDF archive
                   </div>
                 </div>
               </div>
             )}
             {!signature && (
-              <div className="text-xs text-navy-500 p-2 rounded bg-navy-50">
-                💡 Tip: capture the client&apos;s signature first (Capture signature →{' '}
-                {type === 'memo_return' ? 'Client collection' : 'Certificate collection'}) so it
-                embeds on the printed memo.
+              <div className="text-xs text-navy-600 p-3 rounded-md bg-navy-50 border border-navy-200">
+                <strong>Approve and Print</strong> will:
+                <ol className="list-decimal ml-5 mt-1 space-y-0.5">
+                  <li>Record this pickup in the system</li>
+                  <li>Open the unsigned memo for the client to inspect</li>
+                  <li>Light up the signing pad — the client signs there</li>
+                  <li>Save the signed PDF to the cloud for proof</li>
+                </ol>
               </div>
             )}
 
@@ -370,7 +396,7 @@ export function PickupSelectionDialog({
             ) : (
               <Printer className="h-4 w-4 mr-2" />
             )}
-            Print ({selected.size})
+            Approve and Print ({selected.size})
           </Button>
         </DialogFooter>
       </DialogContent>
