@@ -5,6 +5,34 @@
 
 ---
 
+## Feb 26, 2026 — Mobile Signing Pad bug fixes (top-only writable + submit failing)
+
+User report on mobile (Signing Pad logged in on phone):
+> "Only the top part of the screen is writable. Submit says 'couldn't read signature canvas'. The screen moves while signing."
+
+Three root causes, all fixed in one pass:
+
+### 1. Ref forwarding broken through `next/dynamic`
+`react-signature-canvas` was loaded via `next/dynamic({ ssr: false })`, which does NOT forward refs through its wrapper. `canvasRef.current` was always `null`, so `toDataURL()` returned `undefined` → the exact "Could not read signature canvas" thrown by the page. Fix: new `<SigningSurface>` "use client" component that imports the lib directly and `forwardRef`s a stable `{clear, isEmpty, toDataURL}` handle.
+
+### 2. Canvas pixel-resolution stuck at 300×150 → only top portion drawable
+The lib defaults canvas backing-store to 300×150 px; CSS stretches it to fill the container (e.g. 400×800), so only pointer events landing within the top (0..150 px) → ~150 CSS-px-tall slice produced strokes. The bottom 4/5 of the visible canvas silently dropped touches. Fix: `ResizeObserver` on the container sets `canvas.width/height = clientWidth × DPR / clientHeight × DPR`, preserves in-progress strokes across resizes via `pad.toData() → fromData()`, and listens to `visualViewport.resize` for iOS URL-bar collapse. Verified: top half darkPixels=1425, bottom half darkPixels=1318 on a diagonal stroke (previously: bottom=0).
+
+### 3. Page scrolled / rubber-banded while signing
+No `touch-action: none` → mobile treated drag as pan. Fix: `touch-action: none` + `user-select: none` + `overscroll-behavior: contain` on the canvas container; page capture screen now uses `fixed inset-0 h-[100dvh] overflow-hidden` and locks `document.body.style.overflow = 'hidden'` for the duration of the active capture (restored on unmount). Header shrunk to `text-lg` on mobile so the canvas claims more vertical space.
+
+### Code touched
+- NEW `/app/frontend/src/components/signing/SigningSurface.tsx` — forwardRef + ResizeObserver + touch-action wrapper.
+- `/app/frontend/src/app/dashboard/signing-pad/page.tsx` — drop `next/dynamic`, use `<SigningSurface>`, lock body scroll while capturing, mobile-tightened header + footer spacing.
+
+### Verified
+Playwright mobile-viewport flow on the live pad:
+- canvas pixel size matches CSS × DPR ✅
+- diagonal stroke registers in BOTH top and bottom halves ✅
+- Submit returns 200, no "Could not read signature canvas" error, pending row cleared on the next pad poll ✅
+
+
+
 ## Feb 26, 2026 — Pickup history wired up + idempotent /finalize endpoint
 
 Closed out the integrated Pickup → Signature → PDF-archive flow that the previous session left half-mounted:

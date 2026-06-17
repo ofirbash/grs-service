@@ -12,10 +12,16 @@
  *
  * No admin chrome: the dashboard layout's sidebar is hidden via the special
  * path check inside `layout.tsx` so the kiosk stays full-bleed.
+ *
+ * Mobile fixes (Feb 26 2026):
+ * - Capture screen uses `h-[100dvh] overflow-hidden` so the URL bar
+ *   showing/hiding can't make the canvas grow/shrink (which used to clip
+ *   the bottom portion of the drawable area).
+ * - Drawing surface is delegated to `<SigningSurface>` which handles ref
+ *   forwarding, pixel-accurate resize, and `touch-action: none`.
  */
 
 import { useEffect, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { CheckCircle2, Loader2, RotateCcw, Tablet, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -25,12 +31,7 @@ import {
   type SignatureRow,
 } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-
-// signature_canvas needs window — load only on the client.
-const SignatureCanvas = dynamic(
-  () => import('react-signature-canvas') as Promise<{ default: React.ComponentType<unknown> }>,
-  { ssr: false },
-);
+import { SigningSurface, type SigningSurfaceHandle } from '@/components/signing/SigningSurface';
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -44,11 +45,7 @@ export default function SigningPadPage() {
   const [submitting, setSubmitting] = useState(false);
   const [justSigned, setJustSigned] = useState(false);
 
-  // Cast to `any` (kept narrow): the alpha `react-signature-canvas` type
-  // surface doesn't ship ref types; we only call `clear()`, `isEmpty()`,
-  // and `toDataURL()` — all stable for 5+ years.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const canvasRef = useRef<any>(null);
+  const canvasRef = useRef<SigningSurfaceHandle | null>(null);
 
   // Poll for pending requests. Both `signing_pad` and admins land here —
   // admins are useful for previewing the pad UX from their own machine.
@@ -87,20 +84,39 @@ export default function SigningPadPage() {
     };
   }, [isPad, isAdmin, pending]);
 
+  // While the capture screen is mounted, lock body scroll so iOS doesn't
+  // rubber-band the page while the user signs.
+  useEffect(() => {
+    if (!pending) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.overscrollBehavior = prevOverscroll;
+    };
+  }, [pending]);
+
   const handleClear = () => {
     canvasRef.current?.clear();
   };
 
   const handleSubmit = async () => {
     if (!pending) return;
-    if (canvasRef.current?.isEmpty?.()) {
+    const handle = canvasRef.current;
+    if (!handle) {
+      setError('Signature surface not ready yet — please try again.');
+      return;
+    }
+    if (handle.isEmpty()) {
       setError('Please sign before submitting.');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      const dataUrl = canvasRef.current?.toDataURL?.('image/png');
+      const dataUrl = handle.toDataURL('image/png');
       if (!dataUrl) throw new Error('Could not read signature canvas');
       await signaturesApi.submit(pending.id, dataUrl);
       setPending(null);
@@ -132,38 +148,43 @@ export default function SigningPadPage() {
     const roleLabel = SIGNATURE_ROLE_LABELS[pending.role] || pending.role;
     return (
       <div
-        className="min-h-screen flex flex-col bg-white p-4 md:p-8"
+        // h-[100dvh] = full *dynamic* viewport height; survives URL-bar
+        // collapse. overflow-hidden + fixed positioning prevents the
+        // page from scrolling underneath the canvas while signing.
+        className="fixed inset-0 h-[100dvh] flex flex-col bg-white p-3 sm:p-6 overflow-hidden"
         data-testid="pad-active-capture"
+        style={{ overscrollBehavior: 'none' }}
       >
-        <header className="mb-4">
-          <div className="text-xs uppercase tracking-widest text-navy-500">
+        <header className="shrink-0 mb-2 sm:mb-3">
+          <div className="text-[10px] sm:text-xs uppercase tracking-widest text-navy-500">
             {roleLabel}
           </div>
-          <h1 className="text-2xl md:text-3xl font-semibold text-navy-900 mt-1">
+          <h1 className="text-lg sm:text-2xl font-semibold text-navy-900 mt-0.5 leading-tight">
             {pending.signer_name}, please sign below
           </h1>
         </header>
 
-        <div className="flex-1 border-2 border-navy-300 rounded-lg bg-navy-50/30 overflow-hidden relative">
-          <SignatureCanvas
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            {...({ ref: canvasRef } as any)}
+        {/* The canvas owns the remaining vertical space. min-h-0 is the
+            standard flex trick that lets a child shrink below content. */}
+        <div className="flex-1 min-h-0 border-2 border-navy-300 rounded-lg bg-navy-50/30 overflow-hidden relative">
+          <SigningSurface
+            ref={canvasRef}
             penColor="#0a1a3f"
             backgroundColor="rgba(255,255,255,1)"
-            canvasProps={{
-              className: 'w-full h-full',
-              'data-testid': 'pad-canvas',
-            }}
+            onBegin={() => setError(null)}
           />
         </div>
 
         {error && (
-          <div className="mt-3 text-sm text-red-600 flex items-center gap-2" data-testid="pad-error">
+          <div
+            className="shrink-0 mt-2 text-sm text-red-600 flex items-center gap-2"
+            data-testid="pad-error"
+          >
             <X className="h-4 w-4" /> {error}
           </div>
         )}
 
-        <footer className="mt-4 flex gap-3 justify-end">
+        <footer className="shrink-0 mt-2 sm:mt-3 flex gap-2 sm:gap-3 justify-end">
           <Button
             variant="outline"
             size="lg"
