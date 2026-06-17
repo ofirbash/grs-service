@@ -103,22 +103,26 @@ class TestActionsCatalogue:
         r = requests.get(f"{API}/activity/actions", timeout=10)
         assert r.status_code == 401, f"expected 401, got {r.status_code}: {r.text[:200]}"
 
-    def test_actions_returns_14_codes(self, auth_headers):
+    def test_actions_returns_expected_codes(self, auth_headers):
         r = requests.get(f"{API}/activity/actions", headers=auth_headers, timeout=10)
         assert r.status_code == 200, r.text
         data = r.json()
         assert isinstance(data, list)
-        # Must contain at least the spec'd 14 codes including these two
+        # Catalogue must surface every action wired into the backend. The
+        # count grows over time (signatures, pickups, etc); the rule we
+        # care about is that the original 14 + new ones are all present.
         codes = [item["code"] for item in data]
         labels = [item["label"] for item in data]
-        assert len(data) == 14, f"expected 14 action codes, got {len(data)}: {codes}"
-        assert "job_notification_sent" in codes
-        assert "login_success" in codes
-        # All entries are well-formed
+        assert len(data) >= 14, f"expected at least 14 action codes, got {len(data)}: {codes}"
+        for expected in (
+            "job_notification_sent", "login_success",
+            "signature_requested", "signature_captured",
+            "pickup_printed", "pickup_deleted",
+        ):
+            assert expected in codes, f"missing code: {expected}"
         for item in data:
             assert isinstance(item["code"], str) and item["code"]
             assert isinstance(item["label"], str) and item["label"]
-        # No duplicates
         assert len(set(codes)) == len(codes)
         assert all(labels)
 

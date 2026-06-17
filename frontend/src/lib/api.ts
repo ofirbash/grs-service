@@ -647,6 +647,39 @@ export const notificationsApi = {
   },
 };
 
+// Pickup Events API (Feb 25, 2026 — memo return + cert collection)
+export interface PickupEvent {
+  id: string;
+  job_id: string;
+  branch_id: string | null;
+  type: 'memo_return' | 'cert_collection';
+  stone_ids: string[];
+  signature_request_id: string | null;
+  printed_at: string;
+  printed_by: string | null;
+  printed_by_name: string | null;
+}
+
+export const pickupsApi = {
+  create: async (
+    job_id: string,
+    type: PickupEvent['type'],
+    stone_ids: string[],
+    signature_request_id?: string,
+  ) => {
+    const response = await api.post('/pickups', { job_id, type, stone_ids, signature_request_id });
+    return response.data as PickupEvent;
+  },
+  listForJob: async (job_id: string) => {
+    const response = await api.get(`/jobs/${job_id}/pickups`);
+    return response.data as PickupEvent[];
+  },
+  delete: async (pickup_id: string) => {
+    const response = await api.delete(`/pickups/${pickup_id}`);
+    return response.data as { deleted: boolean };
+  },
+};
+
 // Signature Capture API (Feb 25, 2026 — Phase 1)
 export interface SignatureRow {
   id: string;

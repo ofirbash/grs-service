@@ -93,6 +93,7 @@ import { useJobStones } from './_hooks/useJobStones';
 import { JobStonesTable } from '@/components/jobs/JobStonesTable';
 import { JOB_STATUSES_WITH_CANCEL } from '@/lib/jobStatuses';
 import { SignatureSection } from '@/components/signatures/SignatureSection';
+import { PickupSelectionDialog } from '@/components/pickups/PickupSelectionDialog';
 import { CompletenessBadges } from '@/components/jobs/CompletenessBadges';
 import { isJobVerbalComplete, isJobCertComplete } from '@/lib/stoneCompleteness';
 
@@ -182,6 +183,9 @@ function JobsPageContent() {
     hasValidStone,
   } = useJobStones();
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // Pickup dialog (memo_return / cert_collection) — only one open at a time.
+  const [pickupDialogType, setPickupDialogType] = useState<'memo_return' | 'cert_collection' | null>(null);
 
   // Check if form has any data (for unsaved changes warning)
   const hasUnsavedChanges = () => {
@@ -1536,7 +1540,7 @@ function JobsPageContent() {
                 )}
               </span>
               {selectedJob && (
-                <span className="flex gap-2 flex-shrink-0">
+                <span className="flex gap-2 flex-shrink-0 flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
@@ -1544,8 +1548,30 @@ function JobsPageContent() {
                     data-testid="print-job-button"
                   >
                     <FileText className="h-4 w-4 mr-1" />
-                    Print
+                    Print Intake
                   </Button>
+                  {isAdmin && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPickupDialogType('memo_return')}
+                        data-testid="print-memo-return-button"
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        Memo Return
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPickupDialogType('cert_collection')}
+                        data-testid="print-cert-collection-button"
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        Cert Collection
+                      </Button>
+                    </>
+                  )}
                   {isAdmin && (
                     <Button
                       variant="outline"
@@ -1789,6 +1815,19 @@ function JobsPageContent() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Pickup selection dialog — memo_return or cert_collection.
+          Mounts on demand and self-closes after a successful print. */}
+      {selectedJob && pickupDialogType && (
+        <PickupSelectionDialog
+          open={pickupDialogType !== null}
+          onOpenChange={(open) => { if (!open) setPickupDialogType(null); }}
+          type={pickupDialogType}
+          job={selectedJob}
+          client={clients.find((c) => c.id === selectedJob.client_id)}
+          branch={branches.find((b) => b.id === selectedJob.branch_id)}
+        />
+      )}
 
       {/* Group Stones for Certificate Dialog */}
       <GroupStonesDialog

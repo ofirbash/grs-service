@@ -54,6 +54,7 @@ from routes.documents import router as documents_router
 from routes.access_requests import router as access_requests_router
 from routes.activity import router as activity_router
 from routes.signatures import router as signatures_router
+from routes.pickups import router as pickups_router
 
 # Include all route modules in the api_router
 # Order matters: stones group cert scan must be before stones/{stone_id} routes
@@ -77,6 +78,7 @@ api_router.include_router(documents_router)
 api_router.include_router(access_requests_router)
 api_router.include_router(activity_router)
 api_router.include_router(signatures_router)
+api_router.include_router(pickups_router)
 
 
 # Health check endpoints

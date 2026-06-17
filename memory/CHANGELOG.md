@@ -5,6 +5,38 @@
 
 ---
 
+## Feb 25, 2026 — Pickup memos (Memo Return + Certificate Collection)
+
+Two new printable receipts for when clients collect stones/certs from the lab, with full DB tracking so the system can answer "which stones haven't been collected yet?" and prevent double-pickup.
+
+### Two pickup flows, one collection
+- **Memo Return** — client picks up stones. Selection UX: stone-by-stone checkbox list. Recording the pickup also flips each stone's `stone_status` from `at_office` → `returned`.
+- **Certificate Collection** — client picks up the printed certificates. Selection UX: grouped by `certificate_group` so a "Pair / Layout" cert is picked as one unit. Does NOT touch `stone_status` (the cert can travel home while the stone stays at the lab).
+- Both flows are independent — a stone can be in a memo_return AND a later cert_collection.
+
+### Double-pickup prevention
+The selection dialog pre-disables stones already in a prior pickup of the same type with an amber "Already collected" badge. If the admin somehow POSTs them anyway (e.g. stale UI), the backend returns 409 with the conflicting IDs.
+
+### Backend
+- **`/app/backend/routes/pickups.py`** — `POST /pickups`, `GET /jobs/{id}/pickups`, `DELETE /pickups/{id}` (super_admin only, reverts stone_status). Branch-scoped for branch_admins. Validates: stone ownership, cancelled-stone block, type whitelist, double-pickup guard.
+- 2 new `Action` codes: `PICKUP_PRINTED`, `PICKUP_DELETED` — surface in the Activity feed.
+- **`/app/backend/tests/test_pickups.py`** — 8 pytest tests covering happy path, double-pickup block, cancelled-stone rejection, memo_return ↔ cert_collection independence, list ordering, delete-and-revert.
+
+### Frontend
+- **`/app/frontend/src/app/dashboard/jobs/_lib/buildPickupMemoHtml.ts`** — printable HTML. Title + lab header + 3-cell summary (client / item count / total value) + items table (per-stone for memo_return, per-cert-group for cert_collection) + totals row + signature blocks. Auto-prints on window load.
+- **`/app/frontend/src/components/pickups/PickupSelectionDialog.tsx`** — pre-checks all active stones, greys out already-collected ones, auto-attaches the most recent matching captured signature (`client_collection` / `cert_collection` role), POSTs the event, opens the print window. Inline tip nudges admins to capture a signature first.
+- **Job Detail dialog header** — three buttons side-by-side: **Print Intake** (existing), **Memo Return** (new), **Cert Collection** (new).
+
+### How it ties to the signature flow
+When the admin captures a `client_collection` or `cert_collection` digital signature BEFORE clicking Print, the pickup dialog auto-finds it and embeds the PNG on the printed memo. If no signature is captured, the memo prints with a blank pen-signable line (legacy behaviour).
+
+### Tests
+- 8 new backend pytest in `test_pickups.py` — all pass
+- Full regression: **49 passed, 1 skipped** across pickups + signatures + activity (all suites)
+- Updated `test_activity_phase2.py::test_actions_returns_expected_codes` to assert the catalogue grows over time rather than being exactly 14
+
+---
+
 ## Feb 25, 2026 — Verbal + Certificate completeness indicators
 
 At-a-glance green checks so admins can scan a job/stone list and instantly see which records still need verbal findings or a certificate scan.

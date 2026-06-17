@@ -61,6 +61,9 @@ class Action:
     SIGNATURE_CANCELLED = "signature_cancelled"
     SIGNATURE_DELETED = "signature_deleted"
 
+    PICKUP_PRINTED = "pickup_printed"
+    PICKUP_DELETED = "pickup_deleted"
+
     LOGIN_SUCCESS = "login_success"
 
 

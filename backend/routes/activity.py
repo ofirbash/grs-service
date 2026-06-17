@@ -42,6 +42,8 @@ _ACTION_LABELS: dict[str, str] = {
     Action.SIGNATURE_CAPTURED: "Signature captured",
     Action.SIGNATURE_CANCELLED: "Signature cancelled",
     Action.SIGNATURE_DELETED: "Signature deleted",
+    Action.PICKUP_PRINTED: "Pickup printed",
+    Action.PICKUP_DELETED: "Pickup deleted",
     Action.LOGIN_SUCCESS: "Admin login",
 }
 
