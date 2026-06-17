@@ -137,6 +137,7 @@ async def create_pickup(payload: CreatePickupPayload, user: dict = Depends(requi
     # "Approve and Print" flow (real-world: client signs the printed memo
     # they just inspected on the pad). We do this BEFORE inserting the
     # pickup so the signature_request_id can be stored on it.
+    now = datetime.now(timezone.utc)
     auto_sig_id: Optional[str] = None
     if payload.auto_create_signature_for and payload.signature_role:
         sig_doc = {
@@ -158,7 +159,6 @@ async def create_pickup(payload: CreatePickupPayload, user: dict = Depends(requi
         sig_result = await db.signature_requests.insert_one(sig_doc)
         auto_sig_id = str(sig_result.inserted_id)
 
-    now = datetime.now(timezone.utc)
     doc = {
         "job_id": payload.job_id,
         "branch_id": job.get("branch_id"),

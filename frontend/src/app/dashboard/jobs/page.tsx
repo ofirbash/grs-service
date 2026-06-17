@@ -94,6 +94,7 @@ import { JobStonesTable } from '@/components/jobs/JobStonesTable';
 import { JOB_STATUSES_WITH_CANCEL } from '@/lib/jobStatuses';
 import { SignatureSection } from '@/components/signatures/SignatureSection';
 import { PickupSelectionDialog } from '@/components/pickups/PickupSelectionDialog';
+import { PickupHistorySection } from '@/components/pickups/PickupHistorySection';
 import { CompletenessBadges } from '@/components/jobs/CompletenessBadges';
 import { isJobVerbalComplete, isJobCertComplete, getJobReturnedSummary } from '@/lib/stoneCompleteness';
 
@@ -1761,6 +1762,10 @@ function JobsPageContent() {
                     <SignatureSection
                       jobId={selectedJob.id}
                       defaultSignerName={selectedJob.client_name || ''}
+                    />
+                    <PickupHistorySection
+                      jobId={selectedJob.id}
+                      isSuperAdmin={user?.role === 'super_admin'}
                     />
                     <JobActivityList jobId={selectedJob.id} />
                   </div>
