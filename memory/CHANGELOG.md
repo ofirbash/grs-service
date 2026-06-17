@@ -5,6 +5,26 @@
 
 ---
 
+## Feb 26, 2026 — Signing pad delete bug
+
+User report:
+> "I'm trying to delete a signing pad on the preview site and it won't remove it. I assume that's the case on production too."
+
+Two-bug pile-up:
+
+1. **Backend RBAC was too narrow.** `DELETE /api/users/{id}` rejected any non-admin role: `if target["role"] not in ["super_admin", "branch_admin"]: 400`. So clicking Delete on a `signing_pad` row returned HTTP 400 "Can only delete admin users". Fixed by adding `"signing_pad"` to the allowed list (super_admin auth is still required — pads can't self-delete).
+
+2. **Frontend silently swallowed the error.** `handleDeletePad` had a `try` + `finally` but no `catch`, and the confirm dialog had no error display slot. Result: admin clicked Delete → backend 400 → nothing happened on screen. Added a `catch` that surfaces the backend `detail` into `padFormError`, and rendered an inline red alert inside the Delete-Pad confirm dialog (also reset on dialog close).
+
+### Code touched
+- `/app/backend/routes/users.py` line 181 — allow `signing_pad` in delete_admin_user.
+- `/app/frontend/src/app/dashboard/settings/page.tsx` — `handleDeletePad` now catches, and the delete confirm dialog shows `padFormError` inline.
+
+### Verified
+`curl DELETE /api/users/{pad_id}` as super_admin → 200 `Admin user … deleted successfully`. Confirmed with a throwaway pad-test-delete@bashari.com account.
+
+
+
 ## Feb 26, 2026 — Mobile Signing Pad bug fixes (top-only writable + submit failing)
 
 User report on mobile (Signing Pad logged in on phone):

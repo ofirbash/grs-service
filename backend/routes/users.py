@@ -178,8 +178,8 @@ async def delete_admin_user(user_id: str, user: dict = Depends(require_super_adm
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if target["role"] not in ["super_admin", "branch_admin"]:
-        raise HTTPException(status_code=400, detail="Can only delete admin users")
+    if target["role"] not in ["super_admin", "branch_admin", "signing_pad"]:
+        raise HTTPException(status_code=400, detail="Can only delete admin or signing-pad users")
 
     await db.users.delete_one({"_id": ObjectId(user_id)})
     return {"message": f"Admin user {target['email']} deleted successfully"}

@@ -211,11 +211,18 @@ export default function SettingsPage() {
   const handleDeletePad = async () => {
     if (!confirmDeletePad) return;
     setDeletingAdminId(confirmDeletePad.id);
+    setPadFormError(null);
     try {
       await usersApi.delete(confirmDeletePad.id);
       const fresh = await usersApi.getAll();
       setAdminUsers(fresh);
       setConfirmDeletePad(null);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } }; message?: string };
+      // Surface the backend error inside the confirm dialog so the admin
+      // sees *why* the delete failed (previously: silent swallow → dialog
+      // just stayed open with no feedback).
+      setPadFormError(e?.response?.data?.detail || e?.message || 'Failed to delete signing pad account.');
     } finally {
       setDeletingAdminId(null);
     }
@@ -2357,7 +2364,7 @@ export default function SettingsPage() {
       </Dialog>
 
       {/* ==================== DELETE SIGNING PAD CONFIRM ==================== */}
-      <Dialog open={!!confirmDeletePad} onOpenChange={(open) => { if (!open) setConfirmDeletePad(null); }}>
+      <Dialog open={!!confirmDeletePad} onOpenChange={(open) => { if (!open) { setConfirmDeletePad(null); setPadFormError(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl text-navy-900">Delete signing pad?</DialogTitle>
@@ -2366,6 +2373,14 @@ export default function SettingsPage() {
               removed. The tablet logged into this account will be signed out.
             </DialogDescription>
           </DialogHeader>
+          {padFormError && (
+            <div
+              className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2"
+              data-testid="delete-pad-error"
+            >
+              {padFormError}
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDeletePad(null)}>Cancel</Button>
             <Button
