@@ -34,6 +34,10 @@ export function PickupHistorySection({ jobId, isSuperAdmin }: Props) {
     try {
       const data = await pickupsApi.listForJob(jobId);
       setRows(data);
+    } catch (e) {
+      // Surface fetch failures in the console — silent failure here used to
+      // hide auth/baseURL bugs (Feb 26, 2026 iter-40 regression).
+      console.error('[PickupHistorySection] listForJob failed', e);
     } finally {
       setLoading(false);
     }

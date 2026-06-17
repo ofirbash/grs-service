@@ -281,57 +281,121 @@ async def finalize_pickup_if_linked(signature_id: str, signature_url: str, signe
         pickup = await db.pickup_events.find_one({"signature_request_id": signature_id})
         if not pickup or not pickup.get("memo_html_template"):
             return None
-
-        # Swap the {{SIGNATURE_BLOCK}} placeholder for an inline-styled
-        # signature image. The frontend can also append the signer name +
-        # capture timestamp under the image — but here we just paint in
-        # the image; the template owns the surrounding caption HTML.
-        html = pickup["memo_html_template"].replace(
-            "{{SIGNATURE_BLOCK}}",
-            f'<img src="{signature_url}" alt="Picked-up signature" '
-            f'style="height:54px;object-fit:contain;max-width:100%;display:block;"/>'
-            f'<div style="margin-top:4px;font-size:11px;color:#4a5a7a;">{signer_name}</div>',
-        )
-
-        # Render PDF via xhtml2pdf. pisa.CreatePDF writes to a BytesIO; we
-        # then base64 it for the Cloudinary data-URI upload (mirrors how
-        # signature submission uploads PNGs).
-        import io
-        import base64 as _b64
-        from xhtml2pdf import pisa
-
-        pdf_buf = io.BytesIO()
-        result = pisa.CreatePDF(io.StringIO(html), dest=pdf_buf)
-        if result.err:
-            logger.warning("xhtml2pdf reported %s errors finalizing %s", result.err, pickup["_id"])
-        pdf_bytes = pdf_buf.getvalue()
-        if not pdf_bytes:
-            return None
-
-        import asyncio
-        folder = f"pickup_receipts/{pickup.get('branch_id') or 'unscoped'}"
-        public_id = f"{pickup['job_id']}_{pickup['type']}_{int(datetime.now(timezone.utc).timestamp())}"
-        upload_resp = await asyncio.to_thread(
-            cloudinary.uploader.upload,
-            f"data:application/pdf;base64,{_b64.b64encode(pdf_bytes).decode()}",
-            folder=folder,
-            public_id=public_id,
-            resource_type="raw",
-            format="pdf",
-            overwrite=True,
-        )
-        signed_url = upload_resp.get("secure_url")
-        signed_public_id = upload_resp.get("public_id")
-
-        await db.pickup_events.update_one(
-            {"_id": pickup["_id"]},
-            {"$set": {
-                "signed_pdf_url": signed_url,
-                "signed_pdf_public_id": signed_public_id,
-                "finalized_at": datetime.now(timezone.utc),
-            }},
-        )
-        return signed_url
+        # Idempotency: if this pickup already has a signed PDF, don't
+        # re-upload (Cloudinary would otherwise accumulate orphan assets
+        # because public_id is timestamp-based).
+        if pickup.get("signed_pdf_url"):
+            return pickup["signed_pdf_url"]
+        return await _render_and_upload(pickup, signature_url, signer_name)
     except Exception:  # noqa: BLE001
         logger.exception("finalize_pickup_if_linked failed for signature %s", signature_id)
         return None
+
+
+async def _render_and_upload(pickup: dict, signature_url: str, signer_name: str) -> Optional[str]:
+    """Shared implementation: swap signature into memo template, render
+    PDF, upload to Cloudinary, persist URL. Returns the secure URL or
+    None if rendering produced no bytes."""
+    html = pickup["memo_html_template"].replace(
+        "{{SIGNATURE_BLOCK}}",
+        f'<img src="{signature_url}" alt="Picked-up signature" '
+        f'style="height:54px;object-fit:contain;max-width:100%;display:block;"/>'
+        f'<div style="margin-top:4px;font-size:11px;color:#4a5a7a;">{signer_name}</div>',
+    )
+
+    import io
+    import base64 as _b64
+    from xhtml2pdf import pisa
+
+    pdf_buf = io.BytesIO()
+    result = pisa.CreatePDF(io.StringIO(html), dest=pdf_buf)
+    if result.err:
+        logger.warning("xhtml2pdf reported %s errors finalizing %s", result.err, pickup["_id"])
+    pdf_bytes = pdf_buf.getvalue()
+    if not pdf_bytes:
+        return None
+
+    import asyncio
+    folder = f"pickup_receipts/{pickup.get('branch_id') or 'unscoped'}"
+    public_id = f"{pickup['job_id']}_{pickup['type']}_{int(datetime.now(timezone.utc).timestamp())}"
+    upload_resp = await asyncio.to_thread(
+        cloudinary.uploader.upload,
+        f"data:application/pdf;base64,{_b64.b64encode(pdf_bytes).decode()}",
+        folder=folder,
+        public_id=public_id,
+        resource_type="raw",
+        format="pdf",
+        overwrite=True,
+    )
+    signed_url = upload_resp.get("secure_url")
+    signed_public_id = upload_resp.get("public_id")
+
+    await db.pickup_events.update_one(
+        {"_id": pickup["_id"]},
+        {"$set": {
+            "signed_pdf_url": signed_url,
+            "signed_pdf_public_id": signed_public_id,
+            "finalized_at": datetime.now(timezone.utc),
+        }},
+    )
+    return signed_url
+
+
+class FinalizePayload(BaseModel):
+    signature_url: Optional[str] = None
+    signer_name: Optional[str] = None
+
+
+@router.post("/pickups/{pickup_id}/finalize")
+async def finalize_pickup(
+    pickup_id: str,
+    payload: FinalizePayload | None = None,
+    user: dict = Depends(require_admin),
+):
+    """Independent finalize trigger — compiles the stored memo template
+    into a PDF and archives it on Cloudinary. Idempotent: if the pickup
+    already has a `signed_pdf_url`, return it without re-uploading.
+
+    The primary call-path is the implicit one from `/signatures/{id}/submit`
+    via `finalize_pickup_if_linked`. This endpoint exists for retries and
+    out-of-band finalizations (e.g., signature was captured outside the
+    standard flow)."""
+    pickup = await db.pickup_events.find_one({"_id": _oid(pickup_id)})
+    if not pickup:
+        raise HTTPException(status_code=404, detail="Pickup not found")
+
+    if user.get("role") == "branch_admin":
+        if str(pickup.get("branch_id")) != str(user.get("branch_id")):
+            raise HTTPException(status_code=403, detail="Pickup is in another branch")
+
+    # Idempotent fast-path.
+    if pickup.get("signed_pdf_url"):
+        return _serialise(pickup)
+
+    if not pickup.get("memo_html_template"):
+        raise HTTPException(
+            status_code=400,
+            detail="This pickup has no stored memo template to render.",
+        )
+
+    # Resolve signature URL/name: prefer explicit payload, else fall back
+    # to the linked signature_request, else 400.
+    sig_url = (payload.signature_url if payload else None) or None
+    signer = (payload.signer_name if payload else None) or None
+    if (not sig_url or not signer) and pickup.get("signature_request_id"):
+        sig_row = await db.signature_requests.find_one(
+            {"_id": _oid(pickup["signature_request_id"], field="signature_request_id")}
+        )
+        if sig_row and sig_row.get("status") == "signed":
+            sig_url = sig_url or sig_row.get("signed_url")
+            signer = signer or sig_row.get("signer_name")
+
+    if not sig_url:
+        raise HTTPException(
+            status_code=400,
+            detail="No signature available to finalize (linked signature is not yet signed).",
+        )
+
+    await _render_and_upload(pickup, sig_url, signer or "")
+    refreshed = await db.pickup_events.find_one({"_id": pickup["_id"]})
+    return _serialise(refreshed or pickup)

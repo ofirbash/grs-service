@@ -1,0 +1,38 @@
+{
+  "summary": "Iter-41 retest of all 3 fixes from iter-40 action items. BACKEND: 10/10 pytest pass — added 4 new tests covering the brand-new POST /api/pickups/{id}/finalize endpoint (unknown→404, no-template→400 with exact detail string, explicit payload→PDF uploaded + idempotency on second call, branch_admin cross-branch→403). End-to-end signature-submit→finalize regression still PASS. FRONTEND: PickupHistorySection now RENDERS correctly with 3 pickup rows on job #595 (was the iter-40 blocker). Root cause of iter-40 'silent no-render' = STALE STATIC BUILD (frontend is `serve build` of next-export output; iter-40 code changes never made it into the deployed bundle). After `yarn build`, the section appears as expected with rows, awaiting-signature badges and undo buttons all wired correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/login (ofir1@bashds.com)", "issue": "Pre-existing: corrupted bcrypt hash → 500 passlib.UnknownHashError. Workaround: tests use ofir2@bashds.com (USA branch_admin). Not part of this iter."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pickups_http.py",
+    "/app/test_reports/pytest/iter41_pickups_http.xml"
+  ],
+  "action_items": [
+    "Process improvement: the frontend is served from /app/frontend/build via `serve build`. Code changes to /app/frontend/src/** require `yarn build` to be reflected. Confirm the deployment / hot-reload story so iter-40-style 'invisible code change' bugs don't recur — either run `next dev` in this preview env or auto-rebuild on file save. (Triggered yarn build in this iter to validate fixes.)",
+    "Pre-existing follow-up (NOT iter-41 scope): re-seed the corrupted ofir1@bashds.com bcrypt hash."
+  ],
+  "critical_code_review_comments": [
+    "Finalize endpoint implementation is clean: branch_admin RBAC check uses str() coercion for ObjectId comparison (safe), idempotent fast-path returns _serialise(pickup) before touching Cloudinary, fallback to signature_request only when payload sig fields are missing AND status=='signed'. All 4 spec error paths return correct status codes with expected detail strings.",
+    "_render_and_upload uses a timestamp-based public_id; the idempotency guard in finalize_pickup() prevents duplicate uploads as long as `signed_pdf_url` is set. Behaviour confirmed via 1.5s-delayed second call returning identical url + finalized_at.",
+    "PickupHistorySection catch+console.error added in iter-40 was correct — it just didn't fire in iter-40 because the component was never reached (stale build). With current build the section mounts, fetch returns 200, and rows render. No silent failure observed."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_pickups_http.py (added 4 new tests for /finalize endpoint — unknown 404, no-template 400, explicit-payload upload + idempotency, branch_admin 403)",
+    "/app/frontend/build/** (rebuilt via `yarn build` so iter-40 frontend code changes are actually deployed)"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "100% (section renders, 3 rows, all controls wired)"},
+  "test_credentials": "admin@bashari.com / admin123 (super_admin), ofir2@bashds.com / admin123 (USA branch_admin), pad-il@bashari.com / pad123 (IL kiosk). TURNSTILE_SECRET_KEY is already blank in /app/backend/.env.",
+  "seed_data_creation": "All finalize tests create ephemeral pickup_events and clean them up with DELETE /api/pickups/{id} in finally blocks. test_finalize_with_explicit_payload_uploads_pdf does upload one real PDF to Cloudinary (folder: pickup_receipts/<branch>) — could be cleaned up offline if Cloudinary quota becomes a concern.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "1) /app/frontend is a STATIC build served by `serve build`. Edits to /app/frontend/src/** require `cd /app/frontend && yarn build` for changes to surface — there is NO hot reload here despite the env docs. This was the iter-40 ghost bug. 2) Backend HTTP suite /app/backend/tests/test_pickups_http.py is fully passing (10/10) and reusable. 3) Browser /api/* routing trick: the static frontend has axios baseURL=/api but neither localhost:3000 nor the preview URL proxy /api → backend. Tests must use page.route('**/api/**', ...) to rewrite to http://localhost:8001/api/*. 4) ofir1 IL admin login still 500s (pre-existing); use ofir2 USA admin for branch_admin scenarios. RBAC check on /finalize fetches branch from /api/auth/me of the branch_admin and skips if branches happen to match — see test_finalize_branch_admin_other_branch_403. 5) job-row data-testid uses job_number not _id: `[data-testid=\"job-row-595\"]`.",
+  "rca of the issue": "Iter-40 reported 'PickupHistorySection does not render despite backend returning data; catch block added for visibility'. Iter-41 RCA: the catch block never fired because the component code itself was never shipped to the browser — frontend is served by `serve build` from /app/frontend/build, which contained a build from 12:58 while the iter-40 PickupHistorySection edits were saved at 13:50. The deployed JS chunk for /dashboard/jobs literally did not contain the string 'pickup-history-section'. Fix: ran `yarn build` (already part of normal deploy script per package.json), restarted frontend supervisor, and re-tested → section renders with 3 rows on job #595. No backend or component code change was needed for the frontend issue. The new POST /pickups/{id}/finalize endpoint behaves exactly per spec — verified all 4 error paths + idempotency + PDF magic-bytes."
+}

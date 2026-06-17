@@ -380,12 +380,147 @@ def test_delete_memo_return_reverts_stone_status(
         )
 
 
-# ---- POST /api/pickups/{id}/finalize endpoint presence -----------------------
+# ---- POST /api/pickups/{id}/finalize endpoint (iter-41 new) ------------------
+
+# A small public PNG signature image — used to satisfy {signature_url} body.
+TEST_SIGNATURE_URL = (
+    "https://res.cloudinary.com/dcsnscghj/image/upload/"
+    "v1/test_sig_placeholder.png"
+)
 
 
-def test_finalize_endpoint_exists(admin_token, seeded_job, fresh_stones):
-    """Spec requires POST /api/pickups/{id}/finalize to be independently
-    callable (idempotent). Verify the route is mounted."""
+def test_finalize_unknown_pickup_returns_404(admin_token):
+    """Unknown pickup_id → 404."""
+    fake = "507f1f77bcf86cd799439011"  # valid ObjectId shape but won't exist
+    r = requests.post(
+        f"{API}/pickups/{fake}/finalize",
+        headers=_h(admin_token),
+        json={"signature_url": TEST_SIGNATURE_URL, "signer_name": "X"},
+        timeout=15,
+    )
+    assert r.status_code == 404, f"expected 404, got {r.status_code} {r.text}"
+
+
+def test_finalize_no_memo_template_returns_400(admin_token, seeded_job, fresh_stones):
+    """A pickup created WITHOUT memo_html_template → 400 on finalize."""
+    body = {
+        "job_id": seeded_job["id"],
+        "type": "memo_return",
+        "stone_ids": fresh_stones,
+        # no memo_html_template
+    }
+    rc = requests.post(
+        f"{API}/pickups", headers=_h(admin_token), json=body, timeout=15
+    )
+    assert rc.status_code == 200
+    pickup_id = rc.json()["id"]
+    try:
+        rf = requests.post(
+            f"{API}/pickups/{pickup_id}/finalize",
+            headers=_h(admin_token),
+            json={"signature_url": TEST_SIGNATURE_URL, "signer_name": "X"},
+            timeout=30,
+        )
+        assert rf.status_code == 400, (
+            f"expected 400 for missing template, got {rf.status_code} {rf.text}"
+        )
+        body = rf.json()
+        detail = body.get("detail", "")
+        assert "no stored memo template" in detail.lower(), (
+            f"unexpected error detail: {detail!r}"
+        )
+    finally:
+        _cleanup(admin_token, pickup_id)
+
+
+def test_finalize_with_explicit_payload_uploads_pdf(
+    admin_token, seeded_job, fresh_stones
+):
+    """With memo template stored AND explicit {signature_url, signer_name},
+    finalize must render → upload → return a Cloudinary URL whose response
+    body starts with %PDF magic bytes."""
+    body = {
+        "job_id": seeded_job["id"],
+        "type": "memo_return",
+        "stone_ids": fresh_stones,
+        "memo_html_template": (
+            "<html><body><h1>Memo</h1><div>{{SIGNATURE_BLOCK}}</div></body></html>"
+        ),
+    }
+    rc = requests.post(
+        f"{API}/pickups", headers=_h(admin_token), json=body, timeout=15
+    )
+    assert rc.status_code == 200
+    pickup_id = rc.json()["id"]
+    try:
+        rf = requests.post(
+            f"{API}/pickups/{pickup_id}/finalize",
+            headers=_h(admin_token),
+            json={
+                "signature_url": TEST_SIGNATURE_URL,
+                "signer_name": "TEST_FinalizeClient",
+            },
+            timeout=60,
+        )
+        assert rf.status_code == 200, f"finalize failed: {rf.status_code} {rf.text}"
+        data = rf.json()
+        signed_url = data.get("signed_pdf_url")
+        assert signed_url and signed_url.startswith("https://"), (
+            f"signed_pdf_url not set or not https: {signed_url}"
+        )
+        finalized_at_first = data.get("finalized_at")
+        assert finalized_at_first, "finalized_at not set after first finalize"
+
+        # Download — must start with %PDF
+        rpdf = requests.get(signed_url, timeout=20)
+        assert rpdf.status_code == 200, f"PDF unreachable: {rpdf.status_code}"
+        assert rpdf.content[:4] == b"%PDF", (
+            f"Downloaded asset is not PDF: starts={rpdf.content[:10]!r}"
+        )
+
+        # IDEMPOTENCY: second call → must return SAME url, SAME finalized_at
+        time.sleep(1.5)  # ensure timestamp would differ if re-uploaded
+        rf2 = requests.post(
+            f"{API}/pickups/{pickup_id}/finalize",
+            headers=_h(admin_token),
+            json={
+                "signature_url": TEST_SIGNATURE_URL,
+                "signer_name": "TEST_FinalizeClient",
+            },
+            timeout=60,
+        )
+        assert rf2.status_code == 200, rf2.text
+        data2 = rf2.json()
+        assert data2.get("signed_pdf_url") == signed_url, (
+            "idempotency broken — signed_pdf_url changed between calls"
+        )
+        assert data2.get("finalized_at") == finalized_at_first, (
+            "idempotency broken — finalized_at changed (re-upload happened)"
+        )
+    finally:
+        _cleanup(admin_token, pickup_id)
+
+
+def test_finalize_branch_admin_other_branch_403(
+    admin_token, branch_admin_token, seeded_job, fresh_stones
+):
+    """branch_admin (USA) finalizing a pickup whose branch_id != theirs → 403."""
+    # Determine seeded_job branch — super_admin creates the pickup under
+    # that job's branch. If the job happens to be in the USA branch the
+    # branch_admin would have access, so we just assert role-mismatch
+    # behaviour by reading their profile and checking branch.
+    me = requests.get(
+        f"{API}/auth/me", headers=_h(branch_admin_token), timeout=10
+    )
+    if me.status_code != 200:
+        pytest.skip("Could not load branch_admin profile to check branch_id")
+    ba_branch = me.json().get("branch_id")
+    job_branch = seeded_job.get("branch_id")
+    if ba_branch and job_branch and str(ba_branch) == str(job_branch):
+        pytest.skip(
+            "Seeded job is in same branch as branch_admin — cannot assert 403"
+        )
+
     body = {
         "job_id": seeded_job["id"],
         "type": "memo_return",
@@ -397,14 +532,15 @@ def test_finalize_endpoint_exists(admin_token, seeded_job, fresh_stones):
     )
     assert rc.status_code == 200
     pickup_id = rc.json()["id"]
-    rf = requests.post(
-        f"{API}/pickups/{pickup_id}/finalize",
-        headers=_h(admin_token),
-        timeout=30,
-    )
-    # If route doesn't exist this will be 404. Spec requires it to exist.
-    assert rf.status_code != 404, (
-        "POST /api/pickups/{id}/finalize endpoint is MISSING — "
-        "spec requires it to be independently callable"
-    )
-    _cleanup(admin_token, pickup_id)
+    try:
+        rf = requests.post(
+            f"{API}/pickups/{pickup_id}/finalize",
+            headers=_h(branch_admin_token),
+            json={"signature_url": TEST_SIGNATURE_URL, "signer_name": "X"},
+            timeout=20,
+        )
+        assert rf.status_code == 403, (
+            f"expected 403 for cross-branch finalize, got {rf.status_code} {rf.text}"
+        )
+    finally:
+        _cleanup(admin_token, pickup_id)
