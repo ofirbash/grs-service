@@ -700,7 +700,7 @@ export interface SignatureRow {
   branch_id: string | null;
   role: 'client_drop_off' | 'client_collection' | 'cert_collection' | 'courier_drop_off';
   signer_name: string;
-  status: 'pending' | 'signed' | 'cancelled';
+  status: 'pending' | 'signed' | 'cancelled' | 'expired';
   signed_url: string | null;
   signed_public_id: string | null;
   created_at: string;
@@ -710,6 +710,8 @@ export interface SignatureRow {
   signed_by_user_agent: string | null;
   signed_by_ip: string | null;
   cancelled_at: string | null;
+  expires_at: string | null;
+  cancellation_reason: string | null;
 }
 
 export const signaturesApi = {

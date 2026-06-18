@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
+  Clock,
   Loader2,
   PenLine,
   Tablet,
@@ -73,6 +74,34 @@ export function SignatureSection({ jobId, defaultSignerName = '' }: Props) {
   // Active pending request — drives the "waiting on pad" panel + poll.
   const [activePending, setActivePending] = useState<SignatureRow | null>(null);
 
+  // Ticker for the "expires in M:SS" countdown shown in the pending
+  // banner. We don't need millisecond precision — re-render once per
+  // second is plenty. The actual expiry is enforced server-side; this
+  // is purely informational so the admin knows when the pad will time
+  // out on a client who hasn't shown up.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!activePending?.expires_at) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [activePending?.expires_at]);
+
+  const expiryCountdown = useMemo(() => {
+    const exp = activePending?.expires_at;
+    if (!exp) return null;
+    const msRemaining = new Date(exp).getTime() - now;
+    if (msRemaining <= 0) return { label: 'expired', expired: true };
+    const totalSec = Math.floor(msRemaining / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return {
+      label: `${m}:${String(s).padStart(2, '0')}`,
+      // Visual warning when under 30 seconds remain.
+      urgent: msRemaining < 30_000,
+      expired: false,
+    };
+  }, [activePending?.expires_at, now]);
+
   const fetchRows = useCallback(async () => {
     try {
       const data = await signaturesApi.listForJob(jobId);
@@ -107,7 +136,10 @@ export function SignatureSection({ jobId, defaultSignerName = '' }: Props) {
           fetchRows();
           return;
         }
-        if (row.status === 'cancelled') {
+        if (row.status === 'cancelled' || row.status === 'expired') {
+          // Server reaped this request (or admin cancelled it from
+          // another tab). Drop the banner so the admin sees a clean
+          // slate and can re-trigger if needed.
           setActivePending(null);
           fetchRows();
           return;
@@ -236,6 +268,22 @@ export function SignatureSection({ jobId, defaultSignerName = '' }: Props) {
               {activePending.signer_name}
             </div>
           </div>
+          {expiryCountdown && (
+            <div
+              className={`flex items-center gap-1 text-xs font-mono font-semibold rounded px-2 py-1 border ${
+                expiryCountdown.expired
+                  ? 'bg-red-100 border-red-300 text-red-700'
+                  : expiryCountdown.urgent
+                    ? 'bg-red-50 border-red-200 text-red-700 animate-pulse'
+                    : 'bg-white/70 border-amber-200 text-amber-800'
+              }`}
+              title="Time before this request auto-expires on the pad"
+              data-testid="pending-signature-countdown"
+            >
+              <Clock className="h-3 w-3" />
+              {expiryCountdown.label}
+            </div>
+          )}
           <Button
             size="sm"
             variant="ghost"

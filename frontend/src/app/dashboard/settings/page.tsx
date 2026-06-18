@@ -51,6 +51,7 @@ import {
   Truck,
   RotateCcw,
   Tablet,
+  QrCode,
 } from 'lucide-react';
 
 import type {
@@ -61,6 +62,7 @@ import type {
   PricingConfig,
 } from './_types';
 import { DROPDOWN_FIELDS } from './_types';
+import { PadConnectQrDialog } from '@/components/settings/PadConnectQrDialog';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -163,6 +165,7 @@ export default function SettingsPage() {
   const [padDialogOpen, setPadDialogOpen] = useState(false);
   const [savingPad, setSavingPad] = useState(false);
   const [confirmDeletePad, setConfirmDeletePad] = useState<AdminUser | null>(null);
+  const [connectQrPad, setConnectQrPad] = useState<AdminUser | null>(null);
   const [padForm, setPadForm] = useState({
     email: '',
     full_name: '',
@@ -2058,16 +2061,28 @@ export default function SettingsPage() {
                               : <Badge className="bg-amber-100 text-amber-800">Global catch-all</Badge>}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setConfirmDeletePad(pad)}
-                              className="h-7 w-7 p-0"
-                              data-testid={`delete-pad-${pad.id}`}
-                              title="Delete signing pad"
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-red-600" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setConnectQrPad(pad)}
+                                className="h-7 w-7 p-0"
+                                data-testid={`connect-pad-${pad.id}`}
+                                title="Connect this pad (show QR)"
+                              >
+                                <QrCode className="h-3.5 w-3.5 text-navy-700" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setConfirmDeletePad(pad)}
+                                className="h-7 w-7 p-0"
+                                data-testid={`delete-pad-${pad.id}`}
+                                title="Delete signing pad"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -2087,9 +2102,14 @@ export default function SettingsPage() {
                     <div key={pad.id} className="border border-navy-200 rounded-lg p-3">
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-navy-900 text-sm">{pad.full_name}</span>
-                        <Button variant="ghost" size="sm" onClick={() => setConfirmDeletePad(pad)} className="h-7 w-7 p-0">
-                          <Trash2 className="h-3 w-3 text-red-600" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => setConnectQrPad(pad)} className="h-7 w-7 p-0" title="Connect (show QR)">
+                            <QrCode className="h-3 w-3 text-navy-700" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setConfirmDeletePad(pad)} className="h-7 w-7 p-0">
+                            <Trash2 className="h-3 w-3 text-red-600" />
+                          </Button>
+                        </div>
                       </div>
                       <div className="text-xs text-navy-500 mt-0.5 font-mono">{pad.email}</div>
                       <div className="mt-1.5 text-xs text-navy-600">
@@ -2395,6 +2415,9 @@ export default function SettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ==================== CONNECT PAD (QR) ==================== */}
+      <PadConnectQrDialog pad={connectQrPad} onClose={() => setConnectQrPad(null)} />
 
       {/* ==================== ADD DROPDOWN OPTION DIALOG ==================== */}
       <Dialog open={addOptionDialogOpen} onOpenChange={setAddOptionDialogOpen}>

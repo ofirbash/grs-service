@@ -41,12 +41,26 @@ export default function LoginPage() {
   // Read `?reason=expired` on mount (set by the Axios interceptor when an
   // idle session 401s out) and strip it from the URL so the banner doesn't
   // re-appear on subsequent navigations within /login.
+  // Also reads `?email=...` — admins scan a "connect this pad" QR on
+  // their phone and land here with the pad email pre-filled (they only
+  // need to type the password). The param is stripped from the URL so
+  // browser history doesn't leak it.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
+    let mutated = false;
     if (params.get('reason') === 'expired') {
       setSessionExpired(true);
       params.delete('reason');
+      mutated = true;
+    }
+    const prefillEmail = params.get('email');
+    if (prefillEmail) {
+      setFormData((prev) => ({ ...prev, email: prefillEmail }));
+      params.delete('email');
+      mutated = true;
+    }
+    if (mutated) {
       const cleanQuery = params.toString();
       const cleanUrl = window.location.pathname + (cleanQuery ? `?${cleanQuery}` : '');
       window.history.replaceState({}, '', cleanUrl);

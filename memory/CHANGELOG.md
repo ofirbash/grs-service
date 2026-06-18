@@ -5,6 +5,47 @@
 
 ---
 
+## Feb 26, 2026 — Signing-pad countdown timer + QR connect
+
+User request:
+> "Yes add the timer. Also add the QR code you suggested earlier that helps admin connect the pad."
+
+### 1. Countdown timer on the pending-signature banner
+In the Job Detail dialog's `<SignatureSection>`, the "Waiting for … signature on pad" amber banner now carries a live `M:SS` countdown showing how long until the request auto-expires server-side. Renders as a small amber/red pill with a clock icon next to the Cancel button.
+
+- Re-renders once per second via a `setInterval` (1Hz is plenty — server holds the actual expiry).
+- Switches to red + pulse when under 30s remain.
+- Shows "expired" once `expires_at` passes; the next 2s poll then drops the banner entirely (server-side reaper marks it `expired`).
+- The polling effect also now treats `status === "expired"` the same as `cancelled` — drops the banner so the UI matches the DB state without a hard refresh.
+
+`SignatureRow` API type was updated to include `expires_at`, `cancellation_reason`, and the new `expired` status variant.
+
+### 2. QR connect dialog in Settings → Signing Pad Accounts
+New `<PadConnectQrDialog>` (uses `qrcode.react` — 0 transitive deps, ~6kB gz). Settings table now has a small QR icon next to each pad's Delete button. Clicking it pops a modal containing:
+
+- A 208×208 QR encoding `${window.location.origin}/login?email=<pad.email>` — preview QRs scan into preview, prod QRs into prod, no env-specific configuration needed.
+- The plain URL as copy-able text with a Copy button (falls back to a `window.prompt` if the Clipboard API is unavailable on the http-served preview).
+- A "Tip" callout reminding the admin to enable Guided Access / Screen Pinning after first login.
+
+Login page now reads `?email=` and pre-fills the email field, stripping the param from URL on mount so it doesn't leak into browser history.
+
+Trade-off considered: we deliberately did NOT bake a magic-link token into the QR. The QR could be photographed off the admin's screen, and pad sessions live for days — keeping the password required for first login holds the threat surface tiny while still saving ~30 chars of typing on glass keyboards.
+
+### Verified (Playwright, single-pass smoke test)
+- 3 Connect buttons found on the Settings → Signing Pads tab (one per existing pad).
+- QR SVG renders, URL contains the URL-encoded email (`pad-ny%40bashari.com`).
+- Pending banner countdown reads `2:58` immediately after capture trigger; reads `2:55` three seconds later — live ticking confirmed.
+
+### Code touched
+- NEW `/app/frontend/src/components/settings/PadConnectQrDialog.tsx`
+- `/app/frontend/src/app/dashboard/settings/page.tsx` — QrCode icon import, `connectQrPad` state, Connect button in desktop+mobile rows, dialog mount.
+- `/app/frontend/src/app/login/page.tsx` — `?email=` query param pre-fill.
+- `/app/frontend/src/components/signatures/SignatureSection.tsx` — countdown state + render, `expired` status handling.
+- `/app/frontend/src/lib/api.ts` — `SignatureRow.expires_at`, `cancellation_reason`, `'expired'` status variant.
+- `package.json` — `qrcode.react@4.2.0`.
+
+
+
 ## Feb 26, 2026 — Signature requests auto-expire after 3 minutes
 
 User report:
