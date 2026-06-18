@@ -124,8 +124,16 @@ export default function SigningPadPage() {
       // Auto-clear the "Thank you" screen after 4s.
       setTimeout(() => setJustSigned(false), 4000);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Submit failed';
-      setError(msg);
+      // 410 Gone = the row expired between the pad's last poll and now.
+      // Drop the capture UI so the client isn't stuck looking at a dead
+      // request, and surface a friendly note next poll cycle.
+      const err = e as { response?: { status?: number; data?: { detail?: string } }; message?: string };
+      if (err?.response?.status === 410) {
+        setPending(null);
+        setError('This signature request expired. Please ask the lab to start a new one.');
+      } else {
+        setError(err?.response?.data?.detail || err?.message || 'Submit failed');
+      }
     } finally {
       setSubmitting(false);
     }

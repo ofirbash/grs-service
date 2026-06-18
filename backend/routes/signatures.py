@@ -21,7 +21,7 @@ import base64
 import binascii
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import cloudinary
@@ -45,6 +45,17 @@ SIGNATURE_ROLES = {
     "cert_collection",
     "courier_drop_off",
 }
+
+# How long a pending signature_request stays valid on the pad before being
+# auto-cancelled with status="expired". Bumped at request-creation time
+# (`created_at + SIGNATURE_PENDING_TTL_SECONDS`). Default 180s; override
+# with SIGNATURE_PENDING_TTL_SECONDS in backend/.env if a branch needs
+# longer (slow-arriving clients) or shorter (high-traffic kiosk).
+#
+# The expiry is enforced on every pad poll (no separate scheduler), which
+# also means as soon as the pad's next 2s tick lands after the deadline,
+# the stale row is reaped and the pad returns to the idle screen.
+SIGNATURE_PENDING_TTL_SECONDS = int(os.environ.get("SIGNATURE_PENDING_TTL_SECONDS", "180"))
 
 # Maximum allowed signature PNG payload — keeps Cloudinary upload latency
 # bounded and rejects malformed clients sending megabytes of data.
@@ -88,6 +99,8 @@ def _serialise(row: dict) -> dict:
         "signed_by_user_agent": row.get("signed_by_user_agent"),
         "signed_by_ip": row.get("signed_by_ip"),
         "cancelled_at": _iso(row.get("cancelled_at")),
+        "expires_at": _iso(row.get("expires_at")),
+        "cancellation_reason": row.get("cancellation_reason"),
     }
 
 
@@ -138,6 +151,7 @@ async def create_signature_request(
             }},
         )
 
+    now = datetime.now(timezone.utc)
     doc = {
         "job_id": payload.job_id,
         "branch_id": job.get("branch_id"),
@@ -146,13 +160,15 @@ async def create_signature_request(
         "status": "pending",
         "signed_url": None,
         "signed_public_id": None,
-        "created_at": datetime.now(timezone.utc),
+        "created_at": now,
+        "expires_at": now + timedelta(seconds=SIGNATURE_PENDING_TTL_SECONDS),
         "created_by": str(user.get("_id")),
         "created_by_name": user.get("full_name") or user.get("email"),
         "signed_at": None,
         "signed_by_user_agent": None,
         "signed_by_ip": None,
         "cancelled_at": None,
+        "cancellation_reason": None,
     }
     result = await db.signature_requests.insert_one(doc)
     doc["_id"] = result.inserted_id
@@ -178,7 +194,35 @@ async def get_pending_signature(
       - signing_pad / branch_admin with branch_id: only their branch.
       - signing_pad / super_admin without branch_id ("global catch-all"
         pad): any pending request, oldest first.
+
+    Side-effect: reaps any pending row whose `expires_at` is in the past
+    (or, for legacy rows that pre-date the field, whose `created_at` is
+    older than the TTL). This is the only mechanism that auto-clears
+    stale requests — so the pad doesn't get stuck showing a signature
+    request the admin abandoned an hour ago.
     """
+    now = datetime.now(timezone.utc)
+    # Reap expired rows scoped to the *whole DB* (cheap update_many on an
+    # indexed status field). Cross-branch reaping is safe — a Tel Aviv
+    # admin abandoning a request shouldn't haunt the NY pad either.
+    legacy_cutoff = now - timedelta(seconds=SIGNATURE_PENDING_TTL_SECONDS)
+    await db.signature_requests.update_many(
+        {
+            "status": "pending",
+            "$or": [
+                {"expires_at": {"$lte": now}},
+                # Rows created before the expires_at field shipped — fall
+                # back to created_at + TTL for the same end-user behaviour.
+                {"expires_at": {"$exists": False}, "created_at": {"$lte": legacy_cutoff}},
+            ],
+        },
+        {"$set": {
+            "status": "expired",
+            "cancelled_at": now,
+            "cancellation_reason": "expired",
+        }},
+    )
+
     query: dict = {"status": "pending"}
     if user.get("branch_id"):
         query["branch_id"] = user.get("branch_id")
@@ -238,6 +282,22 @@ async def submit_signature(
             status_code=409,
             detail=f"Request is {row.get('status')}, cannot submit",
         )
+    # Reject submissions that arrived after the row expired (between the
+    # pad's last poll and now). Matches the reaper's TTL logic.
+    expires_at = row.get("expires_at")
+    if isinstance(expires_at, datetime):
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at <= datetime.now(timezone.utc):
+            await db.signature_requests.update_one(
+                {"_id": row["_id"]},
+                {"$set": {
+                    "status": "expired",
+                    "cancelled_at": datetime.now(timezone.utc),
+                    "cancellation_reason": "expired",
+                }},
+            )
+            raise HTTPException(status_code=410, detail="Signature request expired")
     # Pad branch scoping — same rule as polling.
     if user.get("branch_id"):
         if str(row.get("branch_id")) != str(user.get("branch_id")):

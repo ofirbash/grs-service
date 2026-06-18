@@ -5,6 +5,37 @@
 
 ---
 
+## Feb 26, 2026 — Signature requests auto-expire after 3 minutes
+
+User report:
+> "I'm logging in with a phone as a signing pad in preview, and it asks me to sign. There is no signature process on the admin side. We should release the signature state after a few seconds."
+
+Root cause: a stale `signature_request` row from an abandoned session was still `status=pending` in the DB. The pad's poll endpoint returned it forever, so any new pad login started by being thrown into a phantom signature flow.
+
+Fix: signature_requests now auto-expire. Default TTL is 180 seconds (configurable via `SIGNATURE_PENDING_TTL_SECONDS` in `backend/.env`).
+
+### Mechanics
+- `POST /api/signatures/request` now stamps `expires_at = created_at + TTL` and `cancellation_reason: null`.
+- `GET /api/signatures/pending` runs an `update_many` reaper on every poll: any pending row where `expires_at <= now` (or, for legacy rows without `expires_at`, `created_at + TTL <= now`) flips to `status=expired` with `cancellation_reason="expired"`. No separate scheduler needed — the polling itself does the work.
+- `POST /api/signatures/{id}/submit` now returns **HTTP 410 Gone** if the row expired between the pad's last poll and the submit, marking it expired in the same call (prevents racey "ghost signs" that arrive after the admin gave up).
+- `_serialise` exposes `expires_at` and `cancellation_reason` for future admin-side countdown UI.
+
+### Pad UX
+The signing-pad page now catches the 410 specifically: drops the canvas, surfaces "This signature request expired. Please ask the lab to start a new one." so the client gets a clear explanation rather than a generic error.
+
+### Verified
+- Stale row in DB → pad poll → 1 pending becomes 0 pending, 1 expired. Pad sees `null`. ✅
+- Fresh row → pad poll → still visible with `expires_at` populated. ✅
+- Submit on a now-expired row → HTTP 410 `{"detail":"Signature request expired"}`. ✅
+- Next poll after that submit → `null`. ✅
+
+### Code touched
+- `/app/backend/routes/signatures.py` — `SIGNATURE_PENDING_TTL_SECONDS` constant, `expires_at` field, reaper in `pending`, 410 path in `submit`, serialise additions.
+- `/app/frontend/src/app/dashboard/signing-pad/page.tsx` — submit `catch` now handles `err.response.status === 410` specifically.
+- Re-seeded `pad-il@bashari.com / pad123` (Israel branch) in the preview DB — the user had deleted it via the now-working Delete UI.
+
+
+
 ## Feb 26, 2026 — Pickup return docs styled to match the main memo
 
 User request:
