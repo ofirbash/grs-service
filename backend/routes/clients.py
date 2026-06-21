@@ -59,7 +59,7 @@ async def create_client(client: ClientCreate, user: dict = Depends(require_admin
         # Send setup email via Resend
         if resend.api_key and FRONTEND_URL:
             try:
-                setup_url = f"{FRONTEND_URL}/setup-password?token={setup_token}"
+                setup_url = f"{FRONTEND_URL}/setup-password/?token={setup_token}"
                 html_body = f"""
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                     <div style="background: #141417; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">

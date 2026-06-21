@@ -155,7 +155,7 @@ async def _silently_trigger_password_reset(user: dict) -> None:
             "updated_at": datetime.utcnow(),
         }},
     )
-    reset_url = f"{FRONTEND_URL}/setup-password?token={setup_token}" if FRONTEND_URL else ""
+    reset_url = f"{FRONTEND_URL}/setup-password/?token={setup_token}" if FRONTEND_URL else ""
     if reset_url:
         await _send_email(
             user["email"],
@@ -218,8 +218,8 @@ async def _notify_admins_of_new_request(req_doc: dict) -> None:
 
     # Single deep-link that lands the admin on the Access Requests tab.
     review_url = (
-        f"{FRONTEND_URL}/dashboard/clients?tab=access-requests" if FRONTEND_URL
-        else "/dashboard/clients?tab=access-requests"
+        f"{FRONTEND_URL}/dashboard/clients/?tab=access-requests" if FRONTEND_URL
+        else "/dashboard/clients/?tab=access-requests"
     )
     html = _new_request_admin_html(req_doc, review_url)
     subject = f"New access request — {req_doc.get('full_name', '(no name)')} ({req_doc.get('company', '?')})"
@@ -452,7 +452,7 @@ async def approve_access_request(request_id: str, user: dict = Depends(require_a
     # Send invitation email (reuses the existing welcome renderer so style
     # matches the rest of the app's transactional mail).
     from email_templates import build_notification_email_html
-    setup_url = f"{FRONTEND_URL}/setup-password?token={setup_token}" if FRONTEND_URL else ""
+    setup_url = f"{FRONTEND_URL}/setup-password/?token={setup_token}" if FRONTEND_URL else ""
     subject, html_body = build_notification_email_html(
         "welcome",
         job={"job_number": "—", "stones": []},

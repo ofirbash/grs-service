@@ -72,7 +72,7 @@ def _serialize_payments(job: dict) -> list:
 
 def _build_payment_url(job: dict) -> Optional[str]:
     token = job.get("payment_token")
-    return f"{FRONTEND_URL}/pay?token={token}" if token and FRONTEND_URL else None
+    return f"{FRONTEND_URL}/pay/?token={token}" if token and FRONTEND_URL else None
 
 
 async def build_job_response(job: dict) -> JobResponse:

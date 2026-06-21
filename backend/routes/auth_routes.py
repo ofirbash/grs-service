@@ -458,7 +458,7 @@ async def admin_reset_password(user_id: str, user: dict = Depends(get_current_us
         }}
     )
 
-    reset_url = f"{FRONTEND_URL}/setup-password?token={setup_token}" if FRONTEND_URL else ""
+    reset_url = f"{FRONTEND_URL}/setup-password/?token={setup_token}" if FRONTEND_URL else ""
 
     email_sent = False
     try:
@@ -536,7 +536,7 @@ async def forgot_password(email: str = Body(..., embed=True)):
         }}
     )
 
-    reset_url = f"{FRONTEND_URL}/setup-password?token={setup_token}" if FRONTEND_URL else ""
+    reset_url = f"{FRONTEND_URL}/setup-password/?token={setup_token}" if FRONTEND_URL else ""
 
     try:
         if resend.api_key and reset_url:

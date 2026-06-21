@@ -22,6 +22,45 @@ TRANZILA_SECRET = os.getenv("TRANZILA_SECRET", "")
 router = APIRouter()
 
 
+def _public_base_url(request: Request) -> str:
+    """Derive the public origin to embed in payment links.
+
+    Production is hardcoded to `https://lab.bashari.co` via `FRONTEND_URL`,
+    but that meant preview-environment admins clicking "Open" on a freshly
+    generated link were bounced to PRODUCTION (where the token doesn't
+    exist) — and they hit the broken production trailing-slash 301 to
+    `:8080`, which has no TLS cert ("This site can't provide a secure
+    connection"). Fix: pick whichever origin the admin's browser actually
+    used to call us — that way preview links open the preview frontend,
+    prod links open prod. We fall back to `FRONTEND_URL` only for
+    server-to-server callers without an Origin header (cron, scripts).
+    """
+    origin = request.headers.get("origin") or ""
+    if origin.startswith("http://") or origin.startswith("https://"):
+        return origin.rstrip("/")
+    referer = request.headers.get("referer") or ""
+    if referer.startswith("http://") or referer.startswith("https://"):
+        # Strip path off the referer — we only need the origin.
+        from urllib.parse import urlparse
+        parsed = urlparse(referer)
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return FRONTEND_URL.rstrip("/")
+
+
+def _build_pay_url(base: str, token: str) -> str:
+    """Compose the public /pay/ URL.
+
+    NOTE the trailing slash before `?token=`: Next.js static export with
+    `trailingSlash: true` writes pages as `/pay/index.html`. Hitting
+    `/pay?token=X` triggers an upstream 301 to `/pay/?token=X`. In the
+    current production deploy that redirect leaks the internal listen
+    port (`http://lab.bashari.co:8080/pay/?token=X`), causing the
+    "no secure connection" error. Emitting the slash up-front sidesteps
+    the redirect entirely until that proxy config is fixed.
+    """
+    return f"{base}/pay/?token={token}"
+
+
 @router.get("/exchange-rate")
 async def get_exchange_rate():
     """Get live USD to ILS exchange rate"""
@@ -50,11 +89,13 @@ async def generate_payment_token(job_id: str, request: Request, user: dict = Dep
     is_adjustment = body.get("is_adjustment", False)
     adjustment_amount = body.get("adjustment_amount")
 
+    base = _public_base_url(request)
+
     # If job already paid and not an adjustment request, return existing token
     if job.get("payment_status") == "paid" and not is_adjustment:
         existing_token = job.get("payment_token")
         if existing_token:
-            return {"payment_token": existing_token, "payment_url": f"{FRONTEND_URL}/pay?token={existing_token}"}
+            return {"payment_token": existing_token, "payment_url": _build_pay_url(base, existing_token)}
 
     # For adjustment payments on paid jobs, create a fresh token
     if is_adjustment and adjustment_amount is not None:
@@ -69,19 +110,19 @@ async def generate_payment_token(job_id: str, request: Request, user: dict = Dep
                 "updated_at": datetime.utcnow()
             }}
         )
-        return {"payment_token": payment_token, "payment_url": f"{FRONTEND_URL}/pay?token={payment_token}"}
+        return {"payment_token": payment_token, "payment_url": _build_pay_url(base, payment_token)}
 
     # Normal flow: return existing or create new
     existing_token = job.get("payment_token")
     if existing_token:
-        return {"payment_token": existing_token, "payment_url": f"{FRONTEND_URL}/pay?token={existing_token}"}
+        return {"payment_token": existing_token, "payment_url": _build_pay_url(base, existing_token)}
 
     payment_token = str(uuid.uuid4())
     await db.jobs.update_one(
         {"_id": ObjectId(job_id)},
         {"$set": {"payment_token": payment_token, "updated_at": datetime.utcnow()}}
     )
-    return {"payment_token": payment_token, "payment_url": f"{FRONTEND_URL}/pay?token={payment_token}"}
+    return {"payment_token": payment_token, "payment_url": _build_pay_url(base, payment_token)}
 
 
 @router.get("/payment/{token}")

@@ -5,6 +5,44 @@
 
 ---
 
+## Feb 26, 2026 — Payment links: "This site can't provide a secure connection"
+
+User report (production AND preview):
+> "The payment link doesn't work. I'm trying to access a payment link on production and it returns an empty page: This site can't provide a secure connection. It's the same on preview!"
+
+Root cause: a stacked deployment + code issue.
+
+### Production-side bug (cannot fix in code; needs proxy reconfig)
+`https://lab.bashari.co/pay?token=X` → upstream Cloudflare returns **HTTP 301** with `location: http://lab.bashari.co:8080/pay/?token=X`. The redirect target uses **`http://` (not https)** and **port `8080`** (the internal listen port) — port 8080 has no TLS cert, so the browser shows "This site can't provide a secure connection". Classic missing `proxy_set_header X-Forwarded-Proto`/`proxy_redirect off` in the production nginx that fronts the static site.
+
+That config lives on the deployed pod, outside the repo — the user needs to contact Emergent Support to fix the proxy header pass-through.
+
+### Code-side workarounds (deployable from this repo)
+**1. Trailing slash everywhere.** `next.config.mjs` has `trailingSlash: true`, so the static export writes `/pay/index.html`, `/setup-password/index.html`, etc. Hitting `/pay?token=X` triggers the broken upstream 301 to `/pay/?token=X`. Fix: emit `/pay/?token=` (with the slash already there) so the redirect is never needed. The browser finds the static page directly.
+
+Same fix applied to every `/setup-password?token=` and `/dashboard/clients?tab=` link in the backend.
+
+Files touched:
+- `backend/routes/payments.py` — payment link generation (new `_build_pay_url` + `_public_base_url` helpers).
+- `backend/routes/jobs.py` — `payment_url` computed field on every job record.
+- `backend/routes/notifications.py` — payment & welcome email/SMS link bodies.
+- `backend/routes/pdf.py` — invoice/memo PDF QR code targets.
+- `backend/routes/access_requests.py`, `backend/routes/clients.py`, `backend/routes/auth_routes.py` — setup-password & dashboard deep links.
+
+**2. Preview backend stops bouncing admins to production.** `FRONTEND_URL` was hardcoded to `https://lab.bashari.co`, so an admin clicking "Open link" on a preview-generated payment link landed on prod (where the token doesn't exist *and* the broken 301 fires). New `_public_base_url(request)` reads the admin's `Origin`/`Referer` header and uses *that* as the link's host — preview admins now get preview links, prod admins get prod links. Falls back to `FRONTEND_URL` for callers without an Origin (cron, server scripts, emails — which should always go to prod anyway).
+
+### Verified via curl
+- No Origin header → uses `FRONTEND_URL` → `https://lab.bashari.co/pay/?token=…` ✅
+- `Origin: https://abc-123.preview.emergentagent.com` → preview URL with trailing slash ✅
+- `Origin: https://lab.bashari.co` → prod URL with trailing slash ✅
+- `Job.payment_url` computed field → trailing-slash form ✅
+- Both `http://localhost:3000/pay/?token=x` and `/pay?token=x` return 200 OK in preview (so existing tokens in already-sent emails still work in preview; only prod is afflicted by the redirect leak).
+
+### NOTE
+This unblocks `Open Link` / fresh links once redeployed. The **underlying production proxy bug still needs Emergent Support to fix**, otherwise any other route depending on a trailing-slash redirect (e.g. if you ever drop `trailingSlash`) will hit the same `:8080` leak.
+
+
+
 ## Feb 26, 2026 — Signing-pad countdown timer + QR connect
 
 User request:

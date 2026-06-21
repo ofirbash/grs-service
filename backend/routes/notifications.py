@@ -75,7 +75,7 @@ async def preview_notification(job_id: str, notification_type: str, user: dict =
             pt = str(uuid.uuid4())
             await db.jobs.update_one({"_id": job["_id"]}, {"$set": {"payment_token": pt}})
         if FRONTEND_URL:
-            payment_url = f"{FRONTEND_URL}/pay?token={pt}"
+            payment_url = f"{FRONTEND_URL}/pay/?token={pt}"
 
     subject, html_body = build_notification_email_html(notification_type, job, client, payment_url)
 
@@ -143,7 +143,7 @@ async def send_notification_email(
             pt2 = str(uuid.uuid4())
             await db.jobs.update_one({"_id": job["_id"]}, {"$set": {"payment_token": pt2}})
         if FRONTEND_URL:
-            send_payment_url = f"{FRONTEND_URL}/pay?token={pt2}"
+            send_payment_url = f"{FRONTEND_URL}/pay/?token={pt2}"
 
     subject, html_body = build_notification_email_html(notification_type, job, client, send_payment_url)
 
@@ -450,7 +450,7 @@ async def preview_welcome_email(client_id: str = "", user: dict = Depends(requir
         "welcome",
         job={"job_number": "—", "stones": []},
         client=client,
-        setup_url=f"{FRONTEND_URL}/setup-password?token=PREVIEW_TOKEN" if FRONTEND_URL else "",
+        setup_url=f"{FRONTEND_URL}/setup-password/?token=PREVIEW_TOKEN" if FRONTEND_URL else "",
     )
     return {
         "subject": subject,
@@ -525,7 +525,7 @@ async def send_welcome_emails_bulk(payload: WelcomeBulkRequest, user: dict = Dep
                     "created_at": datetime.utcnow(),
                     "updated_at": datetime.utcnow(),
                 })
-            setup_url = f"{FRONTEND_URL}/setup-password?token={setup_token}"
+            setup_url = f"{FRONTEND_URL}/setup-password/?token={setup_token}"
 
         subject, html_body = build_notification_email_html(
             "welcome",

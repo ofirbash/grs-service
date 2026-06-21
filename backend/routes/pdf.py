@@ -441,7 +441,7 @@ async def _get_or_create_payment_url(job_id: str, job: dict) -> str:
             {"_id": ObjectId(job_id)},
             {"$set": {"payment_token": token, "updated_at": datetime.utcnow()}},
         )
-    return f"{frontend_url}/pay?token={token}"
+    return f"{frontend_url}/pay/?token={token}"
 
 
 @router.get("/jobs/{job_id}/pdf/invoice")
