@@ -56,18 +56,20 @@ export function actionLabel(code: string): string {
 }
 
 export function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return '';
-  const diff = Date.now() - then;
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString();
+  // Per user request Feb 26 2026: prefer absolute "dd/mm/yy, HH:MM" over
+  // relative ("5m ago") in the activity log — operations folks scanning
+  // a week-old audit trail need the actual timestamp at a glance, not
+  // mental arithmetic. The hover tooltip on the parent <span> still
+  // shows the full locale string for the rare case anyone needs seconds.
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = pad(d.getFullYear() % 100);
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  return `${day}/${month}/${year}, ${hh}:${mm}`;
 }
 
 interface Props {

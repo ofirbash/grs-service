@@ -232,6 +232,16 @@ class JobUpdate(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
     discount: Optional[float] = None
+    # Allow admins to change the service_type after creation; the server
+    # will recompute every active stone's `fee` (and the job totals) from
+    # the new bracket table. The frontend exposes this in the same Edit
+    # mode as notes/discount — there's no separate "Change service type"
+    # button (per user request Feb 26 2026).
+    service_type: Optional[str] = None
+    # Pair with service_type when switching to/from Recheck. Required if
+    # the new service_type is Recheck (validated server-side); ignored
+    # otherwise.
+    recheck_reasons: Optional[list[str]] = None
 
 
 class NotificationLog(BaseModel):

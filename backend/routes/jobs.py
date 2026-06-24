@@ -566,6 +566,14 @@ async def add_stone_to_job(job_id: str, stone: AddStoneRequest, user: dict = Dep
         "fee": fee,
         "position": next_position,
         "certificate_group": None,
+        # Same defaults as `_build_stones_for_create`: a freshly-added
+        # stone always lands at the office with no certificate yet —
+        # regardless of the parent job's lifecycle stage. Admin moves it
+        # forward via the normal pickup / cert-upload flows. Without
+        # these defaults the StoneStatusBadges UI showed nothing for new
+        # walk-in stones (Feb 26 2026 regression).
+        "stone_status": "at_office",
+        "cert_status": "pending",
     }
     if is_p:
         new_stone["kind"] = "parcel"
@@ -656,10 +664,81 @@ async def update_job(job_id: str, job_update: JobUpdate, user: dict = Depends(re
     if job_update.discount is not None:
         update_data["discount"] = job_update.discount
 
+    # ---------------------------------------------------------------- service_type
+    # Changing the service_type after creation requires re-pricing every
+    # active stone from the bracket table that matches the NEW service
+    # type. Cancelled stones keep their original fee (the audit/invoice
+    # already reflects them). Recheck has an extra `recheck_reasons`
+    # field — validate matching presence/absence with the new type.
+    if job_update.service_type is not None and job_update.service_type != job.get("service_type"):
+        new_st = job_update.service_type
+        # Validate the new type is a configured service.
+        pricing_doc = await db.pricing_config.find_one() or {}
+        valid_types = pricing_doc.get("service_types") or ["Express", "Normal", "Recheck"]
+        if new_st not in valid_types:
+            raise HTTPException(status_code=400, detail=f"Invalid service_type '{new_st}'. Must be one of {valid_types}.")
+
+        if new_st == "Recheck":
+            # Need at least one recheck reason to remain consistent with
+            # the create-job validation.
+            reasons = job_update.recheck_reasons or job.get("recheck_reasons") or []
+            reasons = [r for r in reasons if r and r.strip()]
+            if not reasons:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Switching to Recheck requires at least one recheck reason.",
+                )
+            update_data["recheck_reasons"] = reasons
+        else:
+            # Leaving Recheck → drop the now-meaningless reasons array.
+            update_data["recheck_reasons"] = None
+
+        # Recompute fees for every stone (cancelled OR active — keeping
+        # cancelled stones priced consistently makes audit reports
+        # easier; recompute_job_totals already excludes them from
+        # `total_fee`).
+        db_brackets = await get_pricing_brackets_from_db()
+        cs_fee = await get_color_stability_fee_from_db()
+        mounted_fee = await get_mounted_fee_from_db()
+
+        updated_stones: list[dict] = []
+        for s in (job.get("stones") or []):
+            value = float(s.get("value") or 0)
+            mounted_flag = bool(s.get("mounted"))
+            cs_flag = bool(s.get("color_stability_test"))
+            if s.get("kind") == "parcel":
+                count = int(s.get("stone_count") or 0)
+                new_fee = calculate_parcel_fee_from_brackets(
+                    value, count, new_st, cs_flag, mounted_flag,
+                    db_brackets, cs_fee, mounted_fee,
+                ) if count >= 2 else float(s.get("fee") or 0)
+            else:
+                new_fee = calculate_stone_fee_from_brackets(
+                    value, new_st, cs_flag, db_brackets, cs_fee,
+                )
+                if mounted_flag:
+                    new_fee += mounted_fee
+            s2 = {**s, "fee": new_fee}
+            # Preserve any actual_fee override the admin set — we only
+            # rebase the suggested `fee`, not the manual override.
+            updated_stones.append(s2)
+
+        update_data["service_type"] = new_st
+        update_data["stones"] = updated_stones
+
     await db.jobs.update_one(
         {"_id": ObjectId(job_id)},
         {"$set": update_data}
     )
+
+    # If service_type changed we wrote a new stones array — recompute the
+    # job totals from those new fees so total_fee / total_value stay
+    # consistent without the caller needing a second round-trip.
+    if "stones" in update_data:
+        mounted_fee = await get_mounted_fee_from_db()
+        refreshed = await db.jobs.find_one({"_id": ObjectId(job_id)})
+        totals = recompute_job_totals(active_stones(refreshed), mounted_fee=mounted_fee)
+        await db.jobs.update_one({"_id": ObjectId(job_id)}, {"$set": totals})
 
     changed_fields = sorted(update_data.keys() - {"updated_at"})
     if changed_fields:

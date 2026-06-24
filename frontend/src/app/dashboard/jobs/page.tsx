@@ -225,6 +225,8 @@ function JobsPageContent() {
     notes: '',
     status: '',
     discount: '',
+    service_type: '',
+    recheck_reasons: [] as string[],
   });
 
   // Certificate grouping
@@ -322,7 +324,7 @@ function JobsPageContent() {
       
       if (job) {
         setSelectedJob(job);
-        setEditFormData({ notes: job.notes || '', status: job.status, discount: job.discount != null ? String(job.discount) : '' });
+        setEditFormData({ notes: job.notes || '', status: job.status, discount: job.discount != null ? String(job.discount) : '', service_type: job.service_type || '', recheck_reasons: job.recheck_reasons || [] });
         setViewDialogOpen(true);
         // Fetch notification statuses for admin users (parity with openViewDialog)
         if (user?.role === 'super_admin' || user?.role === 'branch_admin') {
@@ -743,6 +745,8 @@ function JobsPageContent() {
       notes: job.notes || '',
       status: job.status,
       discount: job.discount != null ? String(job.discount) : '',
+      service_type: job.service_type || '',
+      recheck_reasons: job.recheck_reasons || [],
     });
     setEditMode(false);
     setSelectedStones([]);
@@ -755,13 +759,30 @@ function JobsPageContent() {
 
   const handleUpdateJob = async () => {
     if (!selectedJob) return;
-    
+
+    // Build the payload; only send service_type/recheck_reasons when
+    // they actually changed (avoids triggering a server-side recompute
+    // for an unrelated discount/notes edit).
+    const payload: {
+      notes: string;
+      status: string;
+      discount: number;
+      service_type?: string;
+      recheck_reasons?: string[];
+    } = {
+      notes: editFormData.notes,
+      status: editFormData.status,
+      discount: editFormData.discount !== '' ? parseFloat(editFormData.discount) : 0,
+    };
+    if (editFormData.service_type && editFormData.service_type !== selectedJob.service_type) {
+      payload.service_type = editFormData.service_type;
+      if (editFormData.service_type === 'Recheck') {
+        payload.recheck_reasons = editFormData.recheck_reasons;
+      }
+    }
+
     try {
-      await jobsApi.update(selectedJob.id, {
-        notes: editFormData.notes,
-        status: editFormData.status,
-        discount: editFormData.discount !== '' ? parseFloat(editFormData.discount) : 0,
-      });
+      await jobsApi.update(selectedJob.id, payload);
       fetchData();
       setEditMode(false);
       // Refresh selected job
@@ -1600,6 +1621,8 @@ function JobsPageContent() {
                 editMode={editMode}
                 editFormData={editFormData}
                 setEditFormData={setEditFormData}
+                availableServiceTypes={serviceTypes}
+                recheckReasonOptions={recheckReasonOptions}
               />
 
               {/* Two-column layout: Stones (left) + Actions sidebar (right) */}

@@ -5,6 +5,47 @@
 
 ---
 
+## Feb 26, 2026 — Activity log + Service-type editing + Add-Stone defaults
+
+User asked for four small changes. All landed in one pass.
+
+### 1. Activity log collapsed by default
+The per-job audit timeline takes up real estate even when admins don't need it. `<JobActivityList>` now renders only the header by default; clicking the header (or chevron) toggles the list open for the rest of the dialog session. State is component-local — closes again on next open.
+
+### 2. Activity log uses absolute `dd/mm/yy, HH:MM`
+Replaced the relative "5m ago / 2h ago" formatter in `ActivityRowItem.formatRelative()` with a fixed `dd/mm/yy, HH:MM` (24h) shape. Hover tooltip still shows the full locale string for the rare case anyone needs seconds. Verified live: `18/06/26, 19:26`.
+
+### 3. Service-type editable in Edit-Job mode
+No separate "Change service type" button — per user request, just expose it in the existing Edit mode. The `<JobSummaryGrid>` Service field becomes a `<Select>` while editing, and switching to Recheck also surfaces a multi-select for `recheck_reasons`. An amber recalc-hint banner appears above Notes when the new value differs ("Saving will re-price every stone based on the **Express** bracket table…").
+
+Backend:
+- `JobUpdate` model now accepts `service_type` and `recheck_reasons`.
+- `PUT /api/jobs/{id}` recomputes every stone's `fee` from the new bracket table (parcel rows use the parcel pricing helper), then `recompute_job_totals` rebuilds `total_fee`/`total_value` so the response is immediately consistent.
+- Validation: `service_type` must be in `pricing_config.service_types`; switching to Recheck without reasons → 400; leaving Recheck clears `recheck_reasons`.
+
+Verified via curl:
+```
+Normal → Express  : total_fee 600 → 900
+Express → Normal  : total_fee 900 → 600
+service_type=NotAType  → 400 with detail
+Recheck w/o reasons    → 400 with detail
+```
+
+### 4. Add-Stone defaults — `stone_status` + `cert_status`
+`POST /api/jobs/{id}/stones` was missing the lifecycle defaults that `_build_stones_for_create` already sets. New walk-in stones rendered no status badge in `<StoneStatusBadges>`. Fix: every newly-added stone now gets `stone_status="at_office"`, `cert_status="pending"` — same as the create-job path. All other flags (CS, mounted, verbal, cert_scan, certificate_group, cancelled) continue to be admin-supplied or filled later by their own flows. Per user decision (option **d**), the Add-Stone dialog itself stays minimal — only the existing fields, no new toggles.
+
+Verified via curl: a stone added to job #597 came back with `stone_status="at_office", cert_status="pending"`. UI badges now appear for it.
+
+### Code touched
+- `frontend/src/app/dashboard/jobs/_components/JobActivityList.tsx` — collapse-on-click header.
+- `frontend/src/components/activity/ActivityRowItem.tsx` — `formatRelative` → absolute dd/mm/yy, HH:MM.
+- `frontend/src/app/dashboard/jobs/_components/JobSummaryGrid.tsx` — service-type select + recheck-reasons multi-select + recalc hint.
+- `frontend/src/app/dashboard/jobs/page.tsx` — extended `editFormData` with `service_type`/`recheck_reasons`, passed `availableServiceTypes`/`recheckReasonOptions`, send-on-change in `handleUpdateJob`.
+- `backend/models.py` — `JobUpdate.service_type`, `JobUpdate.recheck_reasons`.
+- `backend/routes/jobs.py` — `update_job` recompute branch; `add_stone_to_job` lifecycle defaults.
+
+
+
 ## Feb 26, 2026 — Session-expired redirect leaked into `:8080`
 
 User report:
