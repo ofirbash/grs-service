@@ -98,6 +98,40 @@ export default function SigningPadPage() {
     };
   }, [pending]);
 
+  // Lock the viewport to no-zoom while ANY pad screen is mounted
+  // (idle + active). Phones default to pinch-zoom + double-tap-to-zoom,
+  // which on the kiosk is just noise — the client zoomed in and
+  // couldn't reach the Submit button (Feb 26 2026 user report).
+  // We mutate the meta tag instead of using Next.js `viewport` export
+  // because this page is a client component, and we restore the
+  // previous content on unmount so the rest of the dashboard stays
+  // pinch-zoomable.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+    let createdHere = false;
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'viewport';
+      document.head.appendChild(meta);
+      createdHere = true;
+    }
+    const previous = meta.getAttribute('content');
+    meta.setAttribute(
+      'content',
+      // viewport-fit=cover so iOS notches don't sandwich the canvas;
+      // user-scalable=no + maximum-scale=1 kills pinch + double-tap zoom.
+      'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover',
+    );
+    return () => {
+      if (createdHere) {
+        meta?.parentElement?.removeChild(meta);
+      } else if (previous !== null) {
+        meta?.setAttribute('content', previous);
+      }
+    };
+  }, []);
+
   const handleClear = () => {
     canvasRef.current?.clear();
   };

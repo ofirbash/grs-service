@@ -299,7 +299,7 @@ async def _render_and_upload(pickup: dict, signature_url: str, signer_name: str)
     html = pickup["memo_html_template"].replace(
         "{{SIGNATURE_BLOCK}}",
         f'<img src="{signature_url}" alt="Picked-up signature" '
-        f'style="height:54px;object-fit:contain;max-width:100%;display:block;"/>'
+        f'style="height:110px;object-fit:contain;max-width:100%;display:block;"/>'
         f'<div style="margin-top:4px;font-size:11px;color:#4a5a7a;">{signer_name}</div>',
     )
 

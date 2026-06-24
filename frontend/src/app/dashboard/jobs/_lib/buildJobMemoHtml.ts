@@ -348,7 +348,7 @@ export function buildJobMemoHtml({
               const when = clientSig.signed_at ? new Date(clientSig.signed_at).toLocaleString() : "";
               return `
                 <img src="${esc(clientSig.signed_url || "")}" alt="Client signature"
-                     style="height:54px;object-fit:contain;max-width:100%;display:block;" />
+                     style="height:110px;object-fit:contain;max-width:100%;display:block;" />
                 <div class="sig-caption" style="margin-top:4px;">
                   ${esc(clientSig.signer_name)} · ${esc(when)}
                 </div>`;

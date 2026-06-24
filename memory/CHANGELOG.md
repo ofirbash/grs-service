@@ -5,6 +5,42 @@
 
 ---
 
+## Feb 26, 2026 — Signing-pad polish: QR URL, no-zoom viewport, bigger sig
+
+Three small but high-impact fixes after deploying the QR/countdown work.
+
+### 1. QR + manual login URL missed the trailing slash
+`PadConnectQrDialog` was emitting `${origin}/login?email=…` — same broken-redirect trap as the payment links (production proxy 301s `/login?…` → `http://lab.bashari.co:8080/login/?…`). One-character fix: now `${origin}/login/?email=…`. Verified the dialog now shows `…/login/?email=pad-ny%40bashari.com`.
+
+### 2. No-zoom viewport on the signing-pad page
+User report: pad on a phone was pinch-zoomed in and the Submit button was off-screen. Default Next.js viewport allows pinch + double-tap zoom — fine for the dashboard, terrible for a kiosk surface.
+
+Fix: a `useEffect` on the signing-pad page mounts a stricter `<meta name="viewport">` while the page is active and restores the previous content on unmount. Specifically:
+
+```
+width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1,
+user-scalable=no, viewport-fit=cover
+```
+
+Scoping the override per-page (instead of globally) keeps the rest of the dashboard pinch-zoomable for low-vision admins. Verified by reading the meta tag before and after navigating away.
+
+### 3. Captured signature embedded in archived PDFs/memos was too small
+54px tall was barely a fingernail on the printed page. Bumped to **110px** in all three signature-render paths:
+- `backend/routes/pickups.py` — `_render_and_upload`'s `{{SIGNATURE_BLOCK}}` replacement.
+- `frontend/src/app/dashboard/jobs/_lib/buildPickupMemoHtml.ts` — frontend pickup memo template.
+- `frontend/src/app/dashboard/jobs/_lib/buildJobMemoHtml.ts` — frontend job memo template.
+
+`object-fit: contain` + `max-width: 100%` kept, so the original PNG aspect ratio is preserved — wide signatures don't get squished, narrow ones don't overflow the column.
+
+### Code touched
+- `frontend/src/components/settings/PadConnectQrDialog.tsx`
+- `frontend/src/app/dashboard/signing-pad/page.tsx`
+- `backend/routes/pickups.py`
+- `frontend/src/app/dashboard/jobs/_lib/buildPickupMemoHtml.ts`
+- `frontend/src/app/dashboard/jobs/_lib/buildJobMemoHtml.ts`
+
+
+
 ## Feb 26, 2026 — Activity log + Service-type editing + Add-Stone defaults
 
 User asked for four small changes. All landed in one pass.

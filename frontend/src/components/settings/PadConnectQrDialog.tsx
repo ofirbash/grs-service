@@ -52,7 +52,7 @@ export function PadConnectQrDialog({ pad, onClose }: Props) {
     if (!pad || typeof window === "undefined") return "";
     const origin = window.location.origin;
     const qs = new URLSearchParams({ email: pad.email }).toString();
-    return `${origin}/login?${qs}`;
+    return `${origin}/login/?${qs}`;
   }, [pad]);
 
   const handleCopy = async () => {
