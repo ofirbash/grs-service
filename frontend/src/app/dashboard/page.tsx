@@ -419,7 +419,14 @@ export default function DashboardPage() {
                       <button
                         key={key}
                         type="button"
-                        onClick={() => (window.location.href = '/dashboard/shipments')}
+                        // Trailing slash mandatory — `trailingSlash: true`
+                        // in next.config.mjs. Without it, the production
+                        // proxy 301s `/dashboard/shipments` → an absolute
+                        // `http://lab.bashari.co:8080/...`, breaking the
+                        // hard nav. router.push wouldn't have this issue
+                        // (no HTTP request), but we use it deliberately
+                        // here to force a fresh data fetch.
+                        onClick={() => (window.location.href = '/dashboard/shipments/')}
                         className="p-4 text-left hover:bg-navy-50 transition-colors w-full"
                         data-testid={`shipments-type-col-${key}`}
                       >

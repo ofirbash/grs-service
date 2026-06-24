@@ -5,6 +5,30 @@
 
 ---
 
+## Feb 26, 2026 — Session-expired redirect leaked into `:8080`
+
+User report:
+> "After session expires, URL changes to `https://lab.bashari.co:8080/login/?reason=expired`. I expect to redirect to the login page."
+
+Same root cause as the payment-link bug: the production proxy 301s any path without a trailing slash to an absolute URL using its internal listen port (`http://lab.bashari.co:8080/path/...`), which the browser refuses ("can't provide a secure connection").
+
+The Axios 401-interceptor in `frontend/src/lib/api.ts` was calling `window.location.replace('/login?reason=expired')` — no trailing slash → hit the 301 → landed on the dead `:8080` URL.
+
+Fix: changed both hard navigations to include the trailing slash.
+
+### Files touched
+- `frontend/src/lib/api.ts` — `/login?reason=expired` → `/login/?reason=expired`
+- `frontend/src/app/dashboard/page.tsx` — `window.location.href = '/dashboard/shipments'` → `'/dashboard/shipments/'`
+
+### Verified
+- Preview returns 200 OK for `/login/?reason=expired`.
+- `router.push()` / `router.replace()` calls don't need this fix — they use History API, never issue an HTTP request, so the proxy bug doesn't touch them.
+
+### Still pending (infrastructure)
+Underlying proxy misconfig still needs Emergent Support to fix permanently. My code workarounds bypass it for every known path, but any *new* route without trailing slash in a hard nav would regress.
+
+
+
 ## Feb 26, 2026 — Payment links: "This site can't provide a secure connection"
 
 User report (production AND preview):

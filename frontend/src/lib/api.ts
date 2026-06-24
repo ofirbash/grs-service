@@ -86,7 +86,16 @@ api.interceptors.response.use(
       // `replace`, not `href = ...`, so we don't leave the protected route
       // sitting in browser history (back-button trap). Tells the login page
       // to show the "session expired" banner.
-      window.location.replace('/login?reason=expired');
+      //
+      // Trailing slash is mandatory — `next.config.mjs` sets
+      // `trailingSlash: true` which writes the page as `/login/index.html`.
+      // Without the slash, the production proxy 301s `/login?...` → an
+      // absolute `http://lab.bashari.co:8080/login/?...` (the proxy leaks
+      // its internal listen port + protocol into the Location header),
+      // which the browser refuses with "site can't provide a secure
+      // connection". Emitting the slash up-front sidesteps the broken
+      // redirect entirely on prod, and is a no-op on preview/local.
+      window.location.replace('/login/?reason=expired');
     }
     return Promise.reject(error);
   }
