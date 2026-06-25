@@ -1585,8 +1585,8 @@ function JobsPageContent() {
                       data-testid="print-memo-return-button"
                     >
                       <FileText className="h-4 w-4 sm:mr-1" />
-                      <span className="hidden sm:inline">Memo Return</span>
-                      <span className="sm:hidden text-xs ml-1">Memo</span>
+                      <span className="hidden sm:inline">Return Stones</span>
+                      <span className="sm:hidden text-xs ml-1">Stones</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -1596,8 +1596,8 @@ function JobsPageContent() {
                       data-testid="print-cert-collection-button"
                     >
                       <FileText className="h-4 w-4 sm:mr-1" />
-                      <span className="hidden sm:inline">Cert Collection</span>
-                      <span className="sm:hidden text-xs ml-1">Cert</span>
+                      <span className="hidden sm:inline">Return Certificates</span>
+                      <span className="sm:hidden text-xs ml-1">Certs</span>
                     </Button>
                   </>
                 )}

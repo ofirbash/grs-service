@@ -195,8 +195,22 @@ export const CreateShipmentDialog: React.FC<Props> = ({
           {availableJobs.length === 0 ? (
             <div className="p-4 text-center text-navy-500 bg-navy-50 rounded-lg">
               <AlertCircle className="h-8 w-8 mx-auto mb-2 text-navy-400" />
-              <p>No available jobs to add</p>
-              <p className="text-sm">All jobs are already assigned to shipments</p>
+              {formData.shipment_type ? (
+                <>
+                  <p>No eligible jobs for this shipment type</p>
+                  <p className="text-sm">
+                    {formData.shipment_type === 'send_stones_to_lab' && 'Only jobs at status "stones accepted" can be sent to the lab.'}
+                    {formData.shipment_type === 'stones_from_lab' && 'Only jobs at status "verbal uploaded" can have stones returned.'}
+                    {formData.shipment_type === 'certificates_from_lab' && 'Only jobs at status "verbal uploaded" or "cert uploaded" can have certificates returned.'}
+                    {' Jobs already on a pending / in-transit shipment are hidden.'}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>Pick a shipment type first</p>
+                  <p className="text-sm">The eligible jobs depend on whether you're sending stones to the lab, returning stones, or returning certificates.</p>
+                </>
+              )}
             </div>
           ) : (
             <div className="border border-navy-200 rounded-lg max-h-64 overflow-y-auto">

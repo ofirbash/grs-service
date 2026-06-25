@@ -50,12 +50,12 @@ interface Props {
 }
 
 const TITLES: Record<Props['type'], string> = {
-  memo_return: 'Print Memo Return',
-  cert_collection: 'Print Certificate Collection',
+  memo_return: 'Return Stones to Client',
+  cert_collection: 'Return Certificates to Client',
 };
 const DESCRIPTIONS: Record<Props['type'], string> = {
-  memo_return: 'Select the stones the client is collecting. Already-collected stones are pre-disabled.',
-  cert_collection: 'Select the certificates the client is collecting. Stones that share a cert are picked together.',
+  memo_return: 'Select the stones the client is collecting. A signed return memo is generated for the record. Already-collected stones are pre-disabled.',
+  cert_collection: 'Select the certificates the client is collecting. Stones that share a cert are picked together. A signed return memo is generated for the record.',
 };
 const SIG_ROLE: Record<Props['type'], SignatureRow['role']> = {
   memo_return: 'client_collection',
@@ -279,9 +279,9 @@ export function PickupSelectionDialog({
             )}
             {!signature && (
               <div className="text-xs text-navy-600 p-3 rounded-md bg-navy-50 border border-navy-200">
-                <strong>Approve and Print</strong> will:
+                <strong>Confirm &amp; Sign</strong> will:
                 <ol className="list-decimal ml-5 mt-1 space-y-0.5">
-                  <li>Record this pickup in the system</li>
+                  <li>Mark these items as returned to the client</li>
                   <li>Open the unsigned memo for the client to inspect</li>
                   <li>Light up the signing pad — the client signs there</li>
                   <li>Save the signed PDF to the cloud for proof</li>
@@ -396,7 +396,7 @@ export function PickupSelectionDialog({
             ) : (
               <Printer className="h-4 w-4 mr-2" />
             )}
-            Approve and Print ({selected.size})
+            Confirm & Sign ({selected.size})
           </Button>
         </DialogFooter>
       </DialogContent>

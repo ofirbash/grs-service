@@ -45,6 +45,55 @@ import type {
 import { printShipmentMemo } from './_print/shipment-memo';
 import { DoubleConfirmDialog } from '@/components/DoubleConfirmDialog';
 
+/** Job statuses eligible to JOIN a fresh shipment, keyed by shipment type.
+ *  Mirrors the natural lab lifecycle — admins explicitly asked Feb 27 2026
+ *  for this gate to prevent picking the wrong jobs into a shipment.
+ *
+ *  (c) certificates_from_lab covers BOTH `verbal_uploaded` and
+ *  `cert_uploaded` because the lab sometimes returns certificates before
+ *  the cert PDF has been scanned/uploaded — the physical paper leaves
+ *  the lab first, the scan follows. */
+const SHIPMENT_ELIGIBLE_STATUSES: Record<string, string[]> = {
+  send_stones_to_lab: ['stones_accepted'],
+  stones_from_lab: ['verbal_uploaded'],
+  certificates_from_lab: ['verbal_uploaded', 'cert_uploaded'],
+};
+
+/** A job is "locked" while any of its shipments is still pending/in-transit.
+ *  Returns the set of job_ids that cannot join a new shipment yet. */
+function getActivelyShippedJobIds(shipments: Shipment[]): Set<string> {
+  const locked = new Set<string>();
+  for (const s of shipments) {
+    if (s.status === 'pending' || s.status === 'in_transit') {
+      for (const jid of s.job_ids || []) locked.add(jid);
+    }
+  }
+  return locked;
+}
+
+/** Filter the master available-jobs list to only those eligible for the
+ *  given shipment_type. Used by both the Create dialog and the
+ *  Add-Jobs-to-existing-shipment dialog. If shipment_type is falsy
+ *  (admin hasn't picked one yet), return [] so the picker stays empty
+ *  until the type is chosen — admins were confused selecting jobs first
+ *  then finding out half of them got rejected. */
+function eligibleJobsForShipmentType(
+  jobs: Job[],
+  shipmentType: string | undefined,
+  shipments: Shipment[],
+  excludeJobIds?: Set<string>,
+): Job[] {
+  if (!shipmentType) return [];
+  const allowed = SHIPMENT_ELIGIBLE_STATUSES[shipmentType];
+  if (!allowed) return jobs; // unknown type — fall back to old behaviour
+  const locked = getActivelyShippedJobIds(shipments);
+  return jobs.filter((j) =>
+    allowed.includes(j.status) &&
+    !locked.has(j.id) &&
+    !(excludeJobIds && excludeJobIds.has(j.id)),
+  );
+}
+
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [availableJobs, setAvailableJobs] = useState<Job[]>([]);
@@ -1035,7 +1084,7 @@ export default function ShipmentsPage() {
         setFormData={setFormData}
         options={options}
         formatShipmentType={formatShipmentType}
-        availableJobs={availableJobs}
+        availableJobs={eligibleJobsForShipmentType(availableJobs, formData.shipment_type, shipments)}
         selectedJobs={selectedJobs}
         toggleJobSelection={toggleJobSelection}
         selectedStoneIds={selectedStoneIds}
@@ -1056,10 +1105,18 @@ export default function ShipmentsPage() {
         onAddJobs={() => {
           if (!selectedShipment) return;
           setJobsToAdd([]);
-          const jobsNotInShipment = availableJobs.filter(
-            (job) => !selectedShipment.job_ids?.includes(job.id),
+          // Filter by the shipment's own type, exclude jobs already in
+          // THIS shipment (the locked-set check below covers other
+          // shipments). Empty list with the "no available jobs" banner
+          // already handles the case where nothing matches.
+          const alreadyHere = new Set(selectedShipment.job_ids || []);
+          const eligible = eligibleJobsForShipmentType(
+            availableJobs,
+            selectedShipment.shipment_type,
+            shipments,
+            alreadyHere,
           );
-          setFilteredAvailableJobs(jobsNotInShipment);
+          setFilteredAvailableJobs(eligible);
           setAddJobsDialogOpen(true);
         }}
         editFormData={editFormData}

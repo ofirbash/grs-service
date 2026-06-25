@@ -51,8 +51,12 @@ export const AddJobsToShipmentDialog: React.FC<Props> = ({
         {availableJobs.length === 0 ? (
           <div className="p-4 text-center text-navy-500 bg-navy-50 rounded-lg">
             <AlertCircle className="h-8 w-8 mx-auto mb-2 text-navy-400" />
-            <p>No available jobs to add</p>
-            <p className="text-sm">All jobs are either already in this shipment or completed</p>
+            <p>No eligible jobs to add</p>
+            <p className="text-sm">
+              Only jobs at the matching status for this shipment type are listed
+              (e.g. <em>send stones to lab</em> requires <em>stones accepted</em>),
+              and jobs already on a pending / in-transit shipment are hidden.
+            </p>
           </div>
         ) : (
           <div className="border border-navy-200 rounded-lg max-h-64 overflow-y-auto">

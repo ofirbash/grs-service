@@ -41,6 +41,12 @@ export const CompletenessBadges: React.FC<Props> = ({
   const returnedCls = returnedSummary === 'all'
     ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
     : 'bg-amber-50 text-amber-800 border-amber-200';
+  // At `xs` size we use a colored dot only (label still in the title
+  // tooltip). The full text pill at this density was overpowering the
+  // job-number column on the jobs list (Feb 27 2026 user report).
+  const returnedDotCls = returnedSummary === 'all'
+    ? 'bg-emerald-500'
+    : 'bg-amber-500';
 
   if (size === 'xs') {
     return (
@@ -65,12 +71,10 @@ export const CompletenessBadges: React.FC<Props> = ({
         )}
         {showReturned && (
           <span
-            className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full border font-medium whitespace-nowrap ${returnedCls}`}
-            title={returnedTitle}
+            className={`inline-block h-2.5 w-2.5 rounded-full ${returnedDotCls}`}
+            title={`${returnedTitle} (${returnedLabel.toLowerCase()})`}
             data-testid={testIdSuffix ? `returned-${returnedSummary}-${testIdSuffix}` : `returned-${returnedSummary}`}
-          >
-            {returnedLabel}
-          </span>
+          />
         )}
       </span>
     );

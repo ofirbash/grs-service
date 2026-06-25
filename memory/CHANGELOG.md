@@ -5,6 +5,50 @@
 
 ---
 
+## Feb 27, 2026 — Pickup vocabulary, badge dots, shipment-type job filter
+
+### 1. Vocabulary: pickups are about *returning*, not printing
+User noted the action is "returning stones / certificates to the client" — printing the memo is just the receipt that supports the return. Renamed across the job dialog and the pickup-selection modal:
+
+| Old label | New label |
+|---|---|
+| Memo Return (top button) | **Return Stones** |
+| Cert Collection (top button) | **Return Certificates** |
+| Print Memo Return (dialog title) | **Return Stones to Client** |
+| Print Certificate Collection (dialog title) | **Return Certificates to Client** |
+| Approve and Print (confirm button) | **Confirm & Sign** |
+
+The pickup description was also rewritten so the *action* (return + signature) reads first and "a signed return memo is generated for the record" reads second.
+
+### 2. Returned / Partial pills replaced with colored dots
+At `size="xs"` (the jobs list) the full-text "Returned" / "Partial" pills were overwhelming the job-number column — they looked egg-shaped and competed for visual weight with the much larger `#540`. Now: a single `h-2.5 w-2.5 rounded-full` dot (emerald for "all returned", amber for "partial") with the full label kept in the `title` tooltip and the test-id intact (`returned-all-…`, `returned-partial-…`). Larger sizes elsewhere in the app still use the full pill since they have room.
+
+### 3. Shipment-type job eligibility filter
+User flagged this as **important** — preventing mistakes when picking jobs into a shipment. Added a deterministic mapping:
+
+| Shipment type | Eligible job statuses |
+|---|---|
+| `send_stones_to_lab` | `stones_accepted` |
+| `stones_from_lab` | `verbal_uploaded` |
+| `certificates_from_lab` | `verbal_uploaded`, `cert_uploaded` (lab sometimes returns paper certs before the scan is uploaded) |
+
+Plus a global rule: **any job already on a `pending` or `in_transit` shipment is hidden** until that shipment delivers, so the same stones can never be on two open shipments at once.
+
+Implementation:
+- New helpers `SHIPMENT_ELIGIBLE_STATUSES`, `getActivelyShippedJobIds`, and `eligibleJobsForShipmentType` in `shipments/page.tsx`. Both the Create-Shipment dialog and the Add-Jobs-to-existing-shipment dialog now pass the filtered list.
+- Until a `shipment_type` is selected in the Create dialog, the job picker is intentionally empty with a clear hint ("Pick a shipment type first — the eligible jobs depend on…").
+- Type-specific empty state messages now spell out exactly which status the type requires, so an admin who sees "0 eligible jobs" immediately understands why.
+
+### Code touched
+- `frontend/src/components/jobs/CompletenessBadges.tsx` — xs Returned/Partial now a dot.
+- `frontend/src/app/dashboard/jobs/page.tsx` — top-button labels (mobile + desktop).
+- `frontend/src/components/pickups/PickupSelectionDialog.tsx` — titles, description, confirm-button label, instructional copy.
+- `frontend/src/app/dashboard/shipments/page.tsx` — `SHIPMENT_ELIGIBLE_STATUSES`, `eligibleJobsForShipmentType`, wired into Create + Add-Jobs.
+- `frontend/src/app/dashboard/shipments/_components/AddJobsToShipmentDialog.tsx` — type-aware empty state.
+- `frontend/src/app/dashboard/shipments/_components/CreateShipmentDialog.tsx` — type-aware empty state.
+
+
+
 ## Feb 27, 2026 — Jobs polish: badges, mobile, docs, fee column, bottom-terms
 
 User report (5 items):
