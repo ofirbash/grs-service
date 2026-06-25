@@ -5,6 +5,38 @@
 
 ---
 
+## Feb 27, 2026 — Stone-entry keyboard flow + mobile job-modal cleanup
+
+### 1. Tab order + Enter shortcut while adding stones (Create Job dialog)
+User reports:
+> "After adding a stone, the next tab is the delete icon of the stone. This doesn't make sense. The natural action after entering a stone is to add another stone — I want to enter stone after stone without going up to click Add Stone."
+
+Two changes:
+- **Removed delete from tab order.** Both desktop and mobile trash buttons now carry `tabIndex={-1}`. Tab still flows through Type → Weight → Shape → (Count if parcel) → Value, then into the next row's controls. Delete is now mouse-only by intent — destructive action, can't be reached by a single misplaced tab.
+- **Enter on the Value field adds a new stone row + jumps focus into it.** Wired `onKeyDown` on both desktop and mobile Value inputs. A new `useEffect` watches `stones.length` and, when it grows, focuses the freshly-rendered Type selector (`stone-type-${i}` or `stone-type-mobile-${i}`). Result: an admin can intake a 14-stone job from the keyboard alone — type → weight → shape → value → Enter → repeats.
+
+Also applied the Enter shortcut to the per-stone Add-Stone dialog (used on existing jobs): hitting Enter on Value submits when the form is valid.
+
+### 2. Job-modal layout broken on mobile
+Screenshot showed three problems on iPhone:
+- Top action bar (Print Intake / Memo Return / Cert Collection / Edit) overflowed off the right edge — its content was wrapped inside `<DialogTitle>` with `justify-between`, pushing the action buttons past the viewport.
+- Bottom action row had MEMO / CLIENT INVOICE / LAB INVOICE clusters with `px-5` padding each + a Close button on the same row → "LAB INVOICE / ADMIN" was overlapping the Close button.
+- Dialog padding (`px-6`) ate ~24px on each side of an already 414px-wide phone.
+
+Fixes:
+- **Action buttons moved out of `<DialogTitle>` into a dedicated row below the title.** That row uses `overflow-x-auto sm:overflow-x-visible flex-wrap` so on mobile the buttons scroll horizontally without pushing anything else out of place. Each button got `flex-shrink-0` so they don't compress into illegible tiles.
+- **Bottom footer now stacks on mobile.** `flex flex-col sm:flex-row` — docs row on top, Save/Close on its own row below. No more overlap.
+- **JobDocumentsRow per-cluster padding scaled `px-3 sm:px-5`** and cluster labels `text-[10px] sm:text-[11px]`. The whole row got `w-max sm:w-auto` so it sits as a horizontally scrollable strip on mobile (parent container has `overflow-x-auto`), guaranteeing every cluster is reachable.
+- **Dialog container padding** dropped to `px-3 sm:px-6`. Title font scaled `text-lg sm:text-xl`. Dialog width `w-[calc(100vw-1rem)] sm:w-auto` so the rounded corners aren't sticking out beyond the screen, and `max-h-[95dvh]` (dynamic viewport height) replaces `90vh` so iOS Safari's URL bar doesn't clip the bottom row.
+
+### Code touched
+- `frontend/src/app/dashboard/jobs/_components/CreateJobDialog.tsx` — `tabIndex={-1}` on trash, `onKeyDown` on Value (desktop+mobile), useEffect auto-focus newest row.
+- `frontend/src/app/dashboard/jobs/_components/StoneDialogs.tsx` — Enter-to-submit on AddStoneDialog Value field.
+- `frontend/src/app/dashboard/jobs/page.tsx` — restructured View-Job dialog header & footer for mobile.
+- `frontend/src/app/dashboard/jobs/_components/JobDocumentsRow.tsx` — responsive cluster padding + label size, `w-max` scrolling strip.
+
+
+
 ## Feb 26, 2026 — Signing-pad polish: QR URL, no-zoom viewport, bigger sig
 
 Three small but high-impact fixes after deploying the QR/countdown work.

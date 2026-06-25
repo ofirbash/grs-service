@@ -1538,81 +1538,84 @@ function JobsPageContent() {
           setSelectedStones([]);
         }
       }}>
-        <DialogContent className="sm:max-w-5xl max-h-[90vh] p-0 !overflow-x-hidden flex flex-col">
-          {/* Sticky header — title + status badge inline.
-              Actions (Print / Edit) move to the right of the title; Save +
-              Close + per-document buttons live in the sticky footer below. */}
-          <DialogHeader className="bg-white border-b px-6 py-3 shrink-0">
-            <DialogTitle className="text-xl text-navy-800 flex items-center justify-between gap-4">
-              <span className="flex items-center gap-3 min-w-0">
-                <span className="truncate">Job #{selectedJob?.job_number}</span>
-                {selectedJob && <span className="flex-shrink-0">{getStatusBadge(selectedJob.status)}</span>}
-                {selectedJob && editMode && (
-                  <Select
-                    value={editFormData.status}
-                    onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}
-                  >
-                    <SelectTrigger className="h-7 w-44 ml-2" data-testid="edit-status-select">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {JOB_STATUSES_WITH_CANCEL.map(([value, label]) => (
-                        <SelectItem key={value} value={value}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </span>
-              {selectedJob && (
-                <span className="flex gap-2 flex-shrink-0 flex-wrap">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePrintJob(selectedJob)}
-                    data-testid="print-job-button"
-                  >
-                    <FileText className="h-4 w-4 mr-1" />
-                    Print Intake
-                  </Button>
-                  {isAdmin && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPickupDialogType('memo_return')}
-                        data-testid="print-memo-return-button"
-                      >
-                        <FileText className="h-4 w-4 mr-1" />
-                        Memo Return
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPickupDialogType('cert_collection')}
-                        data-testid="print-cert-collection-button"
-                      >
-                        <FileText className="h-4 w-4 mr-1" />
-                        Cert Collection
-                      </Button>
-                    </>
-                  )}
-                  {isAdmin && (
+        <DialogContent className="sm:max-w-5xl max-h-[95dvh] sm:max-h-[90vh] p-0 !overflow-x-hidden flex flex-col w-[calc(100vw-1rem)] sm:w-auto">
+          {/* Sticky header — title + status (always inline) and a SEPARATE
+              wrap-friendly action row below. On mobile the action row
+              becomes horizontally scrollable so the Print / Memo Return /
+              Cert Collection buttons can't push the Edit button off-screen. */}
+          <DialogHeader className="bg-white border-b px-3 sm:px-6 py-3 shrink-0 space-y-2">
+            <DialogTitle className="text-lg sm:text-xl text-navy-800 flex items-center gap-2 min-w-0">
+              <span className="truncate">Job #{selectedJob?.job_number}</span>
+              {selectedJob && <span className="flex-shrink-0">{getStatusBadge(selectedJob.status)}</span>}
+              {selectedJob && editMode && (
+                <Select
+                  value={editFormData.status}
+                  onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}
+                >
+                  <SelectTrigger className="h-7 w-44 ml-2" data-testid="edit-status-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {JOB_STATUSES_WITH_CANCEL.map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </DialogTitle>
+            {selectedJob && (
+              <div className="flex gap-1.5 overflow-x-auto sm:overflow-x-visible sm:flex-wrap -mx-1 px-1 [&::-webkit-scrollbar]:hidden">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePrintJob(selectedJob)}
+                  className="flex-shrink-0"
+                  data-testid="print-job-button"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Print Intake
+                </Button>
+                {isAdmin && (
+                  <>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setEditMode(!editMode)}
-                      data-testid="edit-job-button"
+                      onClick={() => setPickupDialogType('memo_return')}
+                      className="flex-shrink-0"
+                      data-testid="print-memo-return-button"
                     >
-                      <Pencil className="h-4 w-4 mr-1" />
-                      {editMode ? 'Cancel Edit' : 'Edit'}
+                      <FileText className="h-4 w-4 mr-1" />
+                      Memo Return
                     </Button>
-                  )}
-                </span>
-              )}
-            </DialogTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPickupDialogType('cert_collection')}
+                      className="flex-shrink-0"
+                      data-testid="print-cert-collection-button"
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      Cert Collection
+                    </Button>
+                  </>
+                )}
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditMode(!editMode)}
+                    className="flex-shrink-0"
+                    data-testid="edit-job-button"
+                  >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    {editMode ? 'Cancel Edit' : 'Edit'}
+                  </Button>
+                )}
+              </div>
+            )}
           </DialogHeader>
 
-          <div className="px-6 pb-6 flex-1 overflow-y-auto">
+          <div className="px-3 sm:px-6 pb-6 flex-1 overflow-y-auto">
           {selectedJob && (
             <div className="space-y-4 py-4">
               {/* Job Summary + Notes */}
@@ -1800,10 +1803,12 @@ function JobsPageContent() {
 
           {/* Sticky compact actions strip — sits just above the dialog footer.
               Document upload/view buttons (Memo, Client Invoice, Lab Invoice)
-              live here so the user can act on the job without scrolling. */}
+              live here so the user can act on the job without scrolling.
+              Mobile: stack the docs row above the Save/Close buttons (they
+              were colliding with "LAB INVOICE / ADMIN" on phones). */}
           {selectedJob && (
-            <div className="bg-white border-t px-4 py-2.5 shrink-0 flex items-center gap-4">
-              <div className="flex-1 min-w-0">
+            <div className="bg-white border-t px-3 sm:px-4 py-2.5 shrink-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <div className="flex-1 min-w-0 overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 [&::-webkit-scrollbar]:hidden">
                 <JobDocumentsRow
                   job={selectedJob}
                   isAdmin={isAdmin}
@@ -1820,27 +1825,27 @@ function JobsPageContent() {
                   onViewLabInvoice={() => setViewLabInvoiceOpen(true)}
                 />
               </div>
-              {/* Close button shares the row with the documents to keep the
-                  footer compact. Save button only appears in edit mode. */}
-              {isAdmin && editMode && (
+              <div className="flex items-center gap-2 justify-end shrink-0">
+                {isAdmin && editMode && (
+                  <Button
+                    onClick={handleUpdateJob}
+                    className="h-9 px-4 bg-navy-900 hover:bg-navy-800"
+                    size="sm"
+                    data-testid="save-job-button"
+                  >
+                    Save Changes
+                  </Button>
+                )}
                 <Button
-                  onClick={handleUpdateJob}
-                  className="h-9 px-4 bg-navy-900 hover:bg-navy-800"
+                  variant="outline"
                   size="sm"
-                  data-testid="save-job-button"
+                  onClick={() => setViewDialogOpen(false)}
+                  className="h-9 px-4"
+                  data-testid="close-job-dialog"
                 >
-                  Save Changes
+                  Close
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setViewDialogOpen(false)}
-                className="h-9 px-4"
-                data-testid="close-job-dialog"
-              >
-                Close
-              </Button>
+              </div>
             </div>
           )}
         </DialogContent>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,6 +97,38 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
   defaultBranchId,
 }) => {
   const [newClientOpen, setNewClientOpen] = useState(false);
+
+  // Track stones.length so we can auto-focus the freshly-added row's
+  // first input. Pressing Enter on the last (Value) input now both
+  // adds a new stone AND jumps focus into it, so admins can enter a
+  // long list of stones without ever touching the mouse.
+  const prevStoneCountRef = useRef(stones.length);
+  useEffect(() => {
+    if (stones.length > prevStoneCountRef.current) {
+      // A row was added (vs. removed). Focus the new last row's first
+      // editable control. The mobile path uses a SelectTrigger (no
+      // native focus); we still call focus() — Radix will open the
+      // popover if the user hits Enter/Space afterwards.
+      const newIndex = stones.length - 1;
+      // Use both data-testids — desktop and mobile branches render
+      // mutually-exclusive trees, so only one selector resolves.
+      const target =
+        document.querySelector<HTMLElement>(`[data-testid="stone-type-${newIndex}"]`) ||
+        document.querySelector<HTMLElement>(`[data-testid="stone-type-mobile-${newIndex}"]`);
+      target?.focus();
+    }
+    prevStoneCountRef.current = stones.length;
+  }, [stones.length]);
+
+  // Pressing Enter on the Value input is the natural "I'm done with
+  // this row, give me a new one" shortcut. We swallow the keystroke so
+  // the dialog's implicit form-submit doesn't fire.
+  const handleValueEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onAddStone();
+    }
+  };
 
   return (
   <>
@@ -361,6 +393,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                     placeholder="0.00"
                     value={stone.value}
                     onChange={(e) => onStoneChange(index, 'value', e.target.value)}
+                    onKeyDown={handleValueEnter}
                     className="border-navy-200"
                     data-testid={`stone-value-${index}`}
                   />
@@ -370,6 +403,10 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                     size="icon"
                     onClick={() => onRemoveStone(index)}
                     disabled={stones.length === 1}
+                    // Skip the delete button in the natural tab order —
+                    // it's a destructive action and shouldn't sit
+                    // between "I finished this stone" and the next row.
+                    tabIndex={-1}
                     className="text-red-500 hover:text-red-600"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -401,6 +438,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                         size="icon"
                         onClick={() => onRemoveStone(index)}
                         disabled={stones.length === 1}
+                        tabIndex={-1}
                         className="text-red-500 hover:text-red-600 h-7 w-7"
                         data-testid={`remove-stone-mobile-${index}`}
                       >
@@ -460,6 +498,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                         placeholder="0.00"
                         value={stone.value}
                         onChange={(e) => onStoneChange(index, 'value', e.target.value)}
+                        onKeyDown={handleValueEnter}
                         className="border-navy-200"
                         data-testid={`stone-value-mobile-${index}`}
                       />

@@ -129,6 +129,14 @@ export const AddStoneDialog: React.FC<AddStoneDialogProps> = ({
               placeholder="0.00"
               value={newStone.value}
               onChange={(e) => setNewStone({ ...newStone, value: e.target.value })}
+              // Enter on the Value field submits the Add Stone — most
+              // common keyboard finish for this form.
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newStone.stone_type && newStone.weight && newStone.value && !adding) {
+                  e.preventDefault();
+                  onConfirm();
+                }
+              }}
               data-testid="add-stone-value-input"
             />
           </div>
