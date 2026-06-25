@@ -185,7 +185,24 @@ export function buildJobMemoHtml({
       <title>Job #${job.job_number} — ${COMPANY_INFO.displayName}</title>
       <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 22px 32px; max-width: 900px; margin: 0 auto; color: #141417; line-height: 1.4; }
+        html, body { min-height: 100vh; }
+        @page { size: A4; margin: 12mm 14mm; }
+        body {
+          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+          padding: 22px 32px;
+          max-width: 900px;
+          margin: 0 auto;
+          color: #141417;
+          line-height: 1.4;
+          display: flex;
+          flex-direction: column;
+          min-height: calc(100vh - 0px);
+        }
+        /* When the stones table is short (e.g. 1 stone), this spacer
+           takes up the remaining vertical space so the Terms +
+           signatures + footer hug the bottom of the page instead of
+           floating awkwardly mid-page. */
+        .page-spacer { flex: 1 1 auto; min-height: 12px; }
         .company-header { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #141417; }
         .company-brand { display: flex; gap: 12px; align-items: center; }
         .company-brand img { width: 44px; height: 44px; object-fit: contain; border: 1px solid #e5e5e5; border-radius: 6px; padding: 2px; background: #ffffff; }
@@ -311,6 +328,8 @@ export function buildJobMemoHtml({
           ? `<div class="section"><h3>Notes</h3><p style="font-size:11px;color:#3f3f46;margin:0;">${esc(job.notes)}</p></div>`
           : ""
       }
+
+      <div class="page-spacer"></div>
 
       <div class="terms">
         <h3>Terms & Conditions</h3>

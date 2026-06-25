@@ -5,6 +5,47 @@
 
 ---
 
+## Feb 27, 2026 — Jobs polish: badges, mobile, docs, fee column, bottom-terms
+
+User report (5 items):
+> "1) Jobs page badges look bad. 2) Mobile job modal still has inaccessible buttons. 3) No need to upload memo doc anymore — memo is saved with the signature. 4) Add 'fees' column to memo return + cert return. 5) Memo doc: terms + signatures should be at the bottom, just above the footer."
+
+### 1. Cleaner badges on the jobs list
+The "All returned" / "Partial pickup" pills were egg-shaped because text wrapped inside `rounded-full` in the narrow Client column. Shortened to `Returned` / `Partial`, added `whitespace-nowrap`, and the `align-middle` keeps them vertically centered next to the client name. Verbal + cert badges in the same row are also `whitespace-nowrap` for consistency.
+
+### 2. Mobile job modal — buttons accessible
+The 4 top-bar buttons (Print Intake / Memo Return / Cert Collection / Edit) had `overflow-x-auto` so they scrolled off-screen on a phone, hiding "Edit" entirely. Replaced with:
+- **Icon-only on mobile, label+icon on desktop**: each button keeps its icon visible, label is `hidden sm:inline`. Memo Return / Cert Collection show a tiny "Memo" / "Cert" word on mobile so admins can tell them apart at a glance.
+- **`flex flex-wrap` instead of `overflow-x-auto`**: buttons wrap to a second line if they truly don't fit, but icon-only sizing keeps them on one row at 414px-wide phones.
+- Save Changes (in Edit mode) and Close button moved into their own row at the bottom on mobile (already done last commit).
+
+### 3. Removed the "Memo" upload cluster from the documents row
+With the captured-signature flow now producing the immutable signed memo via `pickup_event.signed_pdf_url`, the manual MEMO upload no longer serves a purpose. `JobDocumentsRow` now renders only **Client Invoice** and **Lab Invoice** clusters. The associated state, refs, and upload handlers on the parent (`uploading`, `fileInputRef`, `handleMemoUpload`, `viewMemoOpen`) are still passed but unused — left intact this round to keep the diff minimal; will be removed in a follow-up cleanup PR.
+
+### 4. Fee column on Memo Return + Certificate Collection docs
+- `memoReturnRow` now emits a `Fee` column ($X.XX) per stone, using `actual_fee` override when present else the bracket-computed `fee`. Table grew from 7 to 8 columns; totals row now also shows total fee.
+- Cert Collection table grew from 5 to 6 columns; each cert group's fee = sum of bucket stone fees; totals row shows total fee across all groups.
+- group-separator and "no items selected" `colspan` updated accordingly.
+
+### 5. Terms + signatures hug the bottom of the page
+The intake memo doc and both pickup return docs now use a flex-column body with a `.page-spacer` between the last content section and the Terms/Confirm-line:
+```css
+body { min-height: 100vh; display: flex; flex-direction: column; }
+.page-spacer { flex: 1 1 auto; }
+```
+When the stones table is short (1 stone), the spacer expands to fill remaining vertical space, pushing Terms + signatures down to sit just above the footer. When the table is long, the spacer collapses to its 12px minimum and content flows naturally. `@page { size: A4; margin: 12mm 14mm }` declared so the print engine treats `100vh` as the printable page height.
+
+Same treatment applied to `buildPickupMemoHtml.ts` (confirm-line + signatures now hug the bottom).
+
+### Code touched
+- `frontend/src/components/jobs/CompletenessBadges.tsx`
+- `frontend/src/app/dashboard/jobs/page.tsx` — top-bar button labels mobile/desktop split
+- `frontend/src/app/dashboard/jobs/_components/JobDocumentsRow.tsx` — removed Memo cluster
+- `frontend/src/app/dashboard/jobs/_lib/buildPickupMemoHtml.ts` — Fee col + page-spacer
+- `frontend/src/app/dashboard/jobs/_lib/buildJobMemoHtml.ts` — page-spacer
+
+
+
 ## Feb 27, 2026 — Stone-entry keyboard flow + mobile job-modal cleanup
 
 ### 1. Tab order + Enter shortcut while adding stones (Create Job dialog)

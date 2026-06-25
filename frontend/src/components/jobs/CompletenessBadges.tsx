@@ -36,14 +36,15 @@ export const CompletenessBadges: React.FC<Props> = ({
   const showReturned = returnedSummary !== 'none';
   if (!verbalComplete && !certComplete && !showReturned) return null;
 
-  const returnedLabel = returnedSummary === 'all' ? 'All returned' : 'Partial pickup';
+  const returnedLabel = returnedSummary === 'all' ? 'Returned' : 'Partial';
+  const returnedTitle = returnedSummary === 'all' ? 'All stones returned to client' : 'Some stones returned to client';
   const returnedCls = returnedSummary === 'all'
     ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
     : 'bg-amber-50 text-amber-800 border-amber-200';
 
   if (size === 'xs') {
     return (
-      <span className="inline-flex items-center gap-1 ml-2" data-testid={testIdSuffix ? `completeness-${testIdSuffix}` : undefined}>
+      <span className="inline-flex items-center gap-1 ml-2 whitespace-nowrap align-middle" data-testid={testIdSuffix ? `completeness-${testIdSuffix}` : undefined}>
         {verbalComplete && (
           <span
             className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-emerald-50 border border-emerald-200"
@@ -64,8 +65,8 @@ export const CompletenessBadges: React.FC<Props> = ({
         )}
         {showReturned && (
           <span
-            className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${returnedCls}`}
-            title={returnedSummary === 'all' ? 'All stones returned to client' : 'Some stones returned to client'}
+            className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full border font-medium whitespace-nowrap ${returnedCls}`}
+            title={returnedTitle}
             data-testid={testIdSuffix ? `returned-${returnedSummary}-${testIdSuffix}` : `returned-${returnedSummary}`}
           >
             {returnedLabel}
@@ -76,10 +77,10 @@ export const CompletenessBadges: React.FC<Props> = ({
   }
 
   return (
-    <span className="inline-flex flex-wrap gap-1 ml-2" data-testid={testIdSuffix ? `completeness-${testIdSuffix}` : undefined}>
+    <span className="inline-flex flex-wrap gap-1 ml-2 align-middle" data-testid={testIdSuffix ? `completeness-${testIdSuffix}` : undefined}>
       {verbalComplete && (
         <span
-          className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium bg-emerald-50 text-emerald-800 border-emerald-200"
+          className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium bg-emerald-50 text-emerald-800 border-emerald-200 whitespace-nowrap"
           title="Verbal findings complete"
           data-testid={testIdSuffix ? `verbal-complete-${testIdSuffix}` : 'verbal-complete'}
         >
@@ -89,7 +90,7 @@ export const CompletenessBadges: React.FC<Props> = ({
       )}
       {certComplete && (
         <span
-          className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium bg-blue-50 text-blue-800 border-blue-200"
+          className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium bg-blue-50 text-blue-800 border-blue-200 whitespace-nowrap"
           title="Certificate uploaded"
           data-testid={testIdSuffix ? `cert-complete-${testIdSuffix}` : 'cert-complete'}
         >
@@ -99,8 +100,8 @@ export const CompletenessBadges: React.FC<Props> = ({
       )}
       {showReturned && (
         <span
-          className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${returnedCls}`}
-          title={returnedSummary === 'all' ? 'All stones returned to client' : 'Some stones returned to client'}
+          className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium whitespace-nowrap ${returnedCls}`}
+          title={returnedTitle}
           data-testid={testIdSuffix ? `returned-${returnedSummary}-${testIdSuffix}` : `returned-${returnedSummary}`}
         >
           <CheckCircle2 className="h-3 w-3" />

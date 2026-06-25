@@ -66,59 +66,16 @@ export const JobDocumentsRow: React.FC<JobDocumentsRowProps> = ({
   onLabInvoiceChange,
   onViewLabInvoice,
 }) => {
+  // Memo upload removed Feb 27 2026 — the captured client signature now
+  // produces the immutable signed memo via the pickup-finalize flow, so
+  // a separate manual upload no longer serves a purpose.
   const visibleGroups = [
-    isAdmin || job.signed_memo_url ? 'memo' : null,
     isAdmin ? 'client' : null,
     isAdmin ? 'lab' : null,
   ].filter(Boolean) as string[];
 
   return (
     <div className="flex items-stretch divide-x divide-navy-200 w-max sm:w-auto">
-      {/* Signed Memo */}
-      {visibleGroups.includes('memo') && (
-        <ActionGroup icon={<Upload className="h-3.5 w-3.5" />} title="Memo">
-          {isAdmin && (
-            <>
-              <input
-                type="file"
-                ref={memoInputRef}
-                onChange={onMemoChange}
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                className="hidden"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => memoInputRef.current?.click()}
-                disabled={uploadingMemo}
-                className="h-9 px-3 text-xs"
-                data-testid="upload-memo-button"
-              >
-                {uploadingMemo ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <>
-                    <Upload className="h-3 w-3 mr-1" />
-                    {job.signed_memo_url ? 'Replace' : 'Upload'}
-                  </>
-                )}
-              </Button>
-            </>
-          )}
-          {job.signed_memo_url && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onViewMemo}
-              className="h-9 px-3 text-xs"
-              data-testid="view-memo-button"
-            >
-              <Eye className="h-3 w-3 mr-1" />View
-            </Button>
-          )}
-        </ActionGroup>
-      )}
-
       {/* Client Invoice */}
       {visibleGroups.includes('client') && (
         <ActionGroup

@@ -1564,7 +1564,7 @@ function JobsPageContent() {
               )}
             </DialogTitle>
             {selectedJob && (
-              <div className="flex gap-1.5 overflow-x-auto sm:overflow-x-visible sm:flex-wrap -mx-1 px-1 [&::-webkit-scrollbar]:hidden">
+              <div className="flex flex-wrap gap-1.5 items-center">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1572,8 +1572,8 @@ function JobsPageContent() {
                   className="flex-shrink-0"
                   data-testid="print-job-button"
                 >
-                  <FileText className="h-4 w-4 mr-1" />
-                  Print Intake
+                  <FileText className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Print Intake</span>
                 </Button>
                 {isAdmin && (
                   <>
@@ -1584,8 +1584,9 @@ function JobsPageContent() {
                       className="flex-shrink-0"
                       data-testid="print-memo-return-button"
                     >
-                      <FileText className="h-4 w-4 mr-1" />
-                      Memo Return
+                      <FileText className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Memo Return</span>
+                      <span className="sm:hidden text-xs ml-1">Memo</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -1594,8 +1595,9 @@ function JobsPageContent() {
                       className="flex-shrink-0"
                       data-testid="print-cert-collection-button"
                     >
-                      <FileText className="h-4 w-4 mr-1" />
-                      Cert Collection
+                      <FileText className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Cert Collection</span>
+                      <span className="sm:hidden text-xs ml-1">Cert</span>
                     </Button>
                   </>
                 )}
@@ -1607,8 +1609,8 @@ function JobsPageContent() {
                     className="flex-shrink-0"
                     data-testid="edit-job-button"
                   >
-                    <Pencil className="h-4 w-4 mr-1" />
-                    {editMode ? 'Cancel Edit' : 'Edit'}
+                    <Pencil className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">{editMode ? 'Cancel Edit' : 'Edit'}</span>
                   </Button>
                 )}
               </div>

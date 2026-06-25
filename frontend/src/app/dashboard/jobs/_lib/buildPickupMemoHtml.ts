@@ -62,8 +62,9 @@ const labelKey = (count: number): string => {
   return "multi-stone";
 };
 
-/** Memo-return row — mirrors buildJobMemoHtml's stoneRow() minus the Fee
- *  column (fees were settled before pickup, so they'd be noise here). */
+/** Memo-return row — mirrors buildJobMemoHtml's stoneRow(). Includes Fee
+ *  column for parity with the intake memo (per user request Feb 27 2026
+ *  — surfaces the per-stone fee on the return doc too). */
 const memoReturnRow = (
   index: number,
   stone: Stone,
@@ -77,6 +78,9 @@ const memoReturnRow = (
   const typeCell = isParcel
     ? `${esc(stone.stone_type)} <span style="color:#a16207;font-weight:600;">· parcel of ${stone.stone_count || 0}</span>`
     : esc(stone.stone_type);
+  // Prefer admin override (`actual_fee`) when present; otherwise the
+  // bracket-computed `fee`.
+  const feeValue = stone.actual_fee != null ? stone.actual_fee : (stone.fee || 0);
   return `
     <tr class="${isGrouped ? "grouped-row" : ""}${isParcel ? " parcel-row" : ""}">
       <td>${index}</td>
@@ -86,6 +90,7 @@ const memoReturnRow = (
       <td>${esc(stone.shape)}</td>
       <td class="flags">${flagsStr}</td>
       <td>$${fmt(stone.value || 0)}</td>
+      <td>$${fmt(feeValue)}</td>
     </tr>
   `;
 };
@@ -155,7 +160,7 @@ export function buildPickupMemoHtml({
         const label = groupLabels.get(groupNum) || "group";
         const header = `
           <tr class="group-separator">
-            <td colspan="7">
+            <td colspan="8">
               <strong>${label}</strong> (${stones.length} stone${stones.length > 1 ? "s" : ""})
             </td>
           </tr>`;
@@ -166,6 +171,10 @@ export function buildPickupMemoHtml({
 
     const totalWeight = picked.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
     const totalValue = picked.reduce((sum, s) => sum + (Number(s.value) || 0), 0);
+    const totalFee = picked.reduce(
+      (sum, s) => sum + (s.actual_fee != null ? s.actual_fee : (Number(s.fee) || 0)),
+      0,
+    );
     const totalStonesCount = picked.reduce(
       (sum, s) => sum + (s.kind === "parcel" ? (s.stone_count || 1) : 1),
       0,
@@ -185,13 +194,14 @@ export function buildPickupMemoHtml({
               <th>Shape</th>
               <th style="width: 70px; text-align: center;">Flags</th>
               <th>Value</th>
+              <th>Fee</th>
             </tr>
           </thead>
           <tbody>
             ${ungroupedRows}
             ${groupedRows}
             ${picked.length === 0
-              ? `<tr><td colspan="7" style="text-align:center;color:#a1a1aa;padding:18px;">No items selected</td></tr>`
+              ? `<tr><td colspan="8" style="text-align:center;color:#a1a1aa;padding:18px;">No items selected</td></tr>`
               : ""}
           </tbody>
           <tfoot>
@@ -201,6 +211,7 @@ export function buildPickupMemoHtml({
               <td></td>
               <td></td>
               <td><strong>$${fmt(totalValue)}</strong></td>
+              <td><strong>$${fmt(totalFee)}</strong></td>
             </tr>
           </tfoot>
         </table>
@@ -232,6 +243,10 @@ export function buildPickupMemoHtml({
         const stonesNote = bucket.length > 1
           ? `${bucket.length} stones (${bucket.map((s) => esc(s.sku)).join(", ")})`
           : esc(head.sku);
+        const bucketFee = bucket.reduce(
+          (sum, s) => sum + (s.actual_fee != null ? s.actual_fee : (Number(s.fee) || 0)),
+          0,
+        );
         return `
           <tr>
             <td>${esc(certId)}</td>
@@ -239,9 +254,15 @@ export function buildPickupMemoHtml({
             <td>${totalCt.toFixed(2)} ct</td>
             <td>${esc(color)}</td>
             <td style="font-size:10px;color:#71717a;">${stonesNote}</td>
+            <td>$${fmt(bucketFee)}</td>
           </tr>`;
       })
       .join("");
+
+    const certTotalFee = picked.reduce(
+      (sum, s) => sum + (s.actual_fee != null ? s.actual_fee : (Number(s.fee) || 0)),
+      0,
+    );
 
     sectionHtml = `
       <div class="section">
@@ -254,11 +275,18 @@ export function buildPickupMemoHtml({
               <th>Weight</th>
               <th>Color</th>
               <th>Stones</th>
+              <th>Fee</th>
             </tr>
           </thead>
           <tbody>
-            ${certRows || `<tr><td colspan="5" style="text-align:center;color:#a1a1aa;padding:18px;">No certificates selected</td></tr>`}
+            ${certRows || `<tr><td colspan="6" style="text-align:center;color:#a1a1aa;padding:18px;">No certificates selected</td></tr>`}
           </tbody>
+          <tfoot>
+            <tr class="totals-row">
+              <td colspan="5"><strong>Total — ${groups.size} certificate${groups.size === 1 ? "" : "s"}</strong></td>
+              <td><strong>$${fmt(certTotalFee)}</strong></td>
+            </tr>
+          </tfoot>
         </table>
       </div>`;
   }
@@ -292,7 +320,22 @@ export function buildPickupMemoHtml({
       <title>${title} #${job.job_number} — ${COMPANY_INFO.displayName}</title>
       <style>
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 22px 32px; max-width: 900px; margin: 0 auto; color: #141417; line-height: 1.4; }
+        html, body { min-height: 100vh; }
+        @page { size: A4; margin: 12mm 14mm; }
+        body {
+          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+          padding: 22px 32px;
+          max-width: 900px;
+          margin: 0 auto;
+          color: #141417;
+          line-height: 1.4;
+          display: flex;
+          flex-direction: column;
+          min-height: calc(100vh - 0px);
+        }
+        /* Pushes the confirm-line + signatures + footer to the bottom
+           when the table is short — matches the intake memo behaviour. */
+        .page-spacer { flex: 1 1 auto; min-height: 12px; }
         .company-header { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #141417; }
         .company-brand { display: flex; gap: 12px; align-items: center; }
         .company-brand img { width: 44px; height: 44px; object-fit: contain; border: 1px solid #e5e5e5; border-radius: 6px; padding: 2px; background: #ffffff; }
@@ -366,6 +409,8 @@ export function buildPickupMemoHtml({
       </div>
 
       ${sectionHtml}
+
+      <div class="page-spacer"></div>
 
       <div class="confirm-line">${esc(subtitle)}</div>
 
