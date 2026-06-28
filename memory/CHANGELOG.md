@@ -5,6 +5,42 @@
 
 ---
 
+## Feb 28, 2026 — "Accept Stones" merge + auto-bump on verbal upload
+
+### 1. Print Intake → Accept Stones (combined action)
+The top button in the job dialog used to only generate the intake memo, leaving the job stuck at `draft` until the admin manually flipped status. New behaviour:
+
+- When `selectedJob.status === 'draft'`, the button is **labelled "Accept Stones"** (mobile: "Accept") and **styled as the primary action** (dark navy fill).
+- Clicking it now:
+  1. Sends `PUT /api/jobs/{id}` with `{status: 'stones_accepted'}`
+  2. Then opens the intake-memo print window — using the *just-updated* job, so the printed memo shows the new status
+- After acceptance, the same button reverts to **"Print Intake"** (outline style) so admins can still reprint.
+- Soft-fail: if the status PUT errors, the print still opens (admin can continue on paper).
+
+This matches the physical lab workflow — printing happens *after* you've accepted the goods from the client, not before.
+
+### 2. Verbal upload auto-bumps job status → `verbal_uploaded`
+Previously the verbal findings were saved per-stone but the job status didn't reflect it — admins had to manually edit the job. Now `PUT /api/stones/{id}/verbal` checks the parent job's status and, if it's still in an earlier lifecycle stage, auto-promotes to `verbal_uploaded`:
+
+```
+draft  ──┐
+stones_accepted  ──→ verbal_uploaded  (auto on first stone verbal)
+sent_to_lab  ──┘
+```
+
+Statuses past verbal (`verbal_uploaded` itself, `stones_returned`, `cert_uploaded`, `cert_returned`, `done`) are deliberately untouched — we never regress a job. A `JOB_STATUS_CHANGED` activity log row is emitted with `metadata.auto: true` so the audit trail clearly distinguishes auto-bumps from manual edits. Soft-fail: if the bump fails the verbal save still succeeds (already committed).
+
+### Verified via curl
+- Draft job → PUT status → bumps to `stones_accepted` ✅
+- Stone verbal upload on `stones_accepted` job → job becomes `verbal_uploaded` ✅
+- Stone verbal upload on `cert_uploaded` job → status stays `cert_uploaded` (no downgrade) ✅
+
+### Code touched
+- `frontend/src/app/dashboard/jobs/page.tsx` — `handlePrintJob` does the status bump first; button label + style toggle by status.
+- `backend/routes/stones.py` — `update_stone_verbal` auto-bumps + logs `JOB_STATUS_CHANGED` (with `auto: true`).
+
+
+
 ## Feb 27, 2026 — Pickup vocabulary, badge dots, shipment-type job filter
 
 ### 1. Vocabulary: pickups are about *returning*, not printing

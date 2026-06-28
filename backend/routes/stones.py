@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 from datetime import datetime
 from bson import ObjectId
+import logging
 
 from database import db
 from auth import get_current_user, require_admin
@@ -12,6 +13,8 @@ from models import (
 from pricing import get_color_stability_fee_from_db, get_mounted_fee_from_db
 from jobs_helpers import active_stones, recompute_job_totals
 from activity_log import Action, log_activity
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -110,6 +113,32 @@ async def update_stone_verbal(stone_id: str, data: VerbalFindingsUpdate, user: d
         {"_id": job["_id"], "stones.id": stone_id},
         {"$set": update_data}
     )
+
+    # Auto-bump job status to `verbal_uploaded` as soon as the first
+    # stone in the job gets a verbal recorded. Per-stone verbals trickle
+    # in throughout examination — the admin shouldn't have to flip the
+    # job status by hand. We only bump from earlier statuses (draft,
+    # stones_accepted, sent_to_lab); a job that already moved past
+    # verbal_uploaded (e.g. stones_returned, cert_uploaded) must NOT
+    # regress here. Soft-fail by design — verbal save succeeded already.
+    JOB_STATUSES_BEFORE_VERBAL = {"draft", "stones_accepted", "sent_to_lab"}
+    if job.get("status") in JOB_STATUSES_BEFORE_VERBAL:
+        try:
+            now = datetime.utcnow()
+            await db.jobs.update_one(
+                {"_id": job["_id"]},
+                {"$set": {"status": "verbal_uploaded", "updated_at": now}},
+            )
+            await log_activity(
+                Action.JOB_STATUS_CHANGED,
+                actor=user,
+                job_id=str(job["_id"]),
+                branch_id=job.get("branch_id"),
+                summary=f"Job #{job.get('job_number', '?')} \u00b7 {job.get('status')} \u2192 verbal_uploaded (auto)",
+                metadata={"from": job.get("status"), "to": "verbal_uploaded", "auto": True},
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Auto-bump to verbal_uploaded failed for job %s", job["_id"])
 
     await log_activity(
         Action.STONE_VERBAL_ENTERED,

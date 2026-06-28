@@ -801,19 +801,41 @@ function JobsPageContent() {
   };
 
   const handlePrintJob = async (job: Job) => {
-    const clientFull = clients.find((c) => c.id === job.client_id);
-    const branchFull = branches.find((b) => b.id === job.branch_id);
+    // "Accept Stones" is the merged action: when a job is still in
+    // `draft`, the very act of printing the intake memo also marks the
+    // stones as accepted (status → stones_accepted). This matches the
+    // physical workflow — admin would print the memo only AFTER they've
+    // accepted the goods from the client. We do the status bump BEFORE
+    // building the HTML so the new status appears in the printed memo.
+    // For any status other than draft this is a pure print.
+    let printJob = job;
+    if (job.status === 'draft') {
+      try {
+        const updated = await jobsApi.update(job.id, { status: 'stones_accepted' });
+        // Use the freshly-updated job for the print and refresh local
+        // state so the badge in the dialog header flips immediately.
+        printJob = (updated as Job) || { ...job, status: 'stones_accepted' };
+        setSelectedJob(printJob);
+        fetchData();
+      } catch (err) {
+        console.error('Failed to mark stones accepted:', err);
+        // Soft-fail — still let the admin print the memo so they can
+        // continue the workflow on paper if the API is down.
+      }
+    }
+    const clientFull = clients.find((c) => c.id === printJob.client_id);
+    const branchFull = branches.find((b) => b.id === printJob.branch_id);
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     // Fetch captured signatures so the memo can embed them in place of
     // the printed blank line. Soft-fail: if the API errors we still print
     // the memo with blank signature lines (legacy behaviour).
     let signatures: Awaited<ReturnType<typeof signaturesApi.listForJob>> = [];
     try {
-      signatures = await signaturesApi.listForJob(job.id);
+      signatures = await signaturesApi.listForJob(printJob.id);
     } catch {
       signatures = [];
     }
-    const html = buildJobMemoHtml({ job, client: clientFull, branch: branchFull, origin, signatures });
+    const html = buildJobMemoHtml({ job: printJob, client: clientFull, branch: branchFull, origin, signatures });
     const printWindow = openPrintWindow(html);
     if (!printWindow) {
       alert("Please allow popups to print");
@@ -1566,14 +1588,19 @@ function JobsPageContent() {
             {selectedJob && (
               <div className="flex flex-wrap gap-1.5 items-center">
                 <Button
-                  variant="outline"
+                  variant={selectedJob.status === 'draft' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handlePrintJob(selectedJob)}
-                  className="flex-shrink-0"
+                  className={selectedJob.status === 'draft' ? 'flex-shrink-0 bg-navy-900 hover:bg-navy-800' : 'flex-shrink-0'}
                   data-testid="print-job-button"
                 >
                   <FileText className="h-4 w-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Print Intake</span>
+                  <span className="hidden sm:inline">
+                    {selectedJob.status === 'draft' ? 'Accept Stones' : 'Print Intake'}
+                  </span>
+                  <span className="sm:hidden text-xs ml-1">
+                    {selectedJob.status === 'draft' ? 'Accept' : 'Print'}
+                  </span>
                 </Button>
                 {isAdmin && (
                   <>
