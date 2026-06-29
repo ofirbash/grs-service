@@ -5,6 +5,40 @@
 
 ---
 
+## Feb 28, 2026 — Print-only mode for return docs + 2-page overflow fix
+
+### 1. "Print only" mode in the Return Stones / Return Certificates dialog
+User flagged two real workflows where the existing flow blocked them:
+- **Advance print**: stones still at the office, but client wants the memo printed in advance — no state change.
+- **Re-print after full return**: stones already returned, admin wants another copy of the receipt — picked stones were greyed-out, so admin couldn't select them.
+
+Added a `printOnly` checkbox to `<PickupSelectionDialog>` (default OFF). When ON:
+- The `pickupsApi.create` call, signature-request creation, and Cloudinary archive are **all skipped**. Just opens the printed memo.
+- Already-picked stones become **selectable again** so a full-set re-print is possible. The `toggleStone` / `toggleGroup` / `handleSelectAll` helpers all check `printOnly` before refusing locked rows.
+- The default-checked set on dialog-open includes every active stone (not just the un-picked ones) when `printOnly` is on.
+- The amber explanation block replaces the navy "Confirm & Sign will…" steps so the admin clearly sees this is a side-effect-free action.
+- Confirm button label flips: **"Confirm & Sign (N)" → "Print only (N)"**.
+
+Verified end-to-end:
+- Toggle ON → button says "Print only (2)" → click → print window opens, `GET /jobs/{id}/pickups` count unchanged (`before=0, after=0`).
+
+### 2. Return docs printed 2 pages with the second page almost empty
+Root cause: the global `*` selector lacked `box-sizing: border-box`, so the body's `padding: 22px 32px` was *added on top of* `min-height: 100vh`, pushing the body to `100vh + 44px` — just enough to spill onto page 2 with the footer.
+
+Fix in both `buildPickupMemoHtml.ts` and `buildJobMemoHtml.ts`:
+```css
+* { box-sizing: border-box; … }
+body { padding: 0; min-height: 100vh; … }
+```
+The `@page { margin: 12mm 14mm }` declaration handles all the breathing room around the content; the inner `padding` is gone, so `min-height: 100vh` is now exactly one A4 content area. The intake memo's bottom-pinned flex layout still works because the spacer fits inside that one-page budget. Verified: body height matches `100vh` cleanly in the screenshot tool's rendered preview.
+
+### Code touched
+- `frontend/src/components/pickups/PickupSelectionDialog.tsx` — `printOnly` state, gate the pickup-create + signature flow, UI toggle + hint + dynamic button label.
+- `frontend/src/app/dashboard/jobs/_lib/buildPickupMemoHtml.ts` — global `box-sizing: border-box`, removed body padding.
+- `frontend/src/app/dashboard/jobs/_lib/buildJobMemoHtml.ts` — same.
+
+
+
 ## Feb 28, 2026 — "Accept Stones" merge + auto-bump on verbal upload
 
 ### 1. Print Intake → Accept Stones (combined action)

@@ -77,6 +77,17 @@ export function PickupSelectionDialog({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // "Print only" mode: bypass pickup_event creation + pad signature
+  // request, just open the printed memo. Used for two real workflows
+  // admins flagged Feb 28 2026:
+  //   (a) Stones still at the office but the client wants a memo printed
+  //       in advance (no state change).
+  //   (b) Stones already fully returned — admin wants to re-print the
+  //       receipt afterwards.
+  // In print-only mode we also allow re-selecting stones that are
+  // `alreadyPicked` (greyed out by default), so case (b) can produce a
+  // doc covering all original items.
+  const [printOnly, setPrintOnly] = useState(false);
 
   const activeStones = useMemo(
     () => (job.stones || []).filter((s) => !s.cancelled),
@@ -114,10 +125,12 @@ export function PickupSelectionDialog({
           .forEach((p) => p.stone_ids.forEach((sid) => picked.add(sid)));
         setAlreadyPicked(picked);
 
-        // Pre-check every stone NOT already picked.
+        // Pre-check every stone NOT already picked. In print-only mode
+        // we pre-check ALL active stones (admin usually wants a full
+        // re-print covering everything).
         const fresh = new Set<string>();
         activeStones.forEach((s) => {
-          if (!picked.has(s.id)) fresh.add(s.id);
+          if (printOnly || !picked.has(s.id)) fresh.add(s.id);
         });
         setSelected(fresh);
 
@@ -139,7 +152,11 @@ export function PickupSelectionDialog({
   }, [open, job.id, type, activeStones]);
 
   const toggleStone = (id: string) => {
-    if (alreadyPicked.has(id)) return;
+    // In print-only mode, even already-picked stones become selectable
+    // (so admin can produce a receipt covering ALL items after a full
+    // return). Outside print-only, picked stones stay locked to avoid
+    // double-pickup mistakes.
+    if (!printOnly && alreadyPicked.has(id)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -151,11 +168,11 @@ export function PickupSelectionDialog({
   const toggleGroup = (bucket: Stone[]) => {
     // For cert_collection: clicking the group row toggles ALL stones in
     // the group at once.
-    const allSelected = bucket.every((s) => selected.has(s.id) || alreadyPicked.has(s.id));
+    const allSelected = bucket.every((s) => selected.has(s.id) || (!printOnly && alreadyPicked.has(s.id)));
     setSelected((prev) => {
       const next = new Set(prev);
       for (const s of bucket) {
-        if (alreadyPicked.has(s.id)) continue;
+        if (!printOnly && alreadyPicked.has(s.id)) continue;
         if (allSelected) next.delete(s.id);
         else next.add(s.id);
       }
@@ -166,7 +183,7 @@ export function PickupSelectionDialog({
   const handleSelectAll = () => {
     const next = new Set<string>();
     activeStones.forEach((s) => {
-      if (!alreadyPicked.has(s.id)) next.add(s.id);
+      if (printOnly || !alreadyPicked.has(s.id)) next.add(s.id);
     });
     setSelected(next);
   };
@@ -177,6 +194,27 @@ export function PickupSelectionDialog({
     setSubmitting(true);
     setError(null);
     try {
+      const ctx = {
+        job, client, branch,
+        origin: typeof window !== 'undefined' ? window.location.origin : '',
+        type,
+        pickedStoneIds: Array.from(selected),
+      };
+
+      // PRINT-ONLY mode: no pickup_event, no pad request, no archive.
+      // Just open the (signed-if-available, else blank) memo and exit.
+      // Admins use this when they need the receipt for advance-print
+      // (stones still at office) or for re-print after a completed
+      // return.
+      if (printOnly) {
+        const html = buildPickupMemoHtml({ ...ctx, signature });
+        const win = openPrintWindow(html);
+        if (!win) window.alert('Please allow popups to print');
+        onOpenChange(false);
+        return;
+      }
+
+      // RECORD-AND-SIGN mode (the default flow):
       // Build TWO versions of the memo HTML:
       //   1. `printHtml` — the unsigned memo that opens in the print window
       //      (client inspects + keeps a physical copy).
@@ -184,12 +222,6 @@ export function PickupSelectionDialog({
       //      placeholder where the captured signature will go later. The
       //      backend stores this and uses it to render the frozen PDF
       //      archive once the client signs on the pad.
-      const ctx = {
-        job, client, branch,
-        origin: typeof window !== 'undefined' ? window.location.origin : '',
-        type,
-        pickedStoneIds: Array.from(selected),
-      };
       const printHtml = buildPickupMemoHtml({ ...ctx, signature });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const templateHtml = buildPickupMemoHtml({ ...ctx, signature: { __template: true } as any });
@@ -277,7 +309,7 @@ export function PickupSelectionDialog({
                 </div>
               </div>
             )}
-            {!signature && (
+            {!signature && !printOnly && (
               <div className="text-xs text-navy-600 p-3 rounded-md bg-navy-50 border border-navy-200">
                 <strong>Confirm &amp; Sign</strong> will:
                 <ol className="list-decimal ml-5 mt-1 space-y-0.5">
@@ -288,6 +320,32 @@ export function PickupSelectionDialog({
                 </ol>
               </div>
             )}
+            {printOnly && (
+              <div className="text-xs text-amber-800 p-3 rounded-md bg-amber-50 border border-amber-200" data-testid="print-only-hint">
+                <strong>Print only</strong> — generates the document without
+                changing any stone status, recording a pickup, or requesting
+                a signature. Use this for advance-print (stones still at
+                the office) or to re-print a receipt after the return is
+                already complete.
+              </div>
+            )}
+
+            {/* Print-only toggle. Renders BELOW the explanation block so
+                the admin reads the default flow first, then sees the
+                opt-out. */}
+            <label
+              className="flex items-center gap-2 text-sm text-navy-700 cursor-pointer select-none"
+              data-testid="print-only-toggle-wrapper"
+            >
+              <input
+                type="checkbox"
+                checked={printOnly}
+                onChange={(e) => setPrintOnly(e.target.checked)}
+                className="h-4 w-4 accent-navy-700"
+                data-testid="print-only-toggle"
+              />
+              <span>Print only — don&apos;t record the return or request a signature</span>
+            </label>
 
             <div className="flex-1 overflow-y-auto border border-navy-200 rounded-md">
               {showCertView ? (
@@ -396,7 +454,9 @@ export function PickupSelectionDialog({
             ) : (
               <Printer className="h-4 w-4 mr-2" />
             )}
-            Confirm & Sign ({selected.size})
+            {printOnly
+              ? `Print only (${selected.size})`
+              : `Confirm & Sign (${selected.size})`}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -184,19 +184,21 @@ export function buildJobMemoHtml({
       <meta charset="utf-8" />
       <title>Job #${job.job_number} — ${COMPANY_INFO.displayName}</title>
       <style>
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
         html, body { min-height: 100vh; }
         @page { size: A4; margin: 12mm 14mm; }
         body {
           font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-          padding: 22px 32px;
+          padding: 0;
           max-width: 900px;
           margin: 0 auto;
           color: #141417;
           line-height: 1.4;
           display: flex;
           flex-direction: column;
-          min-height: calc(100vh - 0px);
+          /* See pickup-memo equivalent comment — box-sizing: border-box
+             is what stops the doc from spilling onto page 2. */
+          min-height: 100vh;
         }
         /* When the stones table is short (e.g. 1 stone), this spacer
            takes up the remaining vertical space so the Terms +

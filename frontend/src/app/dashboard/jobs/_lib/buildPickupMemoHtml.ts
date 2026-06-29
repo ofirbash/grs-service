@@ -319,19 +319,24 @@ export function buildPickupMemoHtml({
       <meta charset="utf-8" />
       <title>${title} #${job.job_number} — ${COMPANY_INFO.displayName}</title>
       <style>
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
         html, body { min-height: 100vh; }
         @page { size: A4; margin: 12mm 14mm; }
         body {
           font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-          padding: 22px 32px;
+          padding: 0;
           max-width: 900px;
           margin: 0 auto;
           color: #141417;
           line-height: 1.4;
           display: flex;
           flex-direction: column;
-          min-height: calc(100vh - 0px);
+          /* Without box-sizing: border-box (set above globally), the
+             22px padding used to push the body BELOW the page boundary
+             on print → forced page 2 with just the footer (user report
+             Feb 28 2026). With border-box + padding moved to a wrapper,
+             body is exactly 1 page tall and content fits cleanly. */
+          min-height: 100vh;
         }
         /* Pushes the confirm-line + signatures + footer to the bottom
            when the table is short — matches the intake memo behaviour. */
