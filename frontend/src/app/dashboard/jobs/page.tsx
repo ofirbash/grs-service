@@ -1560,7 +1560,7 @@ function JobsPageContent() {
           setSelectedStones([]);
         }
       }}>
-        <DialogContent className="sm:max-w-5xl max-h-[95dvh] sm:max-h-[90vh] p-0 !overflow-x-hidden flex flex-col w-[calc(100vw-1rem)] sm:w-auto">
+        <DialogContent className="sm:max-w-5xl lg:max-w-6xl xl:max-w-[1400px] max-h-[95dvh] sm:max-h-[90vh] p-0 !overflow-x-hidden flex flex-col w-[calc(100vw-1rem)] sm:w-[calc(100vw-3rem)]">
           {/* Sticky header — title + status (always inline) and a SEPARATE
               wrap-friendly action row below. On mobile the action row
               becomes horizontally scrollable so the Print / Memo Return /
