@@ -10,13 +10,146 @@ from models import (
     VerbalFindingsUpdate, StoneFeeUpdate,
     GroupCertificateScanUpload, CertificateScanUpload
 )
-from pricing import get_color_stability_fee_from_db, get_mounted_fee_from_db
+from pricing import (
+    get_color_stability_fee_from_db, get_mounted_fee_from_db,
+    get_pricing_brackets_from_db,
+    calculate_stone_fee_from_brackets, calculate_parcel_fee_from_brackets,
+)
 from jobs_helpers import active_stones, recompute_job_totals
 from activity_log import Action, log_activity
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+
+class StoneDetailsUpdate(BaseModel):
+    """Payload for `PUT /api/stones/{stone_id}` — every field is
+    optional; the endpoint patches only what's present. When any of
+    `stone_type` / `weight` / `shape` / `value` / `kind` / `stone_count`
+    / `color_stability_test` / `mounted` changes, the fee is recomputed
+    from the job's current `service_type` bracket table so the total
+    stays consistent (users explicitly asked Feb 28 2026: "the fees
+    should be changed based on the new details")."""
+    stone_type: Optional[str] = None
+    weight: Optional[float] = None
+    shape: Optional[str] = None
+    value: Optional[float] = None
+    color_stability_test: Optional[bool] = None
+    mounted: Optional[bool] = None
+    kind: Optional[str] = None  # 'stone' | 'parcel'
+    stone_count: Optional[int] = None
+
 router = APIRouter()
+
+
+@router.put("/stones/{stone_id}")
+async def update_stone_details(stone_id: str, data: StoneDetailsUpdate, user: dict = Depends(require_admin)):
+    """Edit an existing stone's details (type / weight / shape / value /
+    parcel / CS / mounted). The fee is recomputed from the job's
+    current service_type bracket table on every change, matching the
+    behaviour of `add_stone_to_job`. Cancelled stones can't be edited.
+
+    Certificate-group mounted propagation is handled the same way as
+    `/stones/{id}/fees`: toggling `mounted` on a stone in a group
+    updates every stone in that group (and applies the fee once per
+    group)."""
+    job = await db.jobs.find_one({"stones.id": stone_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Stone not found")
+    stone = next((s for s in job.get("stones", []) if s.get("id") == stone_id), None)
+    if not stone:
+        raise HTTPException(status_code=404, detail="Stone not found")
+    if stone.get("cancelled"):
+        raise HTTPException(status_code=400, detail="Cannot edit a cancelled stone")
+
+    # Build the merged stone dict: start from current values, overlay
+    # patch fields that were provided.
+    def pick(field: str):
+        v = getattr(data, field)
+        return stone.get(field) if v is None else v
+
+    new_type = pick("stone_type")
+    new_weight = float(pick("weight") or 0)
+    new_shape = pick("shape")
+    new_value = float(pick("value") or 0)
+    new_cs = bool(pick("color_stability_test"))
+    new_mounted = bool(pick("mounted"))
+    new_kind = pick("kind")
+    new_count = int(pick("stone_count") or 0) if new_kind == "parcel" else 0
+
+    # Recompute the fee for this stone from the job's service_type. We
+    # DO NOT touch `actual_fee` overrides — if the admin set one, it
+    # stays. Same policy as JobUpdate.service_type recompute.
+    service_type = job.get("service_type") or "Normal"
+    brackets = await get_pricing_brackets_from_db()
+    cs_fee = await get_color_stability_fee_from_db()
+    mounted_fee = await get_mounted_fee_from_db()
+
+    if new_kind == "parcel" and new_count >= 2:
+        new_fee = calculate_parcel_fee_from_brackets(
+            new_value, new_count, service_type, new_cs, new_mounted,
+            brackets, cs_fee, mounted_fee,
+        )
+    else:
+        new_fee = calculate_stone_fee_from_brackets(
+            new_value, service_type, new_cs, brackets, cs_fee,
+        )
+        if new_mounted:
+            # Mounted fee follows the same certificate-group dedup rule
+            # as `/fees`: only bill once per group. If this stone is in
+            # a group where another stone already carries the mounted
+            # flag AND fee, skip the extra charge here.
+            grp = stone.get("certificate_group")
+            other_mounted = grp is not None and any(
+                s.get("id") != stone_id and s.get("certificate_group") == grp and s.get("mounted")
+                for s in job.get("stones", [])
+            )
+            if not other_mounted:
+                new_fee += mounted_fee
+
+    # Compose the update. Use dot-notation on stones.$ to patch just
+    # this row (Mongo positional operator matches on stones.id in the
+    # base query).
+    set_ops = {
+        "stones.$.stone_type": new_type,
+        "stones.$.weight": new_weight,
+        "stones.$.shape": new_shape,
+        "stones.$.value": new_value,
+        "stones.$.color_stability_test": new_cs,
+        "stones.$.mounted": new_mounted,
+        "stones.$.fee": new_fee,
+        "updated_at": datetime.utcnow(),
+    }
+    if new_kind:
+        set_ops["stones.$.kind"] = new_kind
+        set_ops["stones.$.stone_count"] = new_count if new_kind == "parcel" else 0
+
+    await db.jobs.update_one(
+        {"_id": job["_id"], "stones.id": stone_id},
+        {"$set": set_ops},
+    )
+
+    # Recompute job totals from the fresh stones array.
+    refreshed = await db.jobs.find_one({"_id": job["_id"]})
+    totals = recompute_job_totals(active_stones(refreshed), mounted_fee=mounted_fee)
+    await db.jobs.update_one({"_id": job["_id"]}, {"$set": totals})
+
+    try:
+        await log_activity(
+            Action.STONE_UPDATED,
+            actor=user,
+            job_id=str(job["_id"]),
+            stone_id=stone_id,
+            branch_id=job.get("branch_id"),
+            summary=f"Stone {stone.get('sku', stone_id[-6:])} details updated (fee: ${new_fee:.2f})",
+            metadata={"new_fee": new_fee},
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("activity log for stone update failed")
+
+    final = await db.jobs.find_one({"_id": job["_id"]})
+    updated_stone = next((s for s in final.get("stones", []) if s.get("id") == stone_id), None)
+    return {"stone": updated_stone, "new_fee": new_fee, "job_total_fee": final.get("total_fee")}
 
 
 @router.get("/stones")

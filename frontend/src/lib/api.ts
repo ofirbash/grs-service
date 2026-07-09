@@ -422,6 +422,28 @@ export const stonesApi = {
     const response = await api.put(`/stones/${id}/fees`, data);
     return response.data;
   },
+  updateDetails: async (
+    id: string,
+    data: {
+      stone_type?: string;
+      weight?: number;
+      shape?: string;
+      value?: number;
+      color_stability_test?: boolean;
+      mounted?: boolean;
+      kind?: 'stone' | 'parcel';
+      stone_count?: number;
+    },
+  ) => {
+    // PUT /stones/{id} — patches any subset of details and recomputes
+    // fee from the parent job's service_type bracket table.
+    const response = await api.put(`/stones/${id}`, data);
+    return response.data as {
+      stone: unknown;
+      new_fee: number;
+      job_total_fee: number;
+    };
+  },
   uploadCertificateScan: async (id: string, filename: string, file_data: string) => {
     const response = await api.put(`/stones/${id}/certificate-scan`, { filename, file_data });
     return response.data;

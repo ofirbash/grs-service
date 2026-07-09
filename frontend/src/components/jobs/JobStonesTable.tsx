@@ -20,7 +20,7 @@
  */
 
 import React from 'react';
-import { FileText, Link2, Trash2 } from 'lucide-react';
+import { FileText, Link2, Pencil, Trash2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import {
@@ -82,6 +82,9 @@ interface Props {
   onViewCertScan?: (stone: StonesTableStone) => void;
   /** Edit-mode only: trash icon to remove a stone from the job. */
   onDeleteStone?: (stoneId: string, sku: string) => void;
+  /** Edit-mode only: pencil icon to open the "Edit stone details" dialog.
+   *  Fees auto-recompute server-side when details change. */
+  onEditStone?: (stone: StonesTableStone) => void;
   editMode?: boolean;
   isAdmin?: boolean;
 }
@@ -95,11 +98,13 @@ export const JobStonesTable: React.FC<Props> = ({
   onToggleStone,
   onViewCertScan,
   onDeleteStone,
+  onEditStone,
   editMode,
   isAdmin,
 }) => {
   const isFull = variant === 'full';
   const showDelete = isFull && editMode && isAdmin && !!onDeleteStone;
+  const showEdit = isFull && editMode && isAdmin && !!onEditStone;
   const showSelect = isFull && !!onToggleStone;
 
   if (!stones || stones.length === 0) {
@@ -201,14 +206,26 @@ export const JobStonesTable: React.FC<Props> = ({
         </TableCell>
         {showDelete && (
           <TableCell onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => onDeleteStone?.(stone.id, stone.sku)}
-              className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
-              title="Remove stone from job"
-              data-testid={`delete-stone-${stone.id}`}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex items-center gap-0.5">
+              {showEdit && (
+                <button
+                  onClick={() => onEditStone?.(stone)}
+                  className="text-navy-500 hover:text-navy-800 p-1 rounded hover:bg-navy-50 transition-colors"
+                  title="Edit stone details (fees will recompute)"
+                  data-testid={`edit-stone-${stone.id}`}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <button
+                onClick={() => onDeleteStone?.(stone.id, stone.sku)}
+                className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                title="Remove stone from job"
+                data-testid={`delete-stone-${stone.id}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </TableCell>
         )}
       </TableRow>

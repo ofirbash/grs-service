@@ -45,6 +45,7 @@ class Action:
 
     STONE_VERBAL_ENTERED = "stone_verbal_entered"
     STONE_FEES_UPDATED = "stone_fees_updated"
+    STONE_UPDATED = "stone_updated"
     STONE_CERT_UPLOADED = "stone_cert_uploaded"
     STONE_CANCELLED = "stone_cancelled"
 
