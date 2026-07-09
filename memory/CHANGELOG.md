@@ -5,7 +5,44 @@
 
 ---
 
-## 2026-07-09 — Activity Log: stone-detail-edit diffs
+## 2026-07-09 — High-value handling charge
+
+Automatic per-stone surcharge for stones valued over US$ 100,000. Requested and specified by user.
+
+**Rule (hardcoded — no admin setting per product decision):**
+`handling = ceil((max(0, value − $100,000) × 0.05%) / $10) × $10`
+
+Any strictly-positive excess snaps to a $10 minimum increment.
+
+| Value      | Excess     | 0.05%     | Handling |
+|-----------:|-----------:|----------:|---------:|
+| $50,000    | 0          | 0         | **$0**   |
+| $100,000   | 0          | 0         | **$0**   |
+| $110,000   | $10,000    | $5.00     | **$10**  |
+| $125,000   | $25,000    | $12.50    | **$20**  |
+| $250,000   | $150,000   | $75.00    | **$80**  |
+| $1,000,000 | $900,000   | $450.00   | **$450** |
+
+**Delivered**
+- New `calculate_handling_charge(value)` helper in `backend/pricing.py` with a small float-precision epsilon so exact-boundary values (e.g. $120,000 → exactly $10) don't spuriously bump.
+- Rolled into both `calculate_stone_fee_from_brackets` (per single stone, using its own `value`) and `calculate_parcel_fee_from_brackets` (per stone inside the parcel using the average `value_total / stone_count`, multiplied by N). No changes needed at any callsite because every place that computes stone fees already goes through these two functions.
+- Charge is silently added to the stone's total `fee` field (matches CS/Mounted behavior — not a separate line item on memos/invoices).
+
+**Verified**
+- New test suite `backend/tests/test_handling_charge.py` — 13/13 pass:
+  - 8 unit tests on the helper (threshold, user spec example, tiny excess, exact-$10-boundary, negative/None input, ragged amounts).
+  - 3 integration tests through `calculate_stone_fee_from_brackets` (with and without CS on top).
+  - 2 integration tests through `calculate_parcel_fee_from_brackets` (high-avg parcel, low-avg parcel).
+- Live curl regression against `PUT /api/stones/{id}`: baseline $60k → $550 (unchanged), $125k → $670 (base $650 + $20 handling), $250k → $730 (base $650 + $80 handling), $50k → $430 (no handling). All match the formula against live DB brackets.
+
+**Files touched**
+- `backend/pricing.py` — added `HANDLING_CHARGE_*` constants + `calculate_handling_charge()` + one-line additions inside `calculate_stone_fee_from_brackets` and `calculate_parcel_fee_from_brackets`.
+- `backend/tests/test_handling_charge.py` (new — 13 tests).
+
+**Note on activity-log diffs**: because `fee` still reflects the true total (base + CS + mounted + handling), the `stone_updated` activity row's `old_fee → new_fee` diff automatically captures handling-charge changes too. No further wiring needed.
+
+---
+
 
 **Follow-up to the inline stone edit feature** (see below): whenever an admin saves a stone-details change, the resulting `stone_updated` activity row now carries a full old→new diff (only the fields that actually changed) plus an explicit fee delta.
 

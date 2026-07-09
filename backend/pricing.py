@@ -1,4 +1,5 @@
 from database import db
+import math
 
 PRICING_BRACKETS = [
     {"min": 0, "max": 9999.99, "fees": {"Express": 120, "Normal": 80, "Recheck": 40}},
@@ -7,6 +8,42 @@ PRICING_BRACKETS = [
     {"min": 200000, "max": 9999999.99, "fees": {"Express": 500, "Normal": 400, "Recheck": 200}},
 ]
 COLOR_STABILITY_FEE = 50
+
+# Handling charge (Feb 2026 user spec, hardcoded per product decision — no
+# admin setting).
+#
+# Rule: for stones whose declared value exceeds US$ 100,000, add
+#       0.05% of the *excess* over $100k, rounded UP in increments of $10.
+#
+# Example: $125,000 → excess $25,000 → 0.05% = $12.50 → round up to $20.
+# Example: $110,000 → excess $10,000 → 0.05%  = $5.00 → round up to $10.
+# Example: $100,000 → excess $0 → charge $0 (threshold is exclusive).
+# Example: $100,000.01 → tiny excess still snaps up to $10 (the minimum
+#          non-zero increment). Consistent with "round up in $10 steps".
+#
+# For parcels the rule is applied *per stone in the parcel* using the
+# average value (`value_total / stone_count`) — see the parcel helper.
+HANDLING_CHARGE_THRESHOLD = 100_000.0
+HANDLING_CHARGE_RATE = 0.0005  # 0.05%
+HANDLING_CHARGE_INCREMENT = 10.0
+
+
+def calculate_handling_charge(value: float) -> float:
+    """Handling charge for a single stone-value. Returns 0 for values at or
+    below the threshold; otherwise 0.05% of the excess, rounded UP to the
+    next $10 increment. See constants above for worked examples."""
+    if value is None or value <= HANDLING_CHARGE_THRESHOLD:
+        return 0.0
+    excess = float(value) - HANDLING_CHARGE_THRESHOLD
+    raw = excess * HANDLING_CHARGE_RATE
+    # ceil to next $10 increment. Subtract a tiny epsilon *before* ceil
+    # so exact-boundary values like $120,000 (raw = 10.0 in ideal maths,
+    # sometimes 10.000000000000002 in floats) don't get bumped a step.
+    # Any strictly-positive excess still snaps to the $10 minimum via
+    # the `max(1, ...)` floor.
+    steps = math.ceil(raw / HANDLING_CHARGE_INCREMENT - 1e-9)
+    steps = max(1, steps)
+    return float(steps * HANDLING_CHARGE_INCREMENT)
 
 
 def normalize_bracket(b):
@@ -58,7 +95,7 @@ async def get_mounted_fee_from_db():
 
 
 def calculate_stone_fee_from_brackets(value: float, service_type: str, color_stability_test: bool, brackets: list, color_stability_fee: float = 50) -> float:
-    """Calculate fee for a single stone using provided brackets"""
+    """Calculate fee for a single stone using provided brackets."""
     fee = 0
     for bracket in brackets:
         b = normalize_bracket(bracket)
@@ -76,6 +113,12 @@ def calculate_stone_fee_from_brackets(value: float, service_type: str, color_sta
 
     if color_stability_test:
         fee += color_stability_fee
+
+    # High-value handling charge — silently rolled into the stone's total
+    # fee (product decision: not a separate line item). Applies to every
+    # stone whose declared value exceeds the threshold; see
+    # `calculate_handling_charge`.
+    fee += calculate_handling_charge(value)
 
     return fee
 
@@ -135,4 +178,8 @@ def calculate_parcel_fee_from_brackets(
         fee += color_stability_fee * n
     if mounted:
         fee += mounted_fee
+    # High-value handling charge — applied *per stone* in the parcel using
+    # the average per-stone value (value_total / stone_count), matching
+    # the "per single stone based on its own value" rule.
+    fee += calculate_handling_charge(avg_value) * n
     return fee
