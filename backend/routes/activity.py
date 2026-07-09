@@ -31,6 +31,7 @@ _ACTION_LABELS: dict[str, str] = {
     Action.JOB_NOTIFICATION_SENT: "Notification sent",
     Action.STONE_VERBAL_ENTERED: "Verbal findings saved",
     Action.STONE_FEES_UPDATED: "Stone fees updated",
+    Action.STONE_UPDATED: "Stone details updated",
     Action.STONE_CERT_UPLOADED: "Certificate uploaded",
     Action.STONE_CANCELLED: "Stone removed",
     Action.SHIPMENT_CREATED: "Shipment created",

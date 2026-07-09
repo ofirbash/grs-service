@@ -37,6 +37,7 @@ const ACTION_META: Record<string, { label: string; Icon: React.ComponentType<{ c
 
   stone_verbal_entered: { label: 'Verbal findings saved', Icon: FileText },
   stone_fees_updated: { label: 'Stone fees updated', Icon: CircleDot },
+  stone_updated: { label: 'Stone details updated', Icon: Pencil },
   stone_cert_uploaded: { label: 'Certificate uploaded', Icon: FileCheck2 },
   stone_cancelled: { label: 'Stone removed', Icon: Trash2 },
 

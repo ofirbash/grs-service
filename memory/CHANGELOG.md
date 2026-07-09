@@ -5,7 +5,28 @@
 
 ---
 
-## 2026-07-09 — Edit Stone Details (correct UX)
+## 2026-07-09 — Activity Log: stone-detail-edit diffs
+
+**Follow-up to the inline stone edit feature** (see below): whenever an admin saves a stone-details change, the resulting `stone_updated` activity row now carries a full old→new diff (only the fields that actually changed) plus an explicit fee delta.
+
+**Delivered**
+- `PUT /api/stones/{id}` now computes and logs a per-field diff:
+  - `summary`: `Stone DI100J60001 · stone_type: Diamond → Ruby; weight: 1.5 → 2.5; value: 60000 → 120000; color_stability_test: no → yes; fee: $550.00 → $700.00`
+  - `metadata.changes`: `{ stone_type: {from,to}, weight: {from,to}, ... }` — machine-readable, only present for changed fields.
+  - `metadata.old_fee` / `metadata.new_fee` / `metadata.sku` — always present.
+- Registered `stone_updated` in the frontend `ActivityRowItem` action-meta map (label + Pencil icon) and in the backend `_ACTION_LABELS` filter table so the `/dashboard/activity` filter dropdown lists it too. Previously these rows fell back to the raw action code because the mapping was missing.
+
+**Verified**
+- Backend regression: `test_stone_edit_details.py` + `test_activity_log.py` → 17/17 pass (2 pre-existing skips for the broken customer bcrypt row).
+- Live curl: single-field edit → `Stone DI100J60001 · weight: 1.5 → 1.87`; multi-field + CS toggle → full 5-part summary with fee delta included. Fee-only edits (no detail change) still render as `fee: $X → $Y`.
+
+**Files touched**
+- `backend/routes/stones.py` (diff builder inside `update_stone_details` — replaces the old one-line summary).
+- `backend/routes/activity.py` (added `Action.STONE_UPDATED` → "Stone details updated" in `_ACTION_LABELS`).
+- `frontend/src/components/activity/ActivityRowItem.tsx` (added `stone_updated` entry with Pencil icon).
+
+---
+
 
 **User feedback on first pass:** the initial implementation added a separate "Edit Stone" dialog opened from a Pencil icon in the stones table — user rejected that as "doesn't make sense". Correct UX: open the stone (from Job dialog OR Stones page) → click Edit inside the stone modal → change fields → Save. No extra dialogs.
 

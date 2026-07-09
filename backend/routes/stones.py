@@ -135,14 +135,71 @@ async def update_stone_details(stone_id: str, data: StoneDetailsUpdate, user: di
     await db.jobs.update_one({"_id": job["_id"]}, {"$set": totals})
 
     try:
+        # Build a compact diff so operators can see exactly what changed on
+        # this stone (old→new) without digging into the DB. Only fields
+        # that *actually* changed appear in `metadata.changes`, and the
+        # summary text mirrors the same fields. `fee` is always reported
+        # because it's the whole reason this action exists — even when
+        # nothing changed the user's intent was to (re)price the stone.
+        old_fee = float(stone.get("fee") or 0)
+        old_weight = float(stone.get("weight") or 0)
+        old_value = float(stone.get("value") or 0)
+        old_type = stone.get("stone_type")
+        old_shape = stone.get("shape")
+        old_cs = bool(stone.get("color_stability_test"))
+        old_mounted = bool(stone.get("mounted"))
+
+        changes: dict[str, dict] = {}
+        if old_type != new_type:
+            changes["stone_type"] = {"from": old_type, "to": new_type}
+        if old_weight != new_weight:
+            changes["weight"] = {"from": old_weight, "to": new_weight}
+        if old_shape != new_shape:
+            changes["shape"] = {"from": old_shape, "to": new_shape}
+        if old_value != new_value:
+            changes["value"] = {"from": old_value, "to": new_value}
+        if old_cs != new_cs:
+            changes["color_stability_test"] = {"from": old_cs, "to": new_cs}
+        if old_mounted != new_mounted:
+            changes["mounted"] = {"from": old_mounted, "to": new_mounted}
+        # `fee` always reported (kept out of `changes` when unchanged so it
+        # doesn't dominate the summary line, but always present at the
+        # top level of metadata for downstream reporting).
+        fee_changed = old_fee != new_fee
+        if fee_changed:
+            changes["fee"] = {"from": old_fee, "to": new_fee}
+
+        # Compact human-readable summary. Prioritises detail changes over
+        # a lone fee movement — but if *only* the fee moved (e.g. via
+        # bracket-table repricing when service_type changed elsewhere)
+        # we still report it explicitly.
+        def _fmt(v: object) -> str:
+            if isinstance(v, bool):
+                return "yes" if v else "no"
+            if isinstance(v, float):
+                # Trim trailing zeros — 1.5 not 1.50, 2 not 2.00.
+                return f"{v:g}"
+            return str(v) if v is not None else "—"
+
+        parts = [f"{k}: {_fmt(v['from'])} → {_fmt(v['to'])}" for k, v in changes.items() if k != "fee"]
+        if fee_changed:
+            parts.append(f"fee: ${old_fee:.2f} → ${new_fee:.2f}")
+        detail_str = "; ".join(parts) if parts else "no changes"
+        sku_str = stone.get("sku", stone_id[-6:])
+
         await log_activity(
             Action.STONE_UPDATED,
             actor=user,
             job_id=str(job["_id"]),
             stone_id=stone_id,
             branch_id=job.get("branch_id"),
-            summary=f"Stone {stone.get('sku', stone_id[-6:])} details updated (fee: ${new_fee:.2f})",
-            metadata={"new_fee": new_fee},
+            summary=f"Stone {sku_str} · {detail_str}",
+            metadata={
+                "sku": sku_str,
+                "new_fee": new_fee,
+                "old_fee": old_fee,
+                "changes": changes,
+            },
         )
     except Exception:  # noqa: BLE001
         logger.exception("activity log for stone update failed")
