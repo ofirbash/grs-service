@@ -5,7 +5,38 @@
 
 ---
 
-## 2026-07-09 — Edit Stone Details (feature complete)
+## 2026-07-09 — Edit Stone Details (correct UX)
+
+**User feedback on first pass:** the initial implementation added a separate "Edit Stone" dialog opened from a Pencil icon in the stones table — user rejected that as "doesn't make sense". Correct UX: open the stone (from Job dialog OR Stones page) → click Edit inside the stone modal → change fields → Save. No extra dialogs.
+
+**Delivered (rework)**
+- **Reverted** the standalone `EditStoneDialog`, `EditStoneDraft`, Pencil column in `JobStonesTable`, and `onEditStone` prop wiring.
+- **Extended the canonical `StoneEditDialog`** with inline-editable Type/Weight/Shape/Value inputs. When `editMode && isAdmin && !isParcel` and the parent passes a `detailsDraft`, the read-only summary bar is replaced by an amber card with 4 fields. Parcels intentionally skip this (per-N-stone value semantics not editable here).
+- **Both callers** (`/dashboard/jobs/page.tsx` + `/dashboard/stones/page.tsx`) now:
+  - Seed a `stoneDetailsDraft` when opening the stone dialog.
+  - In `handleSaveStone`, if any detail changed, call `stonesApi.updateDetails()` **before** the existing `stonesApi.updateFees()` (so CS/Mounted layers on top of the recomputed base fee).
+  - Refetch and reseed the draft after save.
+- Stones page also pulls `pricing.stone_types` / `pricing.shapes` from `settingsApi.getPricing()` (matches the Jobs page's single source of truth for these dropdowns).
+- `hasUnsavedStoneChanges()` on the jobs page now includes detail drift so the unsaved-changes guard covers editing weight/type/shape/value.
+
+**Verified (iter-43): 6/6 scenarios pass**
+- Flow A (jobs page): change wt 1.5→2.5, val 60000→120000 → dialog exits edit mode, fee recomputes 550→650, GET /api/jobs confirms persistence.
+- Flow B (stones page): change wt 3.0→4.2, type Diamond→Ruby → same dialog, same behavior.
+- Combined save: change weight AND toggle CS in one session → both persist (fee = new recomputed base + $50 CS).
+- Parcel guard: amber block absent on parcel stones; CS/Mounted + per-stone verbal still editable.
+- Cleanup: no `edit-stone-{id}` pencil testids remain in the DOM.
+- Backend regression: existing `test_stone_edit_details.py` still 6/6 (unchanged endpoint contract).
+
+**Files touched**
+- `frontend/src/components/dialogs/StoneEditDialog.tsx` (new inline edit block + `StoneDetailsDraft` export)
+- `frontend/src/app/dashboard/jobs/page.tsx` (draft state, save handler, unsaved-changes guard, mount)
+- `frontend/src/app/dashboard/stones/page.tsx` (draft state, dropdowns from pricing, save handler, mount)
+- `frontend/src/components/jobs/JobStonesTable.tsx` (Pencil column removed)
+- `frontend/src/app/dashboard/jobs/_components/StoneDialogs.tsx` (`EditStoneDialog` + `EditStoneDraft` removed — file back to 179 lines)
+
+---
+
+## 2026-07-09 — Edit Stone Details (first pass, reverted)
 
 **User request (Feb 28 2026):** "Allow editing stone details after adding it to a job. The fees should be changed based on the new details."
 

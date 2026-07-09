@@ -10,7 +10,7 @@ _None currently._
 
 ## Recently Shipped
 
-- [x] **Edit stone details after add** ✅ done Jul 09 2026. `PUT /api/stones/{stone_id}` admin-only endpoint patches details + recomputes fee from job's service_type bracket table (matches `add_stone_to_job` policy). Frontend `EditStoneDialog` + Pencil button in `JobStonesTable` (edit-mode + admin only). Backend tests 6/6 pass (iter-42); frontend E2E verified. See CHANGELOG.
+- [x] **Edit stone details after add** ✅ done Jul 09 2026 (v2 after user pushback on v1). The canonical `StoneEditDialog` (shared by jobs + stones pages) now has inline-editable Type/Weight/Shape/Value fields that appear in edit mode. On Save, `PUT /api/stones/{id}` runs before the existing CS/Mounted `updateFees` PUT, recomputing the base fee from the job's `service_type` bracket table. Parcels excluded from the edit block by design. Backend tests 6/6; frontend E2E 6/6 (iter-43). See CHANGELOG.
 
 ## P1 — High Priority
 
