@@ -5,7 +5,36 @@
 
 ---
 
-## 2026-07-09 — High-value handling charge
+## 2026-07-09 — Fee-breakdown tooltip
+
+Follow-up to the silent handling-charge feature: since the stone's total fee now silently includes a bracket + CS + Mounted + Handling sum, admins can now hover the Fee value in `StoneEditDialog` to see the full breakdown.
+
+**Delivered**
+- Small `Info` icon next to the "Fee" pill in the stone info summary (both jobs page + stones page — one canonical component).
+- Native browser `title` attribute renders a multi-line breakdown on hover:
+  ```
+  Bracket: $650.00
+  Color-stability: +$50
+  Mounted: +$50
+  Handling (>$100k): +$20
+  Total: $770.00
+  ```
+- Only shown when the fee wasn't overridden by an admin `actual_fee` (breakdown would lie for overrides).
+- Parcels: CS and Handling reported per stone × N in the parcel; Mounted reported once. Handling uses `value_total / stone_count` per stone (matches backend).
+- Client-side `handlingChargeFor()` helper is a literal port of the backend `calculate_handling_charge` formula (0.05% of excess over $100k, ceil-to-$10 with epsilon-safe boundary handling for $120k → $10 exact).
+
+**Approach**
+- Reverse-engineers the bracket portion from the persisted fee (`bracket = fee − CS − Mounted − Handling`) rather than duplicating the pricing bracket table on the client. Matches the server 1:1 by construction — no drift risk.
+- Uses a native `title` attribute (no new dependency, works on Safari 12 iPads per the app's polyfill target). shadcn Tooltip component isn't installed in this project.
+
+**Files touched**
+- `frontend/src/components/dialogs/StoneEditDialog.tsx` (new `handlingChargeFor` + `feeBreakdown` memo + `Info` icon in the summary row; +1 lucide import).
+
+**Test IDs**
+- `data-testid="fee-breakdown-info"` on the Info-icon wrapper (title attribute contains the breakdown).
+
+---
+
 
 Automatic per-stone surcharge for stones valued over US$ 100,000. Requested and specified by user.
 

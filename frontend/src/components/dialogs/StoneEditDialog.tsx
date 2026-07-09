@@ -6,6 +6,7 @@ import {
   Diamond,
   Eye,
   FileText,
+  Info,
   Loader2,
   Lock,
   Pencil,
@@ -211,6 +212,59 @@ export const StoneEditDialog: React.FC<Props> = ({
     hasFeeToggles &&
     (editMode || stone?.color_stability_test || stone?.mounted);
 
+  /** Reverse-engineered fee breakdown for the tooltip on the "Fee" pill.
+   *  The stone's persisted `fee` = bracket + CS + Mounted + Handling.
+   *  We derive the bracket portion by subtracting the known add-ons — this
+   *  matches what the server actually did and avoids re-fetching the
+   *  bracket table client-side. Reflects the LAST-SAVED state (users get
+   *  a live preview on the pill itself via `previewedFee`; the tooltip
+   *  is the audit trail for "why is this stone $670 when the bracket is
+   *  $650?"). Handling charge formula must mirror `pricing.py`:
+   *  0.05% of value over $100k, ceil to $10 increments. */
+  const handlingChargeFor = (v: number): number => {
+    if (v == null || v <= 100_000) return 0;
+    const raw = (v - 100_000) * 0.0005;
+    const steps = Math.max(1, Math.ceil(raw / 10 - 1e-9));
+    return steps * 10;
+  };
+  const feeBreakdown: string | null = (() => {
+    if (!stone) return null;
+    // Skip when there's an admin fee override — the breakdown would lie.
+    // Callers set actual_fee only via the fee-override modal.
+    const st = stone as unknown as { actual_fee?: number | null };
+    if (st.actual_fee != null && st.actual_fee !== stone.fee) return null;
+
+    const persistedCs = !!stone.color_stability_test;
+    const persistedMt = !!stone.mounted;
+    // Per-stone-in-parcel value for handling; single stones use own value.
+    const perStoneValue = isParcel ? stone.value / stoneCount : stone.value;
+    const handlingPer = handlingChargeFor(perStoneValue);
+    const handlingTotal = handlingPer * (isParcel ? stoneCount : 1);
+    const csTotal = persistedCs ? csFeeCost * csMultiplier : 0;
+    const mtTotal = persistedMt ? mountedFeeCost : 0;
+    const bracketTotal = stone.fee - csTotal - mtTotal - handlingTotal;
+
+    const lines: string[] = [];
+    lines.push(`Bracket: $${bracketTotal.toFixed(2)}`);
+    if (persistedCs) {
+      lines.push(
+        isParcel
+          ? `Color-stability: +$${csFeeCost} × ${stoneCount} = $${csTotal}`
+          : `Color-stability: +$${csFeeCost}`,
+      );
+    }
+    if (persistedMt) lines.push(`Mounted: +$${mountedFeeCost}`);
+    if (handlingTotal > 0) {
+      lines.push(
+        isParcel
+          ? `Handling (>$100k): +$${handlingPer} × ${stoneCount} = $${handlingTotal}`
+          : `Handling (>$100k): +$${handlingPer}`,
+      );
+    }
+    lines.push(`Total: $${stone.fee.toFixed(2)}`);
+    return lines.join('\n');
+  })();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col">
@@ -353,9 +407,18 @@ export const StoneEditDialog: React.FC<Props> = ({
                   </>
                 )}
                 <span className="text-navy-200">|</span>
-                <span>
+                <span className="inline-flex items-center gap-1">
                   <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Fee</span>
                   <span className="font-medium text-navy-900">${previewedFee.toLocaleString()}</span>
+                  {feeBreakdown && (
+                    <span
+                      className="inline-flex cursor-help"
+                      title={feeBreakdown}
+                      data-testid="fee-breakdown-info"
+                    >
+                      <Info className="h-3.5 w-3.5 text-navy-400 hover:text-navy-700" />
+                    </span>
+                  )}
                 </span>
                 {stone.certificate_group ? (
                   <>
