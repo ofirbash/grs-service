@@ -21,7 +21,15 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { StoneVerbalSection } from '@/components/StoneVerbalSection';
 import type { DropdownSettings } from '@/components/StoneVerbalSection';
@@ -68,6 +76,18 @@ interface StructuredVerbalLike {
   comment?: string;
 }
 
+/** Draft for the editable core details (type/weight/shape/value). Owned
+ *  by the parent page so the parent's `onSave` can PUT them alongside
+ *  the CS/mounted + verbal-findings updates. Optional on the dialog —
+ *  if the parent doesn't pass it, the details row stays read-only even
+ *  in edit mode (used for surfaces where core-editing isn't allowed). */
+export interface StoneDetailsDraft {
+  stone_type: string;
+  weight: string;
+  shape: string;
+  value: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -98,6 +118,18 @@ interface Props {
   setMounted?: React.Dispatch<React.SetStateAction<boolean>>;
   csFeeCost?: number;
   mountedFeeCost?: number;
+
+  /** Editable core details draft (stone_type/weight/shape/value). Pass
+   *  these + the dropdown lists to enable inline editing of the top
+   *  summary bar in edit mode. Parent owns the state so its `onSave`
+   *  handler can PUT the details alongside fees/verbal in one flow.
+   *  Feb 28 2026 user request: "open a stone -> edit -> save; fees
+   *  should update from the new details". Parcels are not supported
+   *  here (their per-stone-value semantics are different). */
+  detailsDraft?: StoneDetailsDraft;
+  setDetailsDraft?: React.Dispatch<React.SetStateAction<StoneDetailsDraft>>;
+  stoneTypes?: string[];
+  shapes?: string[];
 
   /** Save handler — parent persists fees + verbal findings + refreshes. */
   saving: boolean;
@@ -140,6 +172,10 @@ export const StoneEditDialog: React.FC<Props> = ({
   setMounted,
   csFeeCost = 0,
   mountedFeeCost = 0,
+  detailsDraft,
+  setDetailsDraft,
+  stoneTypes,
+  shapes,
   saving,
   onSave,
   certInputRef,
@@ -214,55 +250,124 @@ export const StoneEditDialog: React.FC<Props> = ({
 
         {stone && (
           <div className="flex-1 overflow-y-auto space-y-4 py-3 pr-2">
-            {/* Compact stone info summary — single horizontal row */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-3 py-2 bg-navy-50 rounded-md text-sm">
-              <span>
-                <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Type</span>
-                <span className="font-medium text-navy-900">{stone.stone_type}</span>
-              </span>
-              <span className="text-navy-200">|</span>
-              <span>
-                <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">
-                  {isParcel ? 'Total wt' : 'Weight'}
+            {/* Editable core-details block — visible only when the parent
+                page enabled inline detail editing (passed `detailsDraft`).
+                Parcels intentionally skipped: their weight/value semantics
+                (totals split across N stones) aren't editable here. */}
+            {editMode && isAdmin && detailsDraft && setDetailsDraft && !isParcel ? (
+              <div
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-3 py-3 bg-amber-50 border border-amber-200 rounded-md"
+                data-testid="stone-details-edit-block"
+              >
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-wide text-navy-500">Type</Label>
+                  <Select
+                    value={detailsDraft.stone_type}
+                    onValueChange={(v) => setDetailsDraft({ ...detailsDraft, stone_type: v })}
+                  >
+                    <SelectTrigger className="h-8 text-sm" data-testid="stone-details-type-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(stoneTypes ?? []).map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-wide text-navy-500">Weight (ct)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    className="h-8 text-sm"
+                    value={detailsDraft.weight}
+                    onChange={(e) => setDetailsDraft({ ...detailsDraft, weight: e.target.value })}
+                    data-testid="stone-details-weight-input"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-wide text-navy-500">Shape</Label>
+                  <Select
+                    value={detailsDraft.shape}
+                    onValueChange={(v) => setDetailsDraft({ ...detailsDraft, shape: v })}
+                  >
+                    <SelectTrigger className="h-8 text-sm" data-testid="stone-details-shape-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(shapes ?? []).map((sh) => (
+                        <SelectItem key={sh} value={sh}>{sh}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs uppercase tracking-wide text-navy-500">Value (USD)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    className="h-8 text-sm"
+                    value={detailsDraft.value}
+                    onChange={(e) => setDetailsDraft({ ...detailsDraft, value: e.target.value })}
+                    data-testid="stone-details-value-input"
+                  />
+                </div>
+                <div className="col-span-2 sm:col-span-4 text-xs text-amber-800">
+                  Fees will recompute automatically on save based on the new details.
+                </div>
+              </div>
+            ) : (
+              /* Compact stone info summary — read-only horizontal row */
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-3 py-2 bg-navy-50 rounded-md text-sm">
+                <span>
+                  <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Type</span>
+                  <span className="font-medium text-navy-900">{stone.stone_type}</span>
                 </span>
-                <span className="font-medium text-navy-900">{stone.weight} ct</span>
-              </span>
-              <span className="text-navy-200">|</span>
-              <span>
-                <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Shape</span>
-                <span className="font-medium text-navy-900">{stone.shape}</span>
-              </span>
-              <span className="text-navy-200">|</span>
-              <span>
-                <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">
-                  {isParcel ? 'Total value' : 'Value'}
+                <span className="text-navy-200">|</span>
+                <span>
+                  <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">
+                    {isParcel ? 'Total wt' : 'Weight'}
+                  </span>
+                  <span className="font-medium text-navy-900">{stone.weight} ct</span>
                 </span>
-                <span className="font-medium text-navy-900">${stone.value.toLocaleString()}</span>
-              </span>
-              {isParcel && (
-                <>
-                  <span className="text-navy-200">|</span>
-                  <span>
-                    <span className="text-amber-700 text-xs uppercase tracking-wide mr-1.5">Parcel</span>
-                    <span className="font-medium text-amber-900">{stone.stone_count} stones</span>
+                <span className="text-navy-200">|</span>
+                <span>
+                  <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Shape</span>
+                  <span className="font-medium text-navy-900">{stone.shape}</span>
+                </span>
+                <span className="text-navy-200">|</span>
+                <span>
+                  <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">
+                    {isParcel ? 'Total value' : 'Value'}
                   </span>
-                </>
-              )}
-              <span className="text-navy-200">|</span>
-              <span>
-                <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Fee</span>
-                <span className="font-medium text-navy-900">${previewedFee.toLocaleString()}</span>
-              </span>
-              {stone.certificate_group ? (
-                <>
-                  <span className="text-navy-200">|</span>
-                  <span>
-                    <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Cert Group</span>
-                    <span className="font-medium text-navy-900">{stone.certificate_group}</span>
-                  </span>
-                </>
-              ) : null}
-            </div>
+                  <span className="font-medium text-navy-900">${stone.value.toLocaleString()}</span>
+                </span>
+                {isParcel && (
+                  <>
+                    <span className="text-navy-200">|</span>
+                    <span>
+                      <span className="text-amber-700 text-xs uppercase tracking-wide mr-1.5">Parcel</span>
+                      <span className="font-medium text-amber-900">{stone.stone_count} stones</span>
+                    </span>
+                  </>
+                )}
+                <span className="text-navy-200">|</span>
+                <span>
+                  <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Fee</span>
+                  <span className="font-medium text-navy-900">${previewedFee.toLocaleString()}</span>
+                </span>
+                {stone.certificate_group ? (
+                  <>
+                    <span className="text-navy-200">|</span>
+                    <span>
+                      <span className="text-navy-500 text-xs uppercase tracking-wide mr-1.5">Cert Group</span>
+                      <span className="font-medium text-navy-900">{stone.certificate_group}</span>
+                    </span>
+                  </>
+                ) : null}
+              </div>
+            )}
 
             {/* Color Stability + Mounted toggles */}
             {shouldShowToggleStrip && (

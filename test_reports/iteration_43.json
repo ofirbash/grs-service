@@ -1,0 +1,36 @@
+{
+  "summary": "Iter-43 verifies the reworked inline-editable stone-details UX inside the canonical StoneEditDialog. Backend regression: existing pytest suite (backend/tests/test_stone_edit_details.py) still passes 6/6 (1 skipped for pre-existing customer@test.com hash issue) — PUT /api/stones/{id} contract unchanged. Frontend E2E via Playwright (with a page.route proxy of **/api/** to localhost:8001 because the preview ingress currently returns 404 for /api/*): all 6 spec'd scenarios PASS. FLOW A (jobs): opened job #600, clicked stone row DI100J60001, clicked Edit → amber [data-testid=stone-details-edit-block] appears with all 4 fields (type-select/weight-input/shape-select/value-input) + CS/Mounted switches; changed wt 1.5→2.5 and val 60000→120000 → Save; dialog stays open, edit mode exits, summary and job header both show new values + fee recomputed 550→650, verified via GET /api/jobs. COMBINED SAVE (same session, weight 2.5→3.0 AND CS toggled on): both persist — wt=3.0, color_stability_test=true, fee=700 (650 recomputed base + $50 CS surcharge — confirms details PUT ran BEFORE fees PUT). PARCEL GUARD (job #584, parcel stone SA750J58402, stone_count=3, kind=parcel): Edit clicked → amber edit-block is ABSENT; CS/Mounted toggles + per-stone verbal cards still visible/editable. CLEANUP REGRESSION: DOM scan after opening job #600 in edit mode returns pencils=[] — the old edit-stone-{uuid} pencil testids are gone; only edit-stone-button (dialog header toggle) remains. FLOW B (stones page /dashboard/stones): searched DI100J60001, clicked row → same StoneEditDialog opens → Edit → changed weight 3.0→4.2 and stone_type Diamond→Ruby → Save → dialog refetches and now reads 'Ruby | 4.2 ct', backend GET confirms persistence.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/login (customer@test.com)", "issue": "Pre-existing (not iter-43 scope): customer@test.com user row lacks password_hash. Test test_customer_role_forbidden is pytest-skipped. Kiosk + unauthenticated 403 assertions still cover the non-admin rejection path."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_stone_edit_details.py",
+    "/app/test_reports/pytest/iter43_stone_edit.xml"
+  ],
+  "action_items": [
+    "OPTIONAL (env-level, not app code): the preview ingress is returning 404 for /api/* on the external URL (https://4954c5ce-....preview.emergentagent.com/api/auth/login → 404 'page not found'). Frontend inside the browser calls /api relative to same origin, so real end-users hitting the preview URL would fail all API calls. Local backend at localhost:8001 works. Tests worked around this via a page.route proxy → localhost:8001. Main agent may want to confirm with platform whether the /api routing rule is actually configured for this specific pod, since the system prompt states /api should auto-route to :8001.",
+    "OPTIONAL: cleanup leftover pre-existing bcrypt state for customer@test.com so the customer-role 403 regression test un-skips."
+  ],
+  "critical_code_review_comments": [
+    "StoneEditDialog.tsx: clean lift of the inline edit block behind the compound gate `editMode && isAdmin && detailsDraft && setDetailsDraft && !isParcel` — parcel branch correctly falls back to the read-only summary row. All 4 field testids are stable and Fee pill updates locally via previewedFee memo (though the *displayed* fee after save comes from server refetch, which is correct — client preview is only used for CS/Mounted toggle math).",
+    "jobs/page.tsx handleSaveStone: correct ordering — updateStructuredVerbal → updateDetails (recomputes base fee) → updateFees (layers CS/Mounted). detailsChanged guard prevents unnecessary PUT for verbal-only saves. Non-fatal duplicate refetch: line 612 (`fetchData()` + jobsApi.getById above) results in two /api/jobs round-trips per save — same as iter-42, still not blocking, could be simplified to a single call.",
+    "stones/page.tsx handleSaveStone: symmetric with jobs page (good — the ordering + guards are copy-pasted intentionally). Refetches via fetchStones() then stonesApi.getAll() — same double-refetch pattern; acceptable.",
+    "Cleanup verified: JobStonesTable.tsx (271 lines) and jobs/_components/StoneDialogs.tsx (179 lines) contain zero references to onEditStone / EditStoneDialog / EditStoneDraft / edit-stone-{id} — the reverted UX from iter-42 is fully gone.",
+    "MINOR polish (non-blocking): the amber card copy 'Fees will recompute automatically on save based on the new details.' is helpful; the type/shape Selects use the pricing.stone_types + pricing.shapes lists (single source of truth) — matches AddStoneDialog. No a11y regressions spotted."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (6/6 executed, 1 skipped for pre-existing broken account)", "frontend": "100% (Flow A, Combined Save, Parcel Guard, Cleanup, Flow B — all 5 scenarios pass)"},
+  "test_credentials": "Super admin: admin@bashari.com / admin123. TURNSTILE_SECRET_KEY blank server-side but the /login widget still blocks automated UI submit → tests bypass via POST /api/auth/login + zustand-store injection (session/localStorage keys 'token' and 'auth-storage').",
+  "seed_data_creation": "None. Test used existing draft jobs #600 (single Diamond stone, non-parcel) and #584 (Sapphire parcel with stone_count=3). Stone #600 was mutated during the run (wt 1.5→2.5→3.0→4.2, type Diamond→Ruby, val 60000→120000, CS off→on) and RESET back to Diamond/1.5ct/60000/CS=false/fee=550 at end of run — verified via API.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "1) API PROXY NEEDED FOR PLAYWRIGHT: the preview URL currently returns 404 for /api/*. Use page.route('**/api/**', ...) to forward requests to http://localhost:8001. Auth via POST /api/auth/login (localhost:8001), then inject `sessionStorage`/`localStorage` keys 'token' (raw JWT) and 'auth-storage' (zustand-persist blob {state:{token,user,isAuthenticated:true},version:0}). 2) Stone-dialog open pattern that works: click job row [data-testid=job-row-{n}] → click `page.locator('tr:has-text(\"{sku}\")').first` with force=True (the <tr> has the onClick, but the sku <span> is a child and Playwright may report it as not visible for text-click). 3) Amber edit block testids: stone-details-edit-block / stone-details-type-select / stone-details-weight-input / stone-details-shape-select / stone-details-value-input. Header toggle: edit-stone-button. Save: save-stone-button. CS switch: stone-color-stability-switch. 4) Parcel guard: kind='parcel' hides only the amber block — CS/Mounted + verbal per-stone cards remain editable. 5) Backend endpoint unchanged from iter-42 (PUT /api/stones/{id} with body {stone_type, weight, shape, value}; auto-recomputes fee)."
+}

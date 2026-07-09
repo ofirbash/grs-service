@@ -56,7 +56,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 
 import { StoneVerbalSection, seedStructuredFindings } from '@/components/StoneVerbalSection';
-import { StoneEditDialog } from '@/components/dialogs/StoneEditDialog';
+import { StoneEditDialog, StoneDetailsDraft } from '@/components/dialogs/StoneEditDialog';
 
 // Types, constants and sub-components extracted into sibling files
 import type {
@@ -81,7 +81,7 @@ import { DocumentViewerDialog } from './_components/DocumentViewerDialog';
 import { SmsPreviewDialog } from './_components/SmsPreviewDialog';
 import { EmailPreviewDialog } from './_components/EmailPreviewDialog';
 import { UnsavedChangesDialog, BulkStatusDialog, ClientInvoiceDialog } from './_components/MiscDialogs';
-import { GroupStonesDialog, AddStoneDialog, EditStoneDialog, EditStoneDraft } from './_components/StoneDialogs';
+import { GroupStonesDialog, AddStoneDialog } from './_components/StoneDialogs';
 import { CreateJobDialog } from './_components/CreateJobDialog';
 import { JobSummaryGrid } from './_components/JobSummaryGrid';
 import { JobPaymentCard } from './_components/JobPaymentCard';
@@ -244,21 +244,6 @@ function JobsPageContent() {
     value: '',
   });
 
-  // Edit existing stone details (Feb 2026 user req: allow re-editing weight/
-  // type/CS/mounted after add; server recomputes fee from the job's
-  // service_type bracket table and refreshes job total).
-  const [editStoneDialogOpen, setEditStoneDialogOpen] = useState(false);
-  const [editingStone, setEditingStone] = useState<Stone | null>(null);
-  const [savingEditStone, setSavingEditStone] = useState(false);
-  const [editStoneDraft, setEditStoneDraft] = useState<EditStoneDraft>({
-    stone_type: '',
-    weight: '',
-    value: '',
-    shape: '',
-    color_stability_test: false,
-    mounted: false,
-  });
-
   // Nested Stone dialog (opens on top of job dialog)
   const [stoneDialogOpen, setStoneDialogOpen] = useState(false);
   const [viewingStone, setViewingStone] = useState<Stone | null>(null);
@@ -272,6 +257,14 @@ function JobsPageContent() {
   // Stone fee editing
   const [stoneColorStability, setStoneColorStability] = useState<boolean>(false);
   const [stoneMounted, setStoneMounted] = useState<boolean>(false);
+
+  // Stone core-details editing (Feb 2026 user req: "open a stone -> edit
+  // -> save; fees should update from the new details"). Draft is
+  // seeded whenever we open the stone dialog and persisted alongside
+  // fees/verbal on Save.
+  const [stoneDetailsDraft, setStoneDetailsDraft] = useState<StoneDetailsDraft>({
+    stone_type: '', weight: '', shape: '', value: '',
+  });
   
   // Structured verbal findings
   const [dropdownSettings, setDropdownSettings] = useState<DropdownSettings>({
@@ -469,6 +462,15 @@ function JobsPageContent() {
     // Initialize fee fields
     setStoneColorStability(stone.color_stability_test || false);
     setStoneMounted(stone.mounted || false);
+
+    // Initialize core-details draft (used only when parent hits Edit and
+    // the stone isn't a parcel — the dialog itself guards the parcel case).
+    setStoneDetailsDraft({
+      stone_type: stone.stone_type || '',
+      weight: String(stone.weight ?? ''),
+      shape: stone.shape || '',
+      value: String(stone.value ?? ''),
+    });
     
     // Always start in locked mode - user must click "Edit" to modify
     setVerbalEditMode(false);
@@ -480,6 +482,16 @@ function JobsPageContent() {
     if (!verbalEditMode || !viewingStone) return false;
     const hasColorStabilityChange = stoneColorStability !== viewingStone.color_stability_test;
     const hasMountedChange = stoneMounted !== (viewingStone.mounted || false);
+
+    // Core-details drift (single stones only; the dialog hides the edit
+    // block for parcels so drift can't happen there).
+    const hasDetailsChange = viewingStone.kind !== 'parcel' && (
+      stoneDetailsDraft.stone_type !== viewingStone.stone_type ||
+      parseFloat(stoneDetailsDraft.weight) !== viewingStone.weight ||
+      (stoneDetailsDraft.shape || '') !== (viewingStone.shape || '') ||
+      parseFloat(stoneDetailsDraft.value) !== viewingStone.value
+    );
+
     const vf = viewingStone.verbal_findings;
     const existingFindings = (vf && typeof vf === 'object') ? vf as StructuredVerbalFindings : null;
 
@@ -510,7 +522,7 @@ function JobsPageContent() {
           break;
         }
       }
-      return hasColorStabilityChange || hasMountedChange || certChanged || perStoneChanged;
+      return hasColorStabilityChange || hasMountedChange || hasDetailsChange || certChanged || perStoneChanged;
     }
 
     // Single-stone: compare top-level fields. Any field that differs from
@@ -523,7 +535,7 @@ function JobsPageContent() {
       (structuredFindings.origin || '') !== (existingFindings?.origin || '') ||
       (structuredFindings.comment || '') !== (existingFindings?.comment || '')
     );
-    return hasColorStabilityChange || hasMountedChange || hasVerbalChange;
+    return hasColorStabilityChange || hasMountedChange || hasDetailsChange || hasVerbalChange;
   };
 
   const handleStoneDialogClose = (open: boolean) => {
@@ -542,6 +554,38 @@ function JobsPageContent() {
       // field has been cleared — otherwise wiping multiple fields and saving
       // silently does nothing, leaving stale values in the DB.
       await stonesApi.updateStructuredVerbal(viewingStone.id, structuredFindings);
+
+      // Persist core-details changes (type/weight/shape/value) first —
+      // this endpoint recomputes the stone's fee from the job's
+      // service_type bracket table, so it must run BEFORE any CS/mounted
+      // updateFees call which layers on top of the recomputed base fee.
+      // Skipped for parcels (see StoneEditDialog: the edit block hides
+      // for parcels since their totals are per-N-stone).
+      const isParcel = viewingStone.kind === 'parcel';
+      if (!isParcel) {
+        const parsedWeight = parseFloat(stoneDetailsDraft.weight);
+        const parsedValue = parseFloat(stoneDetailsDraft.value);
+        const detailsChanged = (
+          stoneDetailsDraft.stone_type !== viewingStone.stone_type ||
+          parsedWeight !== viewingStone.weight ||
+          (stoneDetailsDraft.shape || '') !== (viewingStone.shape || '') ||
+          parsedValue !== viewingStone.value
+        );
+        if (detailsChanged) {
+          if (!stoneDetailsDraft.stone_type || Number.isNaN(parsedWeight) || Number.isNaN(parsedValue)) {
+            alert('Stone type, weight, and value are required');
+            setSavingStoneVerbal(false);
+            return;
+          }
+          await stonesApi.updateDetails(viewingStone.id, {
+            stone_type: stoneDetailsDraft.stone_type,
+            weight: parsedWeight,
+            shape: stoneDetailsDraft.shape || 'Other',
+            value: parsedValue,
+          });
+        }
+      }
+
       const hasColorStabilityChange = stoneColorStability !== viewingStone.color_stability_test;
       const hasMountedChange = stoneMounted !== (viewingStone.mounted || false);
       if (hasColorStabilityChange || hasMountedChange) {
@@ -558,6 +602,12 @@ function JobsPageContent() {
           setViewingStone(refreshedStone);
           setStoneColorStability(refreshedStone.color_stability_test || false);
           setStoneMounted(refreshedStone.mounted || false);
+          setStoneDetailsDraft({
+            stone_type: refreshedStone.stone_type || '',
+            weight: String(refreshedStone.weight ?? ''),
+            shape: refreshedStone.shape || '',
+            value: String(refreshedStone.value ?? ''),
+          });
         }
       }      fetchData();
       setVerbalEditMode(false);
@@ -965,66 +1015,6 @@ function JobsPageContent() {
       alert('Failed to add stone. Please try again.');
     } finally {
       setAddingStone(false);
-    }
-  };
-
-  /**
-   * Open the Edit Stone dialog seeded with the current stone's values.
-   * Callers pass the `StonesTableStone` from `JobStonesTable`; we locate
-   * the full `Stone` from `selectedJob.stones` so we also get the
-   * `color_stability_test` / `mounted` flags (the table view doesn't
-   * carry those but they affect the fee).
-   */
-  const handleOpenEditStone = (tableStone: { id: string }) => {
-    if (!selectedJob) return;
-    const full = selectedJob.stones.find((s) => s.id === tableStone.id);
-    if (!full) return;
-    setEditingStone(full);
-    setEditStoneDraft({
-      stone_type: full.stone_type,
-      weight: String(full.weight ?? ''),
-      value: String(full.value ?? ''),
-      shape: full.shape || '',
-      color_stability_test: !!full.color_stability_test,
-      mounted: !!full.mounted,
-    });
-    setEditStoneDialogOpen(true);
-  };
-
-  const handleSaveEditStone = async () => {
-    if (!editingStone) return;
-    if (!editStoneDraft.stone_type || !editStoneDraft.weight || !editStoneDraft.value) {
-      alert('Please fill in stone type, weight, and value');
-      return;
-    }
-    setSavingEditStone(true);
-    try {
-      const res = await stonesApi.updateDetails(editingStone.id, {
-        stone_type: editStoneDraft.stone_type,
-        weight: parseFloat(editStoneDraft.weight),
-        shape: editStoneDraft.shape || 'Other',
-        value: parseFloat(editStoneDraft.value),
-        color_stability_test: editStoneDraft.color_stability_test,
-        mounted: editStoneDraft.mounted,
-      });
-
-      // Refresh job data so table + totals reflect new fee immediately.
-      fetchData();
-      const updatedJobs = await jobsApi.getAll();
-      const updated = updatedJobs.find((j: Job) => j.id === selectedJob?.id);
-      if (updated) setSelectedJob(updated);
-
-      setEditStoneDialogOpen(false);
-      setEditingStone(null);
-      // Response includes { new_fee, job_total_fee } — the table + header
-      // already re-render from the refetched selectedJob above, so we
-      // don't need to surface `res` explicitly here.
-      void res;
-    } catch (error) {
-      console.error('Failed to update stone:', error);
-      alert('Failed to update stone. Please try again.');
-    } finally {
-      setSavingEditStone(false);
     }
   };
 
@@ -1853,7 +1843,6 @@ function JobsPageContent() {
                       setViewCertScanOpen(true);
                     }}
                     onDeleteStone={handleDeleteStone}
-                    onEditStone={handleOpenEditStone}
                     editMode={editMode}
                     isAdmin={isAdmin}
                   />
@@ -1991,23 +1980,6 @@ function JobsPageContent() {
         onConfirm={handleAddStoneToJob}
       />
 
-      {/* Edit Stone Details Dialog — server recomputes fee on save. */}
-      <EditStoneDialog
-        open={editStoneDialogOpen}
-        onOpenChange={(o) => {
-          setEditStoneDialogOpen(o);
-          if (!o) setEditingStone(null);
-        }}
-        stoneSku={editingStone?.sku ?? ''}
-        jobNumber={selectedJob?.job_number}
-        stoneTypes={stoneTypes}
-        shapes={shapes}
-        draft={editStoneDraft}
-        setDraft={setEditStoneDraft}
-        saving={savingEditStone}
-        onConfirm={handleSaveEditStone}
-      />
-
       {/* Nested Stone Dialog - opens on top of job dialog */}
       <StoneEditDialog
         open={stoneDialogOpen}
@@ -2026,6 +1998,10 @@ function JobsPageContent() {
         setMounted={setStoneMounted}
         csFeeCost={csFeeCost}
         mountedFeeCost={mountedFeeCost}
+        detailsDraft={stoneDetailsDraft}
+        setDetailsDraft={setStoneDetailsDraft}
+        stoneTypes={stoneTypes}
+        shapes={shapes}
         saving={savingStoneVerbal}
         onSave={handleSaveStone}
         certInputRef={certScanInputRef}

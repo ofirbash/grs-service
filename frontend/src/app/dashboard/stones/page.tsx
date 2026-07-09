@@ -48,7 +48,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { DoubleConfirmDialog } from '@/components/DoubleConfirmDialog';
 import { StoneVerbalSection, seedStructuredFindings } from '@/components/StoneVerbalSection';
-import { StoneEditDialog } from '@/components/dialogs/StoneEditDialog';
+import { StoneEditDialog, StoneDetailsDraft } from '@/components/dialogs/StoneEditDialog';
 import { CompletenessBadges } from '@/components/jobs/CompletenessBadges';
 import { isStoneVerbalComplete, isStoneCertComplete } from '@/lib/stoneCompleteness';
 
@@ -132,6 +132,14 @@ export default function StonesPage() {
   const [stoneMounted, setStoneMounted] = useState<boolean>(false);
   const [csFeeCost, setCsFeeCost] = useState(50);
   const [mountedFeeCost, setMountedFeeCost] = useState(50);
+
+  // Core-details editing (Feb 2026 user req: "open a stone -> edit ->
+  // save; fees should update from the new details").
+  const [stoneDetailsDraft, setStoneDetailsDraft] = useState<StoneDetailsDraft>({
+    stone_type: '', weight: '', shape: '', value: '',
+  });
+  const [stoneTypesList, setStoneTypesList] = useState<string[]>([]);
+  const [shapesList, setShapesList] = useState<string[]>([]);
   
   // Structured verbal findings
   const [dropdownSettings, setDropdownSettings] = useState<DropdownSettings>({
@@ -177,6 +185,11 @@ export default function StonesPage() {
         const pricingData = pricingR.value;
         if (pricingData.color_stability_fee != null) setCsFeeCost(pricingData.color_stability_fee);
         if (pricingData.mounted_jewellery_fee != null) setMountedFeeCost(pricingData.mounted_jewellery_fee);
+        // Pull stone type + shape dropdowns from the same pricing config
+        // used by the Jobs page (single source of truth). Empty arrays
+        // fall back to the dialog's own empty-state handling.
+        if (pricingData.stone_types?.length) setStoneTypesList(pricingData.stone_types);
+        if (pricingData.shapes?.length) setShapesList(pricingData.shapes);
       }
 
       // Initialize dropdowns if empty
@@ -204,6 +217,14 @@ export default function StonesPage() {
     setColorStabilityTest(stone.color_stability_test || false);
     setStoneMounted(stone.mounted || false);
 
+    // Initialise core-details draft (skipped for parcels via the dialog).
+    setStoneDetailsDraft({
+      stone_type: stone.stone_type || '',
+      weight: String(stone.weight ?? ''),
+      shape: stone.shape || '',
+      value: String(stone.value ?? ''),
+    });
+
     // Always start in locked mode - user must click "Edit" to modify
     setVerbalEditMode(false);
 
@@ -220,6 +241,34 @@ export default function StonesPage() {
       // Always persist verbal findings — wiping every field and saving
       // must commit the empty state instead of silently no-op'ing.
       await stonesApi.updateStructuredVerbal(selectedStone.id, structuredFindings);
+
+      // Core-details PUT first (recomputes stone fee from the parent
+      // job's service_type bracket table). Skipped for parcels — their
+      // per-N-stone value semantics aren't editable through this dialog.
+      const isParcel = selectedStone.kind === 'parcel';
+      if (!isParcel) {
+        const parsedWeight = parseFloat(stoneDetailsDraft.weight);
+        const parsedValue = parseFloat(stoneDetailsDraft.value);
+        const detailsChanged = (
+          stoneDetailsDraft.stone_type !== selectedStone.stone_type ||
+          parsedWeight !== selectedStone.weight ||
+          (stoneDetailsDraft.shape || '') !== (selectedStone.shape || '') ||
+          parsedValue !== selectedStone.value
+        );
+        if (detailsChanged) {
+          if (!stoneDetailsDraft.stone_type || Number.isNaN(parsedWeight) || Number.isNaN(parsedValue)) {
+            alert('Stone type, weight, and value are required');
+            setSavingVerbal(false);
+            return;
+          }
+          await stonesApi.updateDetails(selectedStone.id, {
+            stone_type: stoneDetailsDraft.stone_type,
+            weight: parsedWeight,
+            shape: stoneDetailsDraft.shape || 'Other',
+            value: parsedValue,
+          });
+        }
+      }
 
       const hasColorStabilityChange = colorStabilityTest !== selectedStone.color_stability_test;
       const hasMountedChange = stoneMounted !== (selectedStone.mounted || false);
@@ -239,6 +288,12 @@ export default function StonesPage() {
         setSelectedStone(refreshedStone);
         setColorStabilityTest(refreshedStone.color_stability_test || false);
         setStoneMounted(refreshedStone.mounted || false);
+        setStoneDetailsDraft({
+          stone_type: refreshedStone.stone_type || '',
+          weight: String(refreshedStone.weight ?? ''),
+          shape: refreshedStone.shape || '',
+          value: String(refreshedStone.value ?? ''),
+        });
       }
       setVerbalEditMode(false);
     } catch (error) {
@@ -549,6 +604,10 @@ export default function StonesPage() {
         setMounted={setStoneMounted}
         csFeeCost={csFeeCost}
         mountedFeeCost={mountedFeeCost}
+        detailsDraft={stoneDetailsDraft}
+        setDetailsDraft={setStoneDetailsDraft}
+        stoneTypes={stoneTypesList}
+        shapes={shapesList}
         saving={savingVerbal}
         onSave={handleSaveStone}
         certInputRef={certInputRef}
