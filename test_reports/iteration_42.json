@@ -1,0 +1,38 @@
+{
+  "summary": "Iter-42 tests the newly-wired stone-details edit feature (PUT /api/stones/{id} + EditStoneDialog wired into /dashboard/jobs/page.tsx). BACKEND: 6/6 pytest pass (1 skipped due to pre-existing broken customer@test.com hash) — edit weight+value recomputes fee correctly ($550→$650 with Normal service crossing bracket boundary; job_total_fee matches sum(active stone fees) within $1 tolerance); CS toggle adds/removes exactly the configured $50 CS fee; editing a cancelled stone returns 400; kiosk role rejected (403); unauthenticated rejected (403); unknown stone id returns 404. FRONTEND E2E: full flow verified on job #599 — logged in as super admin (via API + zustand-store injection since Turnstile widget blocks automated form submit), opened job modal, clicked Edit, pencil icon visible on active stone row with data-testid='edit-stone-{id}', clicked pencil → edit-stone-dialog opens pre-filled with current 1.5ct / $60,000, changed to 2.5ct / $120,000, Save → dialog closes, table row + job header ('EST. FEES') refresh to $650, backend confirms persisted values; re-opened dialog, toggled CS on → dialog closes, fee updates $650→$700 in row and via API. All 3 spec'd frontend scenarios pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/login (customer@test.com)", "issue": "Pre-existing (NOT iter-42 scope): user row lacks password_hash field → KeyError 500. Impacts customer role tests only; iter-42 skipped that case."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_stone_edit_details.py",
+    "/app/test_reports/pytest/iter42_stone_edit.xml"
+  ],
+  "action_items": [
+    "OPTIONAL cleanup: two draft test jobs (#598, #599 for client ofir11) were left in the DB by the pytest fixture — the /api/jobs DELETE and /api/jobs/{id}/cancel endpoints are not exposed on this build, so the fixture teardown was a no-op. Not blocking anything, but a `db.jobs.delete_many({job_number:{$in:[598,599]}})` will scrub them.",
+    "OPTIONAL: repair customer@test.com bcrypt hash (missing password_hash field) so the customer_role_forbidden 403 assertion can run in future regressions — currently pytest-skipped. Kiosk + unauthenticated cases already cover the non-admin rejection path."
+  ],
+  "critical_code_review_comments": [
+    "backend/routes/stones.py :: update_stone_details — clean implementation. Uses positional operator `stones.$` correctly, recomputes fee from the job's current service_type bracket table (matches add_stone_to_job), enforces cancelled-stone 400, respects certificate-group mounted dedup (only bills mounted_fee once per group), and log_activity is wrapped in try/except so activity-log outages don't fail the write. Response payload {stone, new_fee, job_total_fee} is exactly what the frontend consumes.",
+    "frontend page.tsx wiring — handleOpenEditStone reads the full stone from selectedJob.stones (not from the row's projected fields) so all patch fields are populated correctly. handleSaveEditStone calls fetchData() AND getAll() then re-selects the job by id — a bit redundant (two refetches) but harmless; a single fetchData() should suffice since selectedJob is derived from jobs.",
+    "EditStoneDialog — solid. All 6 spec'd data-testids present (edit-stone-dialog, edit-stone-type-select, edit-stone-weight-input, edit-stone-value-input, edit-stone-shape-select, edit-stone-cs-toggle, edit-stone-mounted-toggle, confirm-edit-stone-button). Save disabled while saving OR when required fields empty. Enter-on-value submits like AddStoneDialog for muscle-memory.",
+    "MINOR polish (non-blocking): after save the file logs `[edit-stone] new fee $X, job total $Y` via console.log — leaving instrumentation logs in prod is not ideal; consider removing or gating behind a debug flag before shipping."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_stone_edit_details.py (new — 7 tests covering PUT /api/stones/{id}: value/weight recompute + job_total_fee sync, CS toggle up+down with fee-amount check from /api/pricing, cancelled-stone 400 via DB-level cancelled flag, customer/kiosk/unauth RBAC 403, unknown 404)"
+  ],
+  "success_rate": {"backend": "100% (6/6 executed, 1 skipped for pre-existing broken account)", "frontend": "100% (edit-mode pencil, dialog prefill, save+refresh, CS toggle flow — all pass)"},
+  "test_credentials": "Super admin: admin@bashari.com / admin123. Kiosk: pad-il@bashari.com / pad123. TURNSTILE_SECRET_KEY already blank in backend/.env; automated login uses API + sessionStorage injection (both 'token' and 'auth-storage' zustand blob) because the Turnstile widget on /login blocks form submission end-to-end even when server-side verification is skipped.",
+  "seed_data_creation": "Test fixture created 1 draft job via POST /api/jobs (client=first client, branch=first branch, service_type=Normal, 1 stone Diamond 1ct $1000). Since no DELETE endpoint exists, 2 such jobs (#598 #599) are left behind — same as the previous session's leftovers. Safe to ignore or scrub via DB.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "1) Login automation: the Cloudflare Turnstile widget on /login cannot be bypassed via UI even with TURNSTILE_SECRET_KEY empty on backend — the frontend requires the widget's own token before enabling submit. Workaround (proven this iter): call POST /api/auth/login via page.request, then sessionStorage.setItem('token', jwt) AND sessionStorage.setItem('auth-storage', JSON.stringify({state:{token,user,isAuthenticated:true},version:0})). Zustand-persist key is 'auth-storage'. 2) Jobs on the /dashboard/jobs list are clickable rows [data-testid=job-row-{job_number}], which open an in-page modal (not a route change). 3) Edit mode: click [data-testid=edit-job-button] inside the job modal — this exposes the per-stone Pencil button [data-testid=edit-stone-{stone_id}]. 4) EditStoneDialog testids all match the spec. 5) Frontend is static export served by `serve build`; source edits require `cd /app/frontend && yarn build` — build was fresh (09:16) at start of this run, so no rebuild was needed.",
+  "rca of the issue": "N/A — no bug encountered. All planned scenarios (backend recompute, RBAC, cancelled-stone 400, frontend dialog open + save + refresh, CS toggle) passed on first execution against the current build. The only functional risk called out in the request (frontend wiring of the new dialog into page.tsx) has been verified end-to-end via a live browser session hitting the real backend."
+}
