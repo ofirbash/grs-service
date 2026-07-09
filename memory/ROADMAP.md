@@ -8,6 +8,10 @@
 
 _None currently._
 
+## Recently Shipped
+
+- [x] **Edit stone details after add** ✅ done Jul 09 2026. `PUT /api/stones/{stone_id}` admin-only endpoint patches details + recomputes fee from job's service_type bracket table (matches `add_stone_to_job` policy). Frontend `EditStoneDialog` + Pencil button in `JobStonesTable` (edit-mode + admin only). Backend tests 6/6 pass (iter-42); frontend E2E verified. See CHANGELOG.
+
 ## P1 — High Priority
 
 - [x] **Activity Log Phase 1** — admin-only per-job audit timeline. ✅ done Feb 25 2026. Backend `log_activity()` helper + GET `/api/activity` endpoint with `branch_admin` scoping. Instrumented 7 route files (jobs, stones, manual_payments, shipments, notifications, clients, auth_routes — `LOGIN_SUCCESS` for admins only). Frontend `JobActivityList` card rendered inside Job Detail dialog (`isAdmin` gated). One-line rows, no JSON diffs (per product decision). 365-day Mongo TTL. Tests: iter-36 11/12 pass.

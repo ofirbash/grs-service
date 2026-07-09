@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-07-09 — Edit Stone Details (feature complete)
+
+**User request (Feb 28 2026):** "Allow editing stone details after adding it to a job. The fees should be changed based on the new details."
+
+**Delivered**
+- **Backend** `PUT /api/stones/{stone_id}` (admin-only) — patches any subset of `stone_type/weight/shape/value/color_stability_test/mounted/kind/stone_count`, then **recomputes `fee`** from the job's current `service_type` bracket table (same code path as `add_stone_to_job`). Response returns `{ stone, new_fee, job_total_fee }`. Cancelled stones → 400.
+- **Frontend** `EditStoneDialog` (`_components/StoneDialogs.tsx`) — mirrors `AddStoneDialog` UX (Enter-to-submit) plus CS/Mounted toggles that affect the fee.
+- **Wiring** into `/dashboard/jobs/page.tsx`: `editingStone` / `editStoneDialogOpen` / `editStoneDraft` / `savingEditStone` state; `handleOpenEditStone` seeds draft from `selectedJob.stones` (so CS/mounted flags come along); `handleSaveEditStone` calls `stonesApi.updateDetails()` then refetches. `JobStonesTable` now receives `onEditStone` and renders a per-row Pencil button in edit-mode / admin-only.
+- **Tests**: `backend/tests/test_stone_edit_details.py` (7 cases — recompute, CS toggle, cancelled 400, RBAC 403 for kiosk/unauth, 404 unknown). Frontend E2E verified via testing_agent — open dialog → change weight+value → save → table & job total refresh; CS toggle round-trips fee.
+
+**Files touched**
+- `frontend/src/app/dashboard/jobs/page.tsx` (state + handlers + dialog mount + `onEditStone` prop)
+- `frontend/src/app/dashboard/jobs/_components/StoneDialogs.tsx` (`EditStoneDialog`)
+- `frontend/src/components/jobs/JobStonesTable.tsx` (Pencil column, edit-mode only)
+- `frontend/src/lib/api.ts` (`stonesApi.updateDetails`)
+- `backend/routes/stones.py` (`update_stone_details` + `StoneDetailsUpdate`)
+- `backend/tests/test_stone_edit_details.py` (new)
+
+
+---
+
 ## Feb 28, 2026 — Print-only mode for return docs + 2-page overflow fix
 
 ### 1. "Print only" mode in the Return Stones / Return Certificates dialog

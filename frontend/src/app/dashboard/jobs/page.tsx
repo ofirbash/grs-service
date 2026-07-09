@@ -1016,11 +1016,10 @@ function JobsPageContent() {
 
       setEditStoneDialogOpen(false);
       setEditingStone(null);
-      // Small feedback matching the app's alert() convention elsewhere in
-      // this file — keeps behavior consistent with handleAddStoneToJob.
-      if (res && typeof res.new_fee === 'number') {
-        console.log(`[edit-stone] new fee $${res.new_fee}, job total $${res.job_total_fee}`);
-      }
+      // Response includes { new_fee, job_total_fee } — the table + header
+      // already re-render from the refetched selectedJob above, so we
+      // don't need to surface `res` explicitly here.
+      void res;
     } catch (error) {
       console.error('Failed to update stone:', error);
       alert('Failed to update stone. Please try again.');
