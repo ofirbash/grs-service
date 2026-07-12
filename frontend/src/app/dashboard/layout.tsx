@@ -338,7 +338,7 @@ export default function DashboardLayout({
                     </button>
                     <div className="border-t border-navy-100 my-1" />
                     <button
-                      onClick={() => { setProfileMenuOpen(false); logout(); window.location.replace('/login/'); }}
+                      onClick={() => { setProfileMenuOpen(false); handleLogout(); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                       data-testid="header-logout-button"
                     >

@@ -5,7 +5,30 @@
 
 ---
 
-## 2026-07-09 — Fee-breakdown tooltip
+## 2026-07-09 — Bug fix: stuck at `:8080/login/` after idle tab
+
+**User bug (production `lab.bashari.co`):** "When I leave the app running, after a day or more of no usage, I'm being stuck at `https://lab.bashari.co:8080/login/`. This is not friendly. You should redirect me to the login page."
+
+**RCA**: `next.config.mjs` sets `trailingSlash: true`, so `next build` writes each route as `<route>/index.html`. Production ingress does CRA-style `try_files $uri $uri/ /index.html` — a slashless request like `/login` 301s to the *absolute directory URL*, which is `http://lab.bashari.co:8080/login/` (leaks internal port + downgrades protocol → browser refuses / hangs). Three sites in `dashboard/layout.tsx` (auth-gate `useEffect`, `handleLogout`, header profile-menu Logout) plus two in `login/page.tsx` (password + 2FA success) and one in `setup-password/page.tsx` were pushing to slashless paths. When the tab sat idle and the axios 401 interceptor cleared auth (or sessionStorage naturally lost the zustand blob), the auth-gate `useEffect` fired `router.replace('/login')` → stranded the user.
+
+**Fix**: All auth-related redirects now target slashed paths via `window.location.replace('/login/')` — mirroring the already-correct pattern in `lib/api.ts` axios interceptor. Also fixed post-login (`/dashboard/`, `/dashboard/signing-pad/`), setup-password (`/dashboard/`), and profile navigation (`/dashboard/profile/`). Deduped the header profile-menu Logout to call the shared `handleLogout` helper (single source of truth for the trailing-slash invariant).
+
+**Verified** (testing_agent iter-44): 4/4 auth-redirect scenarios PASS (100%):
+- Session-expired auth gate → `/login/` ✓
+- Header profile-menu Logout → `/login/` ✓  
+- Post-login → `/dashboard/` ✓
+- Profile-menu "My Profile" → `/dashboard/profile/` ✓
+- Static-build grep: 0 slashless redirect targets remain in source; the only surviving `/login` substrings in built JS are `pathname.startsWith('/login')` guards and display strings, neither of which are redirect targets.
+
+**Files touched**
+- `frontend/src/app/dashboard/layout.tsx` — 4 redirect sites fixed + header logout deduped.
+- `frontend/src/app/login/page.tsx` — password + 2FA success redirects.
+- `frontend/src/app/setup-password/page.tsx` — password-setup success redirect.
+
+**Preview vs Production**: Fix is verified in preview (necessary condition — every redirect targets a slashed URL). The port `:8080` leak itself only reproduces on production ingress; user needs to redeploy to push the fix live.
+
+---
+
 
 Follow-up to the silent handling-charge feature: since the stone's total fee now silently includes a bracket + CS + Mounted + Handling sum, admins can now hover the Fee value in `StoneEditDialog` to see the full breakdown.
 
