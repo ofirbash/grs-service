@@ -103,7 +103,7 @@ function SetupPasswordForm() {
       if (response.access_token) {
         setSuccess(true);
         setAuth(response.access_token, response.user);
-        setTimeout(() => router.push('/dashboard'), 1500);
+        setTimeout(() => window.location.replace('/dashboard/'), 1500);
       }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };

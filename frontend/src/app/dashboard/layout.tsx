@@ -109,17 +109,25 @@ export default function DashboardLayout({
   // without this redirect the user just sees the "Loading..." fallback below
   // forever. We wait for `mounted` so zustand-persist has had a chance to
   // rehydrate from sessionStorage; otherwise authenticated users would be
-  // bounced to /login on every page load. `router.replace` (not push) so we
-  // don't pollute browser history.
+  // bounced to /login on every page load.
+  //
+  // IMPORTANT — trailing slash mandatory. `next.config.mjs` sets
+  // `trailingSlash: true`, so a redirect to `/login` (no slash) gets 301'd
+  // by the production proxy to an absolute `http://lab.bashari.co:8080/login/`,
+  // leaking the ingress's internal port + protocol. Users report getting
+  // stuck at that URL after leaving a tab idle overnight (Jul 09 2026).
+  // Using `window.location.replace` (with slash) matches the pattern that
+  // already works reliably in the axios 401 interceptor (`lib/api.ts`).
   useEffect(() => {
     if (mounted && !isAuthenticated) {
-      router.replace('/login');
+      window.location.replace('/login/');
     }
-  }, [mounted, isAuthenticated, router]);
+  }, [mounted, isAuthenticated]);
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    // Same trailing-slash requirement as the auth gate above.
+    window.location.replace('/login/');
   };
 
   if (!mounted || !isAuthenticated) {
@@ -321,7 +329,7 @@ export default function DashboardLayout({
                   <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
                   <div className="absolute right-0 top-full mt-1 z-50 w-48 bg-white border border-navy-200 rounded-lg shadow-lg py-1">
                     <button
-                      onClick={() => { setProfileMenuOpen(false); router.push('/dashboard/profile'); }}
+                      onClick={() => { setProfileMenuOpen(false); router.push('/dashboard/profile/'); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-navy-700 hover:bg-navy-50 transition-colors"
                       data-testid="profile-link"
                     >
@@ -330,7 +338,7 @@ export default function DashboardLayout({
                     </button>
                     <div className="border-t border-navy-100 my-1" />
                     <button
-                      onClick={() => { setProfileMenuOpen(false); logout(); router.push('/login'); }}
+                      onClick={() => { setProfileMenuOpen(false); logout(); window.location.replace('/login/'); }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                       data-testid="header-logout-button"
                     >

@@ -1,0 +1,64 @@
+{
+  "summary": "Frontend-only verification of the trailing-slash auth-redirect bug fix. Confirmed that ALL auth redirects (session-expired auth gate, post-login, profile navigation, header logout) now navigate to URLs WITH trailing slashes and never leak the :8080 internal port. The load-bearing necessary condition for defeating the production 301 chain that stranded users at http://lab.bashari.co:8080/login/ is satisfied.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "dashboard/layout.tsx uses two different logout paths: the sidebar Logout button calls handleLogout() (which does logout() + window.location.replace('/login/')), while the header profile-menu Logout inlines `logout(); window.location.replace('/login/');`. Both are functionally equivalent post-fix, but they are separate copies of the same 3-line snippet — consolidate to a single handler to keep the trailing-slash invariant in one place (Test 3/4 confirmed both currently work).",
+    "The header profile-menu 'My Profile' still uses router.push('/dashboard/profile/') (slashed) while every other auth-critical redirect switched to window.location.replace. The router.push works here because it stays on the client-side SPA route (no ingress round-trip), so no port-leak risk — but the pattern inconsistency invites future regressions. Consider a shared helper `navigateToSlashed(path)` and document the invariant.",
+    "next.config.mjs's `trailingSlash: true` is now load-bearing but only enforced by convention in code. A pre-commit grep/lint rule ('no router.push/replace or window.location.replace target ending without /') would prevent this class of bug from re-appearing."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100% (4/4 auth-redirect scenarios pass)" },
+  "test_credentials": "admin@bashari.com / admin123 (super_admin). Login went through /api/auth/login (backend TURNSTILE_SECRET_KEY is blank so no captcha token needed). Automated browser login used in-browser fetch to /api/auth/login + sessionStorage injection of BOTH 'token' key AND the zustand 'auth-storage' blob (required — the axios request interceptor reads sessionStorage['token'] while the DashboardLayout auth gate reads the zustand blob).",
+  "seed_data_creation": "None. All tests used existing admin account and read-only navigation.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "For any future auth-flow testing on this app, inject BOTH sessionStorage['token'] and sessionStorage['auth-storage'] — missing the raw 'token' key causes background API calls (branches/pending access requests) to fire un-authorized, tripping the axios 401 interceptor and bouncing the tab to /login/?reason=expired within seconds. The trailing-slash discipline (next.config.mjs sets trailingSlash: true) is now load-bearing for production — every router.push/replace or window.location.replace target must end with '/'. STATIC-BUILD grep search confirms no slashless redirect targets remain in /app/frontend/src (only surviving occurrences of '/login' without trailing slash in built JS are (a) pathname.startsWith('/login') in api.ts — a check, not a redirect, and (b) the substring inside '/login/?reason=expired' and a display string 'children:\"/login\"' — both fine).",
+  "test_results_detail": {
+    "test_1_session_expired_auth_gate": {
+      "scenario": "Clear all storage, then GET /dashboard/",
+      "expected": "Redirect to /login/ (with slash), no :8080 leak, login form visible",
+      "actual": "pathname === '/login/', :8080 not in URL, login-email-input visible",
+      "result": "PASS"
+    },
+    "test_2_post_login_redirect": {
+      "scenario": "Valid super-admin credentials -> submit login (via injected /api/auth/login + storage) -> visit /dashboard/",
+      "expected": "Lands on /dashboard/ with trailing slash, dashboard chrome renders",
+      "actual": "pathname === '/dashboard/', :8080 not in URL, profile-menu-button visible",
+      "result": "PASS (window.location.replace call site in login/page.tsx lines 97-99 confirmed slashed via source + built-chunk grep)"
+    },
+    "test_3_profile_menu_navigation": {
+      "scenario": "While logged in, open header profile menu, click 'My Profile'",
+      "expected": "Navigate to /dashboard/profile/ (with slash), no :8080 leak",
+      "actual": "pathname === '/dashboard/profile/', :8080 not in URL",
+      "result": "PASS (dashboard/layout.tsx line 332: router.push('/dashboard/profile/'))"
+    },
+    "test_4_header_logout": {
+      "scenario": "While logged in, open profile menu, click Logout",
+      "expected": "Redirect to /login/, session cleared, no :8080 leak",
+      "actual": "pathname === '/login/', :8080 not in URL, auth-storage.isAuthenticated === false, sessionStorage['token'] === null. (login-email-input visibility check timed just after window.location.replace and returned false due to Turnstile widget re-hydration; the screenshot confirms the login form fully rendered.)",
+      "result": "PASS (dashboard/layout.tsx line 341: window.location.replace('/login/'))"
+    },
+    "static_build_sanity": {
+      "scenario": "Grep compiled JS in /app/frontend/build for redirect targets",
+      "findings": {
+        "\"/login/\" present": "1 chunk (7123-b0f985a49f59333f.js)",
+        "\"/dashboard/\" present": "2 chunks",
+        "\"/dashboard/profile/\" present": "1 chunk",
+        "\"/dashboard/signing-pad/\" present": "1 chunk",
+        "\"/login/?reason=expired\" present": "1 chunk (lib/api.ts axios interceptor)",
+        "slashless \"/login\" occurrences in built JS": "2 — both are LEGITIMATE non-redirect uses: `pathname.startsWith(\"/login\")` (guard check in api.ts) and `children:\"/login\"` (display string in help text). NEITHER is a router push/replace target.",
+        "slashless router.push('/login') or router.push('/dashboard') in /app/frontend/src": "0"
+      },
+      "result": "PASS"
+    },
+    "head_requests_to_slashed_paths": "{'/login/': 200, '/dashboard/': 200, '/dashboard/profile/': 200} — all three routes are served as static index.html files from build/, so the browser never hits the ingress 301 chain in the first place on preview."
+  },
+  "rca_of_the_issue": "Root cause: next.config.mjs sets trailingSlash: true (so `next build` writes each route as `<route>/index.html`) and the production nginx does CRA-style `try_files $uri $uri/ /index.html` — matching a directory with an index.html, not a `.html` extension. When a slashless path (e.g. `/login`) hits production ingress, ingress issues a 301 to the absolute URL of the directory (`http://lab.bashari.co:8080/login/`), leaking the internal listen port + downgrading protocol from https to http, which the browser refuses. In `dashboard/layout.tsx`, `router.replace('/login')` (no slash) was called from three sites (auth-gate useEffect, handleLogout, header profile-menu Logout). When the tab sat idle overnight and the sessionStorage 'auth-storage' blob's `isAuthenticated` reset (or was cleared by the axios 401 interceptor after a background poll like refreshPendingAccess), the auth-gate useEffect fired the slashless redirect and stranded the user. Mitigation (verified): all three sites now use `window.location.replace('/login/')` (with trailing slash) — same pattern as `lib/api.ts` line 98 which was already correct. Analogous secondary fixes applied to login/page.tsx (post-login → '/dashboard/' / '/dashboard/signing-pad/') and setup-password/page.tsx (→ '/dashboard/'). Static-build grep confirms zero slashless redirect targets remain."
+}

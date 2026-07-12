@@ -90,7 +90,13 @@ export default function LoginPage() {
         // Signing-pad accounts go straight to the kiosk page — they have
         // no dashboard permissions and the home route would just bounce
         // them back to /login otherwise.
-        router.push(response.user?.role === 'signing_pad' ? '/dashboard/signing-pad' : '/dashboard');
+        // Trailing slashes required (`next.config.mjs` sets
+        // trailingSlash: true) — see dashboard/layout.tsx and lib/api.ts
+        // for the full rationale (production proxy 301s any slashless
+        // URL to :8080/…/ which leaks the internal ingress port).
+        window.location.replace(
+          response.user?.role === 'signing_pad' ? '/dashboard/signing-pad/' : '/dashboard/',
+        );
       }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string }; status?: number } };
@@ -118,7 +124,9 @@ export default function LoginPage() {
       });
       if (response.access_token) {
         setAuth(response.access_token, response.user);
-        router.push(response.user?.role === 'signing_pad' ? '/dashboard/signing-pad' : '/dashboard');
+        window.location.replace(
+          response.user?.role === 'signing_pad' ? '/dashboard/signing-pad/' : '/dashboard/',
+        );
       }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
