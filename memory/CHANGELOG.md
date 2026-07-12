@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-07-09 — ESLint guard: no slashless redirect targets
+
+Follow-up to the `:8080/login/` bug fix — codified the trailing-slash discipline as an actual ESLint rule so this class of bug can't reappear.
+
+**Delivered**
+- Added 5 targeted `no-restricted-syntax` selectors to `frontend/.eslintrc.json`:
+  1. `router.push(...)` / `router.replace(...)` with a slashless internal path.
+  2. `window.location.replace(...)` / `.assign(...)` with a slashless internal path.
+  3. `location.replace(...)` / `.assign(...)` (bare-`location` variant) with a slashless internal path.
+  4. `window.location.href = '...'` / `.pathname = '...'` assignments to a slashless internal path.
+  5. `location.href = '...'` / `.pathname = '...'` (bare-`location` variant) assignments.
+- Regex catches paths starting with `/` whose path-portion (before `?` or `#`) doesn't end in `/` or `.html`. Absolute URLs, query-string paths where the path is already slashed, and `.html` files all pass through cleanly.
+- Rules are scoped to the specific navigation callees only — `str.replace()`, `array.push()`, etc. are NOT flagged (no false positives).
+
+**Verified**
+- Wrote a temporary fixture with 8 BAD lines and 7 GOOD lines. All 8 BAD flagged with a descriptive error message; all 7 GOOD passed. Fixture deleted after verification.
+- Ran full-source `yarn lint` on the current codebase: **zero `no-restricted-syntax` violations**. No false positives.
+- Build (`yarn build`) succeeds unchanged.
+
+**Bonus cleanup** (byproducts of the previous redirect fix + pre-existing tech debt caught in passing):
+- Removed unused `useRouter` / `router` from `login/page.tsx` and `setup-password/page.tsx` (superseded by `window.location.replace`).
+- Removed unused `DropdownOption` interface in `StoneEditDialog.tsx` and unused `get` param in `usePendingAccessRequests.ts` store.
+
+**Note**: Other pre-existing unused-var errors surfaced by `yarn lint` are separate tech debt from prior sessions (not caused by this change). `next build` doesn't fail on them, so they're non-blocking. Worth a dedicated cleanup pass someday.
+
+**Files touched**
+- `frontend/.eslintrc.json` (rules added).
+- `frontend/src/app/login/page.tsx`, `frontend/src/app/setup-password/page.tsx` (unused router removed).
+- `frontend/src/components/dialogs/StoneEditDialog.tsx`, `frontend/src/lib/usePendingAccessRequests.ts` (unused imports/params).
+
+---
+
+
 ## 2026-07-09 — Bug fix: stuck at `:8080/login/` after idle tab
 
 **User bug (production `lab.bashari.co`):** "When I leave the app running, after a day or more of no usage, I'm being stuck at `https://lab.bashari.co:8080/login/`. This is not friendly. You should redirect me to the login page."

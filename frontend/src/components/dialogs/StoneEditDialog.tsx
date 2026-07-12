@@ -62,10 +62,6 @@ interface JobLike {
   client_name?: string | null;
 }
 
-interface DropdownOption {
-  value: string;
-}
-
 type DropdownSettingsLike = DropdownSettings;
 
 interface StructuredVerbalLike {

@@ -18,7 +18,7 @@ interface State {
   reset: () => void;
 }
 
-export const usePendingAccessRequestsStore = create<State>((set, get) => ({
+export const usePendingAccessRequestsStore = create<State>((set) => ({
   count: 0,
   lastFetched: 0,
   refresh: async () => {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -15,7 +14,6 @@ import { Turnstile, TurnstileInstance } from '@marsidev/react-turnstile';
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '';
 
 export default function LoginPage() {
-  const router = useRouter();
   const { setAuth } = useAuthStore();
   const turnstileRef = useRef<TurnstileInstance | null>(null);
 

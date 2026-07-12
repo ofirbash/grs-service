@@ -1,3 +1,28 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "CallExpression[callee.type='MemberExpression'][callee.object.name='router'][callee.property.name=/^(push|replace)$/] > Literal[value=/^\\/[^?#]*[^/?#](?<!\\.html)(?:[?#].*)?$/]:first-child",
+        "message": "Redirect target is missing a trailing slash. next.config.mjs sets `trailingSlash: true`, so a slashless path 301s to `http://…:8080/…/` in production (leaks the internal ingress port + downgrades protocol → users get stuck). Use '/login/' not '/login', '/dashboard/' not '/dashboard'."
+      },
+      {
+        "selector": "CallExpression[callee.type='MemberExpression'][callee.object.type='MemberExpression'][callee.object.object.name='window'][callee.object.property.name='location'][callee.property.name=/^(replace|assign)$/] > Literal[value=/^\\/[^?#]*[^/?#](?<!\\.html)(?:[?#].*)?$/]:first-child",
+        "message": "window.location redirect target is missing a trailing slash. next.config.mjs sets `trailingSlash: true`, so a slashless path 301s to `http://…:8080/…/` in production. Use '/login/' not '/login'."
+      },
+      {
+        "selector": "CallExpression[callee.type='MemberExpression'][callee.object.name='location'][callee.property.name=/^(replace|assign)$/] > Literal[value=/^\\/[^?#]*[^/?#](?<!\\.html)(?:[?#].*)?$/]:first-child",
+        "message": "location redirect target is missing a trailing slash. next.config.mjs sets `trailingSlash: true`, so a slashless path 301s to `http://…:8080/…/` in production. Use '/login/' not '/login'."
+      },
+      {
+        "selector": "AssignmentExpression[left.type='MemberExpression'][left.object.type='MemberExpression'][left.object.object.name='window'][left.object.property.name='location'][left.property.name=/^(href|pathname)$/][right.type='Literal'][right.value=/^\\/[^?#]*[^/?#](?<!\\.html)(?:[?#].*)?$/]",
+        "message": "window.location assignment is missing a trailing slash. next.config.mjs sets `trailingSlash: true`, so a slashless path 301s to `http://…:8080/…/` in production. Use '/login/' not '/login'."
+      },
+      {
+        "selector": "AssignmentExpression[left.type='MemberExpression'][left.object.name='location'][left.property.name=/^(href|pathname)$/][right.type='Literal'][right.value=/^\\/[^?#]*[^/?#](?<!\\.html)(?:[?#].*)?$/]",
+        "message": "location assignment is missing a trailing slash. next.config.mjs sets `trailingSlash: true`, so a slashless path 301s to `http://…:8080/…/` in production. Use '/login/' not '/login'."
+      }
+    ]
+  }
 }
