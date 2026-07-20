@@ -77,6 +77,19 @@ function PaymentForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Absolute origin (protocol + host) for callbacks passed to Tranzila.
+  // Tranzila's servers POST to `notify_url_address` from OUTSIDE the browser,
+  // so it MUST be an absolute HTTPS URL. Passing a relative path like
+  // "/api/payment/xxx/notify" silently no-ops — the callback never lands
+  // and the payment sits at "pending" forever (Jul 09 2026 BIT bug).
+  //
+  // Computed lazily (not at module scope) because Next.js static export
+  // runs the initial render at build time when `window` is undefined.
+  const [origin, setOrigin] = useState('');
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
   useEffect(() => {
     if (!token) return;
     fetchPaymentDetails();
@@ -421,7 +434,28 @@ function PaymentForm() {
                       <input type="hidden" name="contact" value={paymentData?.client_name || ''} />
                       <input type="hidden" name="pdesc" value={`Job #${paymentData?.job_number} - Bashari Lab-Direct`} />
                       <input type="hidden" name="bit_pay" value="1" />
-                      <input type="hidden" name="notify_url_address" value={`${API_URL}/payment/${token}/notify`} />
+                      {/* Server-to-server webhook. MUST be absolute — Tranzila's
+                          backend cannot resolve relative paths. */}
+                      <input
+                        type="hidden"
+                        name="notify_url_address"
+                        value={`${origin}${API_URL}/payment/${token}/notify`}
+                      />
+                      {/* Client-side redirect after success/failure (Tranzila
+                          navigates the iframe here). The /pay page picks up
+                          `?status=success` and triggers an immediate poll of
+                          the payment status, giving the user instant feedback
+                          instead of waiting for the 5-second poll interval. */}
+                      <input
+                        type="hidden"
+                        name="success_url_address"
+                        value={`${origin}/pay/?token=${token}&status=success`}
+                      />
+                      <input
+                        type="hidden"
+                        name="fail_url_address"
+                        value={`${origin}/pay/?token=${token}&status=fail`}
+                      />
                     </form>
                   )}
 

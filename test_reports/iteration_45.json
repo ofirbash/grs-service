@@ -1,0 +1,41 @@
+{
+  "summary": "Verified the /pay page Tranzila notify_url_address absolute-URL fix (BIT payment 'pending forever' bug, Jul 2026). Backend notify + status endpoints untouched and functional; frontend now embeds ABSOLUTE https:// URLs for notify_url_address, success_url_address, and fail_url_address in the hidden #tranzila-form. Full end-to-end flow confirmed on preview: /pay renders -> Pay button triggers real Tranzila handshake -> form gets absolute URLs -> external notify (Response=000) flips the UI to 'Payment Received' via the 5s polling loop.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/jobs/{TEST_JOB_ID}/payment-token in test_tranzila_payment.py", "issue": "Hardcoded TEST_JOB_ID '69b67dac4d2b625c24832749' no longer exists in this preview DB -> test_generate_payment_token FAILS with 404. Pre-existing stale-fixture issue, unrelated to this fix. Recommend replacing the fixture with a fresh-job-per-test-class pattern (as done in TestPaymentSimulation)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_notify_absolute_url_fix.py",
+    "/app/test_reports/pytest/iter45_notify_fix.xml",
+    "/app/test_reports/pytest/iter45_tranzila.xml"
+  ],
+  "action_items": [
+    "None for this fix. Optional: replace hardcoded TEST_JOB_ID in test_tranzila_payment.py with a fresh-job fixture to make the whole suite green in fresh preview environments."
+  ],
+  "critical_code_review_comments": [
+    "pay/page.tsx correctly reads window.location.origin inside a useEffect (line 88-91) — SSR-safe under Next.js static export. Verified no ReferenceError at page load; `origin` starts as empty string during first render (before hydration) and is populated post-mount. Because the hidden #tranzila-form only renders after the user clicks Pay (state showIframe==true, which happens post-hydration in initiatePayment onClick), the origin is guaranteed non-empty by the time the form emits its inputs. No race.",
+    "The 200ms setTimeout in initiatePayment (line 174-178) that submits the form is fragile — depends on React committing setShowIframe(true) + rendering the hidden form before the setTimeout fires. On slow devices this could race. Consider useEffect-driven submit keyed off `showIframe && handshakeData && formRef.current` instead of a magic delay. Not blocking, works today.",
+    "API_URL default '/api' (line 27) combined with an absolute origin produces the right URL (`${origin}${API_URL}/...` = `https://host/api/...`). But if anyone ever sets NEXT_PUBLIC_API_URL to an already-absolute URL (`https://api.example.com/api`), the concatenation would produce `https://host_https://api.example.com/api/...`. Add a guard: if API_URL starts with http, drop the origin prefix.",
+    "Backend /api/payment/{token}/notify (line 260) accepts both 'Response' and 'response' keys but only the first branch's cased key ('Response') is what Tranzila actually sends per their integration docs — confirmed working in this test. Backend correctly returns 200 with {status:'ok'} even on unknown token (line 248) so Tranzila won't infinite-retry a bad token."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_notify_absolute_url_fix.py (NEW — 3 regression tests for the notify endpoint)"
+  ],
+  "success_rate": {
+    "backend": "100% for the fix-specific regression suite (3/3 tests pass). Full test_tranzila_payment.py is 7/12 passed, 4 skipped (blocked on hardcoded job_id), 1 pre-existing failure — unrelated to this fix.",
+    "frontend": "100% (all 6 UI assertions pass: SSR-safe origin, Pay button, handshake, absolute notify_url_address, absolute success_url_address, absolute fail_url_address, polling->Payment Received)"
+  },
+  "test_credentials": "admin@bashari.com / admin123 (super_admin). TURNSTILE_SECRET_KEY blank in backend/.env — no captcha needed. TRANZILA_TERMINAL=grsil and TRANZILA_PW are set so live handshake works and the hidden #tranzila-form renders.",
+  "seed_data_creation": "Each test run created a fresh Grading job with a single stone (value=5000) and minted an is_adjustment payment token (adjustment_amount=150) to ensure payable_amount > 0 (the standard fee bracket returned $0 for value=5000 without the adjustment override). Test jobs are not cleaned up but are inert (no side effects — no email, no shipment).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "When end-to-end-testing /pay with the real Tranzila handshake, the hidden form uses class='hidden' (display:none), so Playwright's default wait_for_selector times out on visibility. Use state='attached' to detect the form in the DOM. To force payable_amount>0 without navigating the stone-fee UI, mint an ADJUSTMENT token via POST /api/jobs/{id}/payment-token with body {is_adjustment:true, adjustment_amount:N} — this triggers the payment_adjustment escape hatch in jobs_helpers.payable_amount. The 5-second poll on /api/payment/{token}/status means UI transitions to 'Payment Received' within ~5-8s of the notify webhook firing.",
+  "rca_of_the_issue": "ROOT CAUSE: The pre-fix /pay page emitted `<input name='notify_url_address' value='/api/payment/{token}/notify'>` — a RELATIVE URL. Tranzila's servers POST this callback from their own infrastructure (not the customer's browser), so a relative path resolves against Tranzila's own base URL (or is rejected outright), never reaching lab.bashari.co. Result: BIT payments (100% async — mobile app confirms with Tranzila -> Tranzila calls notify_url_address -> our webhook marks payment paid) sit at 'pending' forever, because the webhook never arrives. Credit-card payments have the same underlying vulnerability but the user sees success visually in the iframe. FIX (verified): pay/page.tsx line 88-91 captures window.location.origin inside a useEffect (SSR-safe under Next.js static export). Lines 439-458 concatenate this origin with the relative API path when emitting `notify_url_address`, and add two new fields `success_url_address` and `fail_url_address` also pointing at absolute `/pay/?token=<t>&status=<success|fail>` URLs (trailing slash on /pay/ preserved to sidestep the production 301 chain that leaks :8080). VERIFIED IN PREVIEW: form now emits `https://bashari-lab-direct.preview.emergentagent.com/api/payment/<token>/notify` (absolute). Tranzila can now reach the webhook, payment_status flips from 'pending' to 'paid', and the 5s frontend poll picks up the state change and shows the 'Payment Received' screen."
+}
