@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-07-09 — Bug fix: Tranzila BIT payments stuck at "pending"
+
+**User bug (production `lab.bashari.co`):** "A payment was made on production with BIT (using Tranzila). The payment status is still pending. The payment was made 10 minutes ago."
+
+**RCA**: The /pay page emitted `<input name="notify_url_address" value="/api/payment/{token}/notify">` — a **relative URL**. Tranzila's servers POST this callback from their own backend (not the customer's browser), so a relative path never reaches `lab.bashari.co`. BIT payments are 100% async (mobile app confirms → Tranzila → webhook), so with no webhook they sit at "pending" forever. Credit-card payments have the same underlying flaw.
+
+**Fix**
+- `frontend/src/app/pay/page.tsx`:
+  - New `origin` state read from `window.location.origin` **inside a useEffect** (SSR-safe under Next.js static export).
+  - New `absoluteApiUrl` helper — prepends `origin` to `API_URL` when API_URL is a relative path, but skips the prefix if someone overrides `NEXT_PUBLIC_API_URL` with an already-absolute URL (defensive against future misconfig).
+  - `notify_url_address` now emits an absolute HTTPS URL: `https://<host>/api/payment/<token>/notify`.
+  - New `success_url_address` + `fail_url_address` fields (also absolute, both pointing at `/pay/?token=...&status=success|fail` with the trailing slash preserved — the polling loop picks up `?status=success` and triggers an immediate status refresh, so the customer sees "Payment Received" instantly rather than after the next 5s poll).
+
+**Verified** (testing_agent iter-45): 100% pass on the fix-specific tests:
+- Absolute `notify_url_address` in the emitted DOM form ✓
+- Absolute `success_url_address` and `fail_url_address` present ✓
+- Handshake still works ✓ (real Tranzila handshake in preview — `TRANZILA_TERMINAL=grsil` is set)
+- Backend notify endpoint still processes Response=000 → `payment_status='paid'` ✓
+- 5-second poll picks up the paid state and transitions to "Payment Received" UI ✓
+- No SSR errors, no `window is not defined` at build time ✓
+- New `backend/tests/test_notify_absolute_url_fix.py` (3 regression tests) passes 3/3 ✓
+
+**Files touched**
+- `frontend/src/app/pay/page.tsx` (origin + absoluteApiUrl helper + 3 new absolute-URL form fields).
+- `backend/tests/test_notify_absolute_url_fix.py` (NEW — regression tests).
+
+**Recovering the ONE stuck payment (production)**
+- The user's 10-min-old BIT payment cannot be auto-recovered from code — Tranzila's notify webhook already fired and was dropped (relative URL never reached us). Two options:
+  1. Look up the transaction on Tranzila's dashboard, then manually mark the job paid via `POST /api/payment/<token>/simulate` (admin-only) — this leaves a `_action='payment.simulate'` audit trail.
+  2. Direct DB update on the `jobs` collection: `{payment_status:'paid', paid_at: ISODate(...), payment_confirmation: '<confirmation from Tranzila dashboard>'}`.
+- **Going forward**: needs a redeploy to push this fix live to `lab.bashari.co`.
+
+---
+
+
 ## 2026-07-09 — ESLint guard: no slashless redirect targets
 
 Follow-up to the `:8080/login/` bug fix — codified the trailing-slash discipline as an actual ESLint rule so this class of bug can't reappear.

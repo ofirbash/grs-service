@@ -90,6 +90,12 @@ function PaymentForm() {
     setOrigin(window.location.origin);
   }, []);
 
+  // Defensive: if someone overrides NEXT_PUBLIC_API_URL to an already
+  // absolute URL (e.g. `https://api.example.com/api`), don't double-prefix
+  // it with the origin — that would produce a malformed URL Tranzila
+  // silently drops. Only prepend `origin` when API_URL is a relative path.
+  const absoluteApiUrl = /^https?:\/\//i.test(API_URL) ? API_URL : `${origin}${API_URL}`;
+
   useEffect(() => {
     if (!token) return;
     fetchPaymentDetails();
@@ -439,7 +445,7 @@ function PaymentForm() {
                       <input
                         type="hidden"
                         name="notify_url_address"
-                        value={`${origin}${API_URL}/payment/${token}/notify`}
+                        value={`${absoluteApiUrl}/payment/${token}/notify`}
                       />
                       {/* Client-side redirect after success/failure (Tranzila
                           navigates the iframe here). The /pay page picks up
