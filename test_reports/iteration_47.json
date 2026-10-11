@@ -1,0 +1,33 @@
+{
+  "summary": "Retest of iter-46 fixes. ALL GREEN. (1) /auth/disable-2fa now returns 403 for non-admins (fix verified via new pytest test_all_2fa_endpoints_reject_non_admin and via frontend E2E non_admin_endpoints_403). (2) /auth/login now returns 401 (not 500) when the user row lacks password_hash — verified by a fresh seed-the-broken-row regression test. (3) /api/users now returns 200 (not 500) when a row lacks created_at — verified by a fresh seed-the-broken-row regression test. Backend pytest: 6/6 on test_two_factor_self_service.py + 2/2 on new test_hardening_regression.py. Frontend E2E: 12/12 on test_2fa_frontend_e2e.py (previously 11/12).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_two_factor_self_service.py",
+    "/app/backend/tests/test_hardening_regression.py",
+    "/app/tests/test_2fa_frontend_e2e.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "The 3 role-gate boilerplate blocks in setup/enable/disable-2fa are now consistent but still duplicated — extracting a `require_admin(user)` FastAPI dependency would prevent this bug class from recurring. Not blocking.",
+    "Hardenings for missing password_hash and missing created_at are tactical — the schema-level fix (Pydantic User model with defaults + migration to backfill legacy rows) remains the correct long-term solution. Not blocking.",
+    "test_credentials.md still advertises customer@test.com as a valid credential; the row is now hardened at the code level, but the fixture itself continues to be re-created manually by test agents. Consider making the seed script idempotent for this account."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_hardening_regression.py (NEW — 2 regression tests pinning the login-no-pwhash and users-no-created_at fixes)"
+  ],
+  "success_rate": {"backend": "100% (8/8 pytest)", "frontend": "100% (12/12 E2E assertions)"},
+  "test_credentials": "Super admin: admin@bashari.com / admin123 (used for admin table + /api/users test). Customer: customer@test.com / customer123 (works). Per-test seeded super_admin and customer rows with uuid suffix, cleaned up.",
+  "seed_data_creation": "Per-test: seeded super_admin rows (2fa-ct-*, 2fa-fe-*), seeded customer rows (2fa-cx-*), seeded broken rows (nopw-*, nocreated-*). All cleaned up in finally/teardown blocks.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter-46 issues are closed. Backend pytest regression at /app/backend/tests/test_two_factor_self_service.py (6 tests, incl. the new role-gate test for all 3 endpoints) and /app/backend/tests/test_hardening_regression.py (2 tests). Frontend E2E at /app/tests/test_2fa_frontend_e2e.py — run with `PLAYWRIGHT_BROWSERS_PATH=/pw-browsers python tests/test_2fa_frontend_e2e.py` from /app. All green.",
+  "rca of the issue": "N/A — this iteration is a retest confirming iter-46 fixes landed correctly. The root causes were: (a) disable-2fa was missing the role gate because the gate was retrofitted onto setup/enable but not disable; (b) legacy user rows in Mongo lacked password_hash and/or created_at because the user model evolved after they were seeded. Fixes verified at the endpoint level via live HTTP tests against broken rows seeded fresh at test time."
+}

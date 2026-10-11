@@ -5,6 +5,43 @@
 
 ---
 
+## 2026-07-09 — Admin self-service 2FA (end-to-end)
+
+User-approved plan: admins (super-admin + branch-admin) can turn 2FA on/off from the Profile page, and super-admins see a read-only 2FA column in the Users admin table.
+
+**Shaped the contract to match the plan**
+- `POST /auth/setup-2fa` — **no longer persists the secret** to the DB. Returns `{secret, qr_code, provisioning_uri}` only. Abandoning enrollment leaves nothing on the account.
+- `POST /auth/enable-2fa` — new body `{secret, totp_code}`. Server verifies the code against the client-held secret; only then persists `two_factor_enabled=True` AND the secret in one update.
+- `POST /auth/disable-2fa` — new body `{password, totp_code}`. BOTH halves must verify (laptop-left-unattended guard). Either failing returns a **generic** 400 `"Password or code is incorrect"` (no oracle disclosure of which half failed).
+- All 3 endpoints gate on `role in ('super_admin','branch_admin')` → 403 for anyone else.
+
+**Frontend**
+- `TwoFactorCard` (`dashboard/profile/page.tsx`) now holds the secret in local state during enrollment and sends it to `enable2fa`. Disable panel now has an account-password input alongside the 6-digit input; confirm button disabled until both are filled. "Lost your authenticator? Contact support" note added.
+- `authApi.enable2fa(secret, totp_code)` / `authApi.disable2fa(password, totp_code)` (`lib/api.ts`).
+- Users admin table (`dashboard/settings/page.tsx`): new read-only **2FA column** between Role and Branch. `ShieldCheck` (emerald-600) for admins with 2FA on, muted em-dash (navy-300) otherwise. No cross-admin disable button (plan: lost-authenticator recovery runs through support).
+
+**Hardening (picked up during testing, same files)**
+- `/auth/login`: no longer 500s on legacy user rows missing `password_hash`. Now returns 401 like any other invalid credential.
+- 7 call sites of `user["created_at"]` across `routes/auth_routes.py` + `routes/users.py` switched to `.get("created_at") or datetime.now(timezone.utc)` so legacy rows missing the field no longer crash user-returning endpoints.
+
+**Verified** — testing_agent (iter-46 → iter-47 retest):
+- Backend: **8/8 pytest** — `tests/test_two_factor_self_service.py` (6 tests: setup-doesn't-persist, enable-persists-on-verified-code, enable-rejects-tampered-secret, disable-requires-both-halves + generic-error, disable-rejects-when-not-enabled, all-3-endpoints-403-for-non-admin) + `tests/test_hardening_regression.py` (2 tests: login-no-pwhash → 401, users-no-created_at → 200).
+- Frontend: **12/12 E2E** at `/app/tests/test_2fa_frontend_e2e.py` — enable happy-path, enable wrong-code, enable abandonment leaves no secret, disable happy-path, disable wrong-password + wrong-code (identical error messages), disable button disabled when inputs empty, Users table 2FA column, customer sees no 2FA card, 3 endpoints return 403 for non-admin.
+
+**Files touched**
+- `backend/routes/auth_routes.py` (setup-2fa / enable-2fa / disable-2fa rewritten; login + 5 serializers hardened).
+- `backend/routes/users.py` (2 serializers hardened).
+- `backend/tests/test_two_factor_self_service.py` (NEW — 6 tests).
+- `backend/tests/test_hardening_regression.py` (NEW by testing_agent — 2 tests).
+- `frontend/src/lib/api.ts` (enable2fa + disable2fa signatures).
+- `frontend/src/app/dashboard/profile/page.tsx` (TwoFactorCard: secret in state, password input in disable panel, lost-authenticator helper copy).
+- `frontend/src/app/dashboard/settings/page.tsx` (new 2FA column in Admin Users table; ShieldCheck import).
+
+**Phase 2 / Phase 3 — explicitly deferred by plan**: recent-devices visibility, "trust this browser 30 days", WebAuthn/passkey as a TOTP alternative.
+
+---
+
+
 ## 2026-07-09 — Bug fix: Tranzila BIT payments stuck at "pending"
 
 **User bug (production `lab.bashari.co`):** "A payment was made on production with BIT (using Tranzila). The payment status is still pending. The payment was made 10 minutes ago."

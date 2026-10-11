@@ -73,7 +73,7 @@ class TestMountedFeeFeature:
         # Cleanup: Reset stone to unmounted state
         try:
             self.session.put(f"{BASE_URL}/stones/{self.test_stone['id']}/fees", json={"mounted": False})
-        except:
+        except Exception:
             pass
     
     def test_01_mounted_fee_toggle_on(self):

@@ -125,7 +125,7 @@ async def build_shipment_response(shipment: dict) -> ShipmentResponse:
                     "total_stones": job["total_stones"],
                     "total_value": job["total_value"]
                 })
-        except:
+        except Exception:
             pass
 
     return ShipmentResponse(
@@ -466,7 +466,7 @@ async def update_shipment_status(
                 )
                 if result.modified_count > 0:
                     jobs_updated += 1
-            except:
+            except Exception:
                 pass
 
     return {
@@ -502,7 +502,7 @@ async def update_shipment_jobs(
                     "$set": {"updated_at": datetime.utcnow()}
                 }
             )
-        except:
+        except Exception:
             pass
 
     total_stones = 0
@@ -524,7 +524,7 @@ async def update_shipment_jobs(
                             "$set": {"updated_at": datetime.utcnow()}
                         }
                     )
-        except:
+        except Exception:
             pass
 
     await db.shipments.update_one(
@@ -553,7 +553,7 @@ async def delete_shipment(shipment_id: str, user: dict = Depends(require_admin))
                 {"_id": ObjectId(job_id)},
                 {"$unset": {"shipment_id": ""}, "$set": {"updated_at": datetime.utcnow()}}
             )
-        except:
+        except Exception:
             pass
 
     await db.shipments.delete_one({"_id": ObjectId(shipment_id)})
