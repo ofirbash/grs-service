@@ -72,6 +72,7 @@ interface StructuredVerbalFindings {
 interface Stone {
   id: string;
   sku: string;
+  customer_sku?: string | null;
   stone_type: string;
   weight: number;
   shape: string;
@@ -136,7 +137,7 @@ export default function StonesPage() {
   // Core-details editing (Feb 2026 user req: "open a stone -> edit ->
   // save; fees should update from the new details").
   const [stoneDetailsDraft, setStoneDetailsDraft] = useState<StoneDetailsDraft>({
-    stone_type: '', weight: '', shape: '', value: '',
+    stone_type: '', weight: '', shape: '', value: '', customer_sku: '',
   });
   const [stoneTypesList, setStoneTypesList] = useState<string[]>([]);
   const [shapesList, setShapesList] = useState<string[]>([]);
@@ -223,6 +224,7 @@ export default function StonesPage() {
       weight: String(stone.weight ?? ''),
       shape: stone.shape || '',
       value: String(stone.value ?? ''),
+      customer_sku: stone.customer_sku ?? '',
     });
 
     // Always start in locked mode - user must click "Edit" to modify
@@ -253,7 +255,8 @@ export default function StonesPage() {
           stoneDetailsDraft.stone_type !== selectedStone.stone_type ||
           parsedWeight !== selectedStone.weight ||
           (stoneDetailsDraft.shape || '') !== (selectedStone.shape || '') ||
-          parsedValue !== selectedStone.value
+          parsedValue !== selectedStone.value ||
+          stoneDetailsDraft.customer_sku.trim() !== (selectedStone.customer_sku || '')
         );
         if (detailsChanged) {
           if (!stoneDetailsDraft.stone_type || Number.isNaN(parsedWeight) || Number.isNaN(parsedValue)) {
@@ -266,6 +269,7 @@ export default function StonesPage() {
             weight: parsedWeight,
             shape: stoneDetailsDraft.shape || 'Other',
             value: parsedValue,
+            customer_sku: stoneDetailsDraft.customer_sku.trim(),
           });
         }
       }
@@ -293,6 +297,7 @@ export default function StonesPage() {
           weight: String(refreshedStone.weight ?? ''),
           shape: refreshedStone.shape || '',
           value: String(refreshedStone.value ?? ''),
+          customer_sku: refreshedStone.customer_sku ?? '',
         });
       }
       setVerbalEditMode(false);
@@ -475,6 +480,7 @@ export default function StonesPage() {
             <TableHeader>
               <TableRow className="bg-navy-50">
                 <TableHead className="text-navy-700">SKU</TableHead>
+                <TableHead className="text-navy-700">Customer SKU</TableHead>
                 <TableHead className="text-navy-700">Job</TableHead>
                 <TableHead className="text-navy-700">Type</TableHead>
                 <TableHead className="text-navy-700">Weight</TableHead>
@@ -502,6 +508,9 @@ export default function StonesPage() {
                         testIdSuffix={`stone-${stone.sku}`}
                       />
                     </span>
+                  </TableCell>
+                  <TableCell className="font-mono text-sm text-navy-600" data-testid={`stone-customer-sku-${stone.sku}`}>
+                    {stone.customer_sku || <span className="text-navy-300">—</span>}
                   </TableCell>
                   <TableCell>
                     <span className="text-navy-600">#{stone.job_number}</span>
@@ -571,7 +580,7 @@ export default function StonesPage() {
               ))}
               {filteredStones.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-navy-400">
+                  <TableCell colSpan={9} className="text-center py-8 text-navy-400">
                     No stones found
                   </TableCell>
                 </TableRow>

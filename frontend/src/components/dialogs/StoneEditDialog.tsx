@@ -41,6 +41,7 @@ import type { DropdownSettings } from '@/components/StoneVerbalSection';
 interface StoneLike {
   id: string;
   sku: string;
+  customer_sku?: string | null;
   stone_type: string;
   weight: number;
   shape: string;
@@ -83,6 +84,9 @@ export interface StoneDetailsDraft {
   weight: string;
   shape: string;
   value: string;
+  /** Optional customer-supplied second identifier (Jul 09 2026). Empty
+   *  string = clear the field server-side; any whitespace is trimmed. */
+  customer_sku: string;
 }
 
 interface Props {
@@ -361,6 +365,21 @@ export const StoneEditDialog: React.FC<Props> = ({
                     value={detailsDraft.value}
                     onChange={(e) => setDetailsDraft({ ...detailsDraft, value: e.target.value })}
                     data-testid="stone-details-value-input"
+                  />
+                </div>
+                {/* Customer SKU (Jul 09 2026) — admin can backfill this after
+                    the fact. Spans full width on mobile, 2 cols on sm+ so
+                    the 4-col details grid stays balanced. */}
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs uppercase tracking-wide text-navy-500">Customer SKU</Label>
+                  <Input
+                    type="text"
+                    maxLength={64}
+                    className="h-8 text-sm"
+                    placeholder="Their inventory code (optional)"
+                    value={detailsDraft.customer_sku}
+                    onChange={(e) => setDetailsDraft({ ...detailsDraft, customer_sku: e.target.value })}
+                    data-testid="stone-details-customer-sku-input"
                   />
                 </div>
                 <div className="col-span-2 sm:col-span-4 text-xs text-amber-800">

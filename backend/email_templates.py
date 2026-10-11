@@ -162,7 +162,7 @@ def generate_stones_table_html(stones: list, include_fees: bool = False) -> str:
 
         rows += f"""
         <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="padding: 10px; text-align: left; font-family: 'Courier New', monospace; font-weight: 600; color: {BRAND_NAVY};">{stone.get('sku', 'N/A')}</td>
+            <td style="padding: 10px; text-align: left; font-family: 'Courier New', monospace; font-weight: 600; color: {BRAND_NAVY};">{stone.get('sku', 'N/A')}{(' (' + stone['customer_sku'] + ')') if stone.get('customer_sku') else ''}</td>
             <td style="padding: 10px; text-align: left; color: {TEXT_BODY};">{stone.get('stone_type', 'N/A')}</td>
             <td style="padding: 10px; text-align: center; color: {TEXT_BODY};">{stone.get('weight', 0)} ct</td>
             <td style="padding: 10px; text-align: center; color: {TEXT_BODY};">{cert_id}</td>
@@ -223,7 +223,7 @@ def generate_verbal_results_table_html(stones: list, verbal_findings: list) -> s
 
         rows += f"""
         <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="padding: 8px; font-family: 'Courier New', monospace; font-weight: 600; color: {BRAND_NAVY}; font-size: 12px;">{stone.get('sku', 'N/A')}</td>
+            <td style="padding: 8px; font-family: 'Courier New', monospace; font-weight: 600; color: {BRAND_NAVY}; font-size: 12px;">{stone.get('sku', 'N/A')}{(' (' + stone['customer_sku'] + ')') if stone.get('customer_sku') else ''}</td>
             <td style="padding: 8px; color: {TEXT_BODY}; font-size: 12px;">{cert_id}</td>
             <td style="padding: 8px; color: {TEXT_BODY}; font-size: 12px;">{weight}</td>
             <td style="padding: 8px; color: {TEXT_BODY}; font-size: 12px;">{identification}</td>
@@ -259,7 +259,7 @@ def generate_cert_scans_table_html(stones: list) -> str:
             link = f'<span style="color: {TEXT_MUTED};">Not available</span>'
         rows += f"""
         <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="padding: 10px; font-family: 'Courier New', monospace; font-weight: 600; color: {BRAND_NAVY};">{stone.get('sku', 'N/A')}</td>
+            <td style="padding: 10px; font-family: 'Courier New', monospace; font-weight: 600; color: {BRAND_NAVY};">{stone.get('sku', 'N/A')}{(' (' + stone['customer_sku'] + ')') if stone.get('customer_sku') else ''}</td>
             <td style="padding: 10px; color: {TEXT_BODY};">{stone.get('stone_type', 'N/A')}</td>
             <td style="padding: 10px; color: {TEXT_BODY};">{stone.get('weight', 0)} ct</td>
             <td style="padding: 10px;">{link}</td>
@@ -319,7 +319,7 @@ def _fees_breakdown_table(stones: list, discount: float = 0) -> tuple:
         subtotal += fee
         rows += f"""
         <tr style="border-bottom: 1px solid #e5e7eb;">
-            <td style="padding: 9px 10px; font-family: 'Courier New', monospace; font-weight: 600; color: {BRAND_NAVY};">{stone.get('sku', 'N/A')}</td>
+            <td style="padding: 9px 10px; font-family: 'Courier New', monospace; font-weight: 600; color: {BRAND_NAVY};">{stone.get('sku', 'N/A')}{(' (' + stone['customer_sku'] + ')') if stone.get('customer_sku') else ''}</td>
             <td style="padding: 9px 10px; color: {TEXT_BODY};">{stone.get('stone_type', 'N/A')}</td>
             <td style="padding: 9px 10px; color: {TEXT_BODY}; text-align: center;">{stone.get('weight', 0)} ct</td>
             <td style="padding: 9px 10px; color: {BRAND_NAVY}; text-align: right;">${fee:,.2f}</td>
@@ -432,7 +432,7 @@ def _build_stones_table(stones: list, title: str) -> str:
         f'<tr>'
         f'<td style="padding: 6px 10px; border: 1px solid #e5e7eb; font-size: 12px; color: {BRAND_NAVY};">{s.get("stone_type", "")}</td>'
         f'<td style="padding: 6px 10px; border: 1px solid #e5e7eb; font-size: 12px; color: {TEXT_BODY};">{s.get("weight", "")} ct</td>'
-        f'<td style="padding: 6px 10px; border: 1px solid #e5e7eb; font-size: 12px; font-family: monospace; color: {TEXT_BODY};">{s.get("sku", "")}</td>'
+        f'<td style="padding: 6px 10px; border: 1px solid #e5e7eb; font-size: 12px; font-family: monospace; color: {TEXT_BODY};">{s.get("sku", "")}{(" (" + s["customer_sku"] + ")") if s.get("customer_sku") else ""}</td>'
         f'</tr>'
         for s in stones
     )

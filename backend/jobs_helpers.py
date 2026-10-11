@@ -130,3 +130,26 @@ def payable_amount(job: dict) -> float:
     discount = float(job.get("discount", 0) or 0)
     fees = sum_fees(active_stones(job))
     return max(0.0, fees - discount)
+
+
+# -------------------------------------------------------------------------
+# Customer SKU normalization (Jul 09 2026)
+# -------------------------------------------------------------------------
+# Optional per-stone free-text identifier supplied by the customer. We
+# normalize at the write boundary so every reader can safely do a simple
+# "is None" check instead of also having to guard against empty strings
+# and whitespace-only values. Max 64 chars matches the UI's `maxLength=64`.
+_CUSTOMER_SKU_MAX_LEN = 64
+
+
+def _clean_customer_sku(raw: Optional[str]) -> Optional[str]:
+    """Trim whitespace, enforce the 64-char soft cap, and treat blank
+    strings as None so downstream code / documents don't render a visible
+    gap. Any character is allowed (slashes, dashes, dots, spaces) because
+    customer inventory codes in the wild use all of them."""
+    if raw is None:
+        return None
+    cleaned = str(raw).strip()
+    if not cleaned:
+        return None
+    return cleaned[:_CUSTOMER_SKU_MAX_LEN]

@@ -31,6 +31,8 @@ export interface StructuredVerbalFindings {
 export interface Stone {
   id: string;
   sku: string;
+  /** Optional customer-supplied second identifier (Jul 09 2026). */
+  customer_sku?: string;
   stone_type: string;
   weight: number;
   shape: string;

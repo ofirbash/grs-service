@@ -8,7 +8,7 @@
  * display regression that prompted this consolidation work).
  *
  * Two variants:
- *   - 'compact' (shipments view): SKU/Type/Weight/Shape/Value/Certificate.
+ *   - 'compact' (shipments view): SKU/Customer SKU/Type/Weight/Value/Certificate.
  *     Read-only — clicking a row opens the stone detail dialog.
  *   - 'full'    (jobs view):      Adds selection checkboxes (multi-select for
  *     batch group/ungroup), per-stone fee, status badges, certificate-scan
@@ -51,6 +51,7 @@ function getCertificateLabel(stoneCount: number): string {
 export interface StonesTableStone {
   id: string;
   sku: string;
+  customer_sku?: string | null;
   stone_type: string;
   weight: number;
   shape: string;
@@ -117,9 +118,9 @@ export const JobStonesTable: React.FC<Props> = ({
   });
 
   // Column count drives the cert-group header `colSpan`. Keep in sync with
-  // the THs below: SKU, Type, Weight, Shape, Value [+ Fee in full], Certificate
-  // [+ select in full] [+ delete if showDelete].
-  let colCount = 6; // SKU, Type, Weight, Shape, Value, Certificate
+  // the THs below: SKU, Customer SKU, Type, Weight, Value [+ Fee in full],
+  // Certificate [+ select in full] [+ delete if showDelete].
+  let colCount = 6; // SKU, Customer SKU, Type, Weight, Value, Certificate
   if (isFull) colCount += 1; // Fee
   if (showSelect) colCount += 1;
   if (showDelete) colCount += 1;
@@ -160,9 +161,11 @@ export const JobStonesTable: React.FC<Props> = ({
             />
           )}
         </TableCell>
+        <TableCell className="font-mono text-sm text-navy-600 truncate" data-testid={`job-stone-customer-sku-${stone.id}`}>
+          {stone.customer_sku || <span className="text-navy-300">—</span>}
+        </TableCell>
         <TableCell>{stone.stone_type}</TableCell>
         <TableCell>{stone.weight} ct</TableCell>
-        <TableCell>{stone.shape}</TableCell>
         <TableCell>${stone.value.toLocaleString()}</TableCell>
         {isFull && (
           <TableCell>
@@ -224,9 +227,9 @@ export const JobStonesTable: React.FC<Props> = ({
           <TableRow className="bg-navy-50">
             {showSelect && <TableHead className="w-10" />}
             <TableHead className="text-navy-700">SKU</TableHead>
+            <TableHead className="text-navy-700">Customer SKU</TableHead>
             <TableHead className="text-navy-700">Type</TableHead>
             <TableHead className="text-navy-700">Weight</TableHead>
-            <TableHead className="text-navy-700">Shape</TableHead>
             <TableHead className="text-navy-700">Value</TableHead>
             {isFull && <TableHead className="text-navy-700">Fee</TableHead>}
             <TableHead className={isFull ? 'text-navy-700 w-24' : 'text-navy-700'}>

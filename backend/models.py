@@ -124,6 +124,10 @@ class StoneCreate(BaseModel):
     is_parcel: bool = False
     stone_count: Optional[int] = None
     mounted: bool = False
+    # Customer-supplied second identifier (Jul 09 2026 feature). Optional,
+    # free-text, max 64 chars, trimmed on save. Lives alongside the
+    # auto-generated SKU and travels with the stone for its lifetime.
+    customer_sku: Optional[str] = None
 
 
 class StoneResponse(BaseModel):
@@ -158,6 +162,10 @@ class StoneResponse(BaseModel):
     # docs without this field are treated as kind="stone".
     kind: Optional[str] = None
     stone_count: Optional[int] = None
+    # Customer-supplied second identifier — see StoneCreate for the full
+    # product note. Lives on every stone response so every table that
+    # already shows SKU can show Customer SKU next to it.
+    customer_sku: Optional[str] = None
 
 
 # Verbal Findings Models
@@ -314,6 +322,8 @@ class AddStoneRequest(BaseModel):
     is_parcel: bool = False
     stone_count: Optional[int] = None
     mounted: bool = False
+    # Customer-supplied second identifier — see StoneCreate.
+    customer_sku: Optional[str] = None
 
 
 # Document Upload Model

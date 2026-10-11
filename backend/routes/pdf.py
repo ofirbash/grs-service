@@ -60,7 +60,9 @@ async def generate_memo_in_pdf(job_id: str, user: dict = Depends(get_current_use
     elements.append(Paragraph(f"Service Type: {_service_label}", header_style))
     elements.append(Spacer(1, 0.3*inch))
 
-    table_data = [['#', 'SKU', 'Type', 'Weight (ct)', 'Shape', 'Value (USD)']]
+    # Job-memo stones table (NOT a shipment doc): keeps the Shape column,
+    # adds the optional Customer SKU column after the auto SKU.
+    table_data = [['#', 'SKU', 'Customer SKU', 'Type', 'Weight (ct)', 'Shape', 'Value (USD)']]
     for i, stone in enumerate([s for s in job.get('stones', []) if not s.get('cancelled')], 1):
         _is_parcel = stone.get('kind') == 'parcel'
         _type_label = (
@@ -73,13 +75,17 @@ async def generate_memo_in_pdf(job_id: str, user: dict = Depends(get_current_use
         table_data.append([
             str(i),
             stone['sku'],
+            stone.get('customer_sku') or '—',
             _type_label,
             _weight_label,
             stone['shape'],
             f"${stone['value']:,.2f}"
         ])
 
-    table = Table(table_data, colWidths=[0.5*inch, 1.5*inch, 1*inch, 1*inch, 1*inch, 1.2*inch])
+    table = Table(
+        table_data,
+        colWidths=[0.4 * inch, 1.3 * inch, 1.1 * inch, 0.9 * inch, 0.9 * inch, 0.9 * inch, 1.1 * inch],
+    )
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a365d')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -570,7 +576,10 @@ async def generate_shipment_pdf(job_id: str, user: dict = Depends(require_admin)
         elements.append(Paragraph(f"<b>TO:</b> GRS Gemresearch Lab HK", header_style))
     elements.append(Spacer(1, 0.3*inch))
 
-    table_data = [['#', 'SKU', 'Type', 'Weight (ct)', 'Shape', 'Value (USD)']]
+    # Shipment doc stones table (plan Jul 09 2026): Shape column removed —
+    # customers already have shape in their original paperwork. Customer
+    # SKU added after SKU so cross-referencing their inventory is easy.
+    table_data = [['#', 'SKU', 'Customer SKU', 'Type', 'Weight (ct)', 'Value (USD)']]
     for i, stone in enumerate([s for s in job.get('stones', []) if not s.get('cancelled')], 1):
         _is_parcel = stone.get('kind') == 'parcel'
         _type_label = (
@@ -583,13 +592,16 @@ async def generate_shipment_pdf(job_id: str, user: dict = Depends(require_admin)
         table_data.append([
             str(i),
             stone['sku'],
+            stone.get('customer_sku') or '—',
             _type_label,
             _weight_label,
-            stone['shape'],
             f"${stone['value']:,.2f}"
         ])
 
-    table = Table(table_data, colWidths=[0.5*inch, 1.5*inch, 1*inch, 1*inch, 1*inch, 1.2*inch])
+    table = Table(
+        table_data,
+        colWidths=[0.5 * inch, 1.4 * inch, 1.2 * inch, 1.0 * inch, 1.0 * inch, 1.3 * inch],
+    )
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a365d')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),

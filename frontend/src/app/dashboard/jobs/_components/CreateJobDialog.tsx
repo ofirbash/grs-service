@@ -41,6 +41,7 @@ export interface StoneInput {
   // `stone_count` holds N (>=2), weight/value are TOTALS.
   is_parcel?: boolean;
   stone_count?: string;
+  customer_sku?: string;
 }
 
 interface CreateJobDialogProps {
@@ -296,9 +297,10 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
           {/* Mobile: stacked cards. Desktop: dense grid (≥ sm) */}
           <div className="border border-navy-200 rounded-lg overflow-hidden">
             {/* Desktop column headers */}
-            <div className="hidden sm:grid grid-cols-[110px,1fr,90px,100px,90px,110px,auto] gap-2 p-3 bg-navy-50 text-sm font-medium text-navy-700">
+            <div className="hidden sm:grid grid-cols-[110px,1fr,110px,90px,100px,90px,110px,auto] gap-2 p-3 bg-navy-50 text-sm font-medium text-navy-700">
               <div>Kind</div>
               <div>Type <span className="text-red-500">*</span></div>
+              <div>Customer SKU</div>
               <div>
                 Weight <span className="text-red-500">*</span>
                 <span className="text-[10px] font-normal text-navy-500 block">total if parcel</span>
@@ -321,7 +323,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                 data-testid={`create-job-stone-row-${index}`}
               >
                 {/* Desktop row */}
-                <div className="hidden sm:grid grid-cols-[110px,1fr,90px,100px,90px,110px,auto] gap-2 p-3 items-center">
+                <div className="hidden sm:grid grid-cols-[110px,1fr,110px,90px,100px,90px,110px,auto] gap-2 p-3 items-center">
                   <div className="flex items-center gap-1.5 text-xs">
                     <Switch
                       checked={isParcel}
@@ -351,6 +353,14 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
+                  <Input
+                    placeholder="Optional"
+                    maxLength={64}
+                    value={stone.customer_sku || ''}
+                    onChange={(e) => onStoneChange(index, 'customer_sku', e.target.value)}
+                    className="border-navy-200"
+                    data-testid={`stone-customer-sku-${index}`}
+                  />
                   <Input
                     type="number"
                     step="0.01"
@@ -461,6 +471,17 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Customer SKU</Label>
+                    <Input
+                      placeholder="Optional"
+                      maxLength={64}
+                      value={stone.customer_sku || ''}
+                      onChange={(e) => onStoneChange(index, 'customer_sku', e.target.value)}
+                      className="border-navy-200"
+                      data-testid={`stone-customer-sku-mobile-${index}`}
+                    />
                   </div>
                   <div className={`grid gap-2 ${isParcel ? 'grid-cols-3' : 'grid-cols-2'}`}>
                     {isParcel && (

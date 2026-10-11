@@ -12,6 +12,8 @@ import type { Job } from "../_types";
 export function buildShipmentJobMemoHtml(job: Job): string {
   const activeStones = (job.stones || []).filter((s) => !s.cancelled);
 
+  // Shipment-document per-job stones table (plan Jul 09 2026): Shape
+  // column removed, Customer SKU column added after auto SKU.
   const stonesTableHtml =
     activeStones.length > 0
       ? `
@@ -20,9 +22,9 @@ export function buildShipmentJobMemoHtml(job: Job): string {
             <tr>
               <th>#</th>
               <th>SKU</th>
+              <th>Customer SKU</th>
               <th>Type</th>
               <th>Weight</th>
-              <th>Shape</th>
               <th>Value</th>
               <th>Fee</th>
               <th>Certificate</th>
@@ -39,9 +41,9 @@ export function buildShipmentJobMemoHtml(job: Job): string {
               <tr>
                 <td>${idx + 1}</td>
                 <td>${esc(stone.sku)}</td>
+                <td>${esc(stone.customer_sku || "—")}</td>
                 <td>${typeCell}</td>
                 <td>${stone.weight} ct${isParcel ? ` <span style="color:#71717a;font-size:9px;">(total)</span>` : ""}</td>
-                <td>${esc(stone.shape)}</td>
                 <td>$${stone.value.toLocaleString()}</td>
                 <td>$${stone.fee.toLocaleString()}</td>
                 <td>${stone.certificate_group ? `Cert ${stone.certificate_group}` : "-"}</td>

@@ -242,6 +242,7 @@ function JobsPageContent() {
     weight: '',
     shape: '',
     value: '',
+    customer_sku: '',
   });
 
   // Nested Stone dialog (opens on top of job dialog)
@@ -263,7 +264,7 @@ function JobsPageContent() {
   // seeded whenever we open the stone dialog and persisted alongside
   // fees/verbal on Save.
   const [stoneDetailsDraft, setStoneDetailsDraft] = useState<StoneDetailsDraft>({
-    stone_type: '', weight: '', shape: '', value: '',
+    stone_type: '', weight: '', shape: '', value: '', customer_sku: '',
   });
   
   // Structured verbal findings
@@ -470,6 +471,7 @@ function JobsPageContent() {
       weight: String(stone.weight ?? ''),
       shape: stone.shape || '',
       value: String(stone.value ?? ''),
+      customer_sku: stone.customer_sku ?? '',
     });
     
     // Always start in locked mode - user must click "Edit" to modify
@@ -569,7 +571,8 @@ function JobsPageContent() {
           stoneDetailsDraft.stone_type !== viewingStone.stone_type ||
           parsedWeight !== viewingStone.weight ||
           (stoneDetailsDraft.shape || '') !== (viewingStone.shape || '') ||
-          parsedValue !== viewingStone.value
+          parsedValue !== viewingStone.value ||
+          stoneDetailsDraft.customer_sku.trim() !== (viewingStone.customer_sku || '')
         );
         if (detailsChanged) {
           if (!stoneDetailsDraft.stone_type || Number.isNaN(parsedWeight) || Number.isNaN(parsedValue)) {
@@ -582,6 +585,7 @@ function JobsPageContent() {
             weight: parsedWeight,
             shape: stoneDetailsDraft.shape || 'Other',
             value: parsedValue,
+            customer_sku: stoneDetailsDraft.customer_sku.trim(),
           });
         }
       }
@@ -607,9 +611,11 @@ function JobsPageContent() {
             weight: String(refreshedStone.weight ?? ''),
             shape: refreshedStone.shape || '',
             value: String(refreshedStone.value ?? ''),
+            customer_sku: refreshedStone.customer_sku ?? '',
           });
         }
-      }      fetchData();
+      }
+      fetchData();
       setVerbalEditMode(false);
     } catch (error) {
       console.error('Failed to save:', error);
@@ -739,6 +745,7 @@ function JobsPageContent() {
             shape: s.shape || 'Other', // Default to 'Other' if not specified
             value: parseFloat(s.value),
             color_stability_test: s.color_stability_test,
+            ...(s.customer_sku?.trim() ? { customer_sku: s.customer_sku.trim() } : {}),
             ...(s.is_parcel
               ? { is_parcel: true, stone_count: parseInt(s.stone_count || '0', 10) }
               : {}),
@@ -999,6 +1006,10 @@ function JobsPageContent() {
         weight: parseFloat(newStone.weight),
         shape: newStone.shape || 'Other',
         value: parseFloat(newStone.value),
+        // Trim the UI value; the server treats whitespace-only as absent,
+        // but trimming here keeps the "pre-reset" display honest if we
+        // ever surface an echo of what was just saved.
+        customer_sku: newStone.customer_sku.trim() || undefined,
       });
       
       // Refresh the job data
@@ -1008,7 +1019,7 @@ function JobsPageContent() {
       if (updated) setSelectedJob(updated);
       
       // Reset form and close dialog
-      setNewStone({ stone_type: '', weight: '', shape: '', value: '' });
+      setNewStone({ stone_type: '', weight: '', shape: '', value: '', customer_sku: '' });
       setAddStoneDialogOpen(false);
     } catch (error) {
       console.error('Failed to add stone:', error);

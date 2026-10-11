@@ -15,7 +15,7 @@ from pricing import (
     get_pricing_brackets_from_db,
     calculate_stone_fee_from_brackets, calculate_parcel_fee_from_brackets,
 )
-from jobs_helpers import active_stones, recompute_job_totals
+from jobs_helpers import active_stones, recompute_job_totals, _clean_customer_sku
 from activity_log import Action, log_activity
 from pydantic import BaseModel
 
@@ -38,6 +38,10 @@ class StoneDetailsUpdate(BaseModel):
     mounted: Optional[bool] = None
     kind: Optional[str] = None  # 'stone' | 'parcel'
     stone_count: Optional[int] = None
+    # Customer SKU — passing an empty string explicitly CLEARS the field
+    # (admin unsetting a value they typed by mistake); None leaves it
+    # untouched. See _apply_customer_sku_patch below for the logic.
+    customer_sku: Optional[str] = None
 
 router = APIRouter()
 
@@ -123,6 +127,16 @@ async def update_stone_details(stone_id: str, data: StoneDetailsUpdate, user: di
     if new_kind:
         set_ops["stones.$.kind"] = new_kind
         set_ops["stones.$.stone_count"] = new_count if new_kind == "parcel" else 0
+
+    # Customer SKU patch semantics (Jul 09 2026): the model has three
+    # possible intents: untouched (field absent / None), set to a new
+    # value (non-empty string), explicitly clear (empty / whitespace-only
+    # string). _clean_customer_sku collapses the latter two to a single
+    # normalized value (string or None); the key insight is we only
+    # write to the DB when `data.customer_sku is not None` so the normal
+    # fee-recompute flow doesn't silently wipe an existing SKU.
+    if data.customer_sku is not None:
+        set_ops["stones.$.customer_sku"] = _clean_customer_sku(data.customer_sku)
 
     await db.jobs.update_one(
         {"_id": job["_id"], "stones.id": stone_id},

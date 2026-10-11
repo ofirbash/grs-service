@@ -328,7 +328,7 @@ export const jobsApi = {
     service_type: string;
     notes?: string;
     recheck_reasons?: string[];
-    certificate_units: Array<{ stones: Array<{ stone_type: string; weight: number; shape: string; value: number; color_stability_test?: boolean; is_parcel?: boolean; stone_count?: number; mounted?: boolean }> }>;
+    certificate_units: Array<{ stones: Array<{ stone_type: string; weight: number; shape: string; value: number; color_stability_test?: boolean; is_parcel?: boolean; stone_count?: number; mounted?: boolean; customer_sku?: string }> }>;
   }) => {
     const response = await api.post('/jobs', data);
     return response.data;
@@ -374,6 +374,7 @@ export const jobsApi = {
     is_parcel?: boolean;
     stone_count?: number;
     mounted?: boolean;
+    customer_sku?: string;
   }) => {
     const response = await api.post(`/jobs/${id}/stones`, stone);
     return response.data;
@@ -433,6 +434,9 @@ export const stonesApi = {
       mounted?: boolean;
       kind?: 'stone' | 'parcel';
       stone_count?: number;
+      /** Optional customer-supplied second identifier. Pass an empty
+       *  string to clear a previously-set value; omit to leave untouched. */
+      customer_sku?: string;
     },
   ) => {
     // PUT /stones/{id} — patches any subset of details and recomputes

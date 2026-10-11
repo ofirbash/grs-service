@@ -24,6 +24,10 @@ export interface StructuredVerbalFindings {
 export interface Stone {
   id: string;
   sku: string;
+  // Optional customer-supplied second identifier (Jul 09 2026). Lives
+  // beside the auto SKU and travels with the stone for its lifetime.
+  // Free-text, max 64 chars at the UI layer, trimmed server-side.
+  customer_sku?: string;
   stone_type: string;
   weight: number;
   shape: string;

@@ -15,6 +15,8 @@ export interface NewStoneDraft {
   weight: string;
   value: string;
   shape: string;
+  // Optional customer-supplied second identifier (Jul 09 2026).
+  customer_sku: string;
 }
 
 interface GroupStonesDialogProps {
@@ -157,6 +159,21 @@ export const AddStoneDialog: React.FC<AddStoneDialogProps> = ({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Customer SKU (Jul 09 2026): plain optional text input — any
+            character, max 64 chars, trimmed server-side. Shown last so
+            it's clear it's optional. */}
+        <div className="space-y-2">
+          <Label>Customer SKU</Label>
+          <Input
+            type="text"
+            maxLength={64}
+            placeholder="Their inventory code (optional)"
+            value={newStone.customer_sku}
+            onChange={(e) => setNewStone({ ...newStone, customer_sku: e.target.value })}
+            data-testid="add-stone-customer-sku-input"
+          />
         </div>
       </div>
 

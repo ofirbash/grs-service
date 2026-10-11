@@ -71,6 +71,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
   // Aggregate stones with parent job reference for a single unified table
   type StoneRow = {
     sku: string;
+    customer_sku?: string;
     stone_type: string;
     weight: number;
     shape: string;
@@ -84,6 +85,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
     (j.stones || []).forEach((s: Stone) =>
       allStones.push({
         sku: s.sku,
+        customer_sku: s.customer_sku,
         stone_type: s.stone_type,
         weight: s.weight,
         shape: s.shape,
@@ -106,14 +108,17 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
         <td>${idx + 1}</td>
         <td>#${s.job_number}</td>
         <td>${esc(s.sku)}</td>
+        <td>${esc(s.customer_sku || '—')}</td>
         <td>${esc(s.stone_type)}</td>
         <td>${esc(String(s.weight))} ct</td>
-        <td>${esc(s.shape)}</td>
         <td style="text-align:right;">$${fmt(s.value || 0)}</td>
       </tr>`,
     )
     .join('');
 
+  // Shipment doc stones table (plan Jul 09 2026): Shape column removed
+  // (customers already have shape in their original paperwork). Customer
+  // SKU column added after SKU for cross-referencing their inventory.
   const stonesTableHtml = allStones.length
     ? `<table>
         <thead>
@@ -121,18 +126,17 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
             <th style="width:28px;">#</th>
             <th>Job</th>
             <th>SKU</th>
+            <th>Customer SKU</th>
             <th>Type</th>
             <th>Weight</th>
-            <th>Shape</th>
             <th style="text-align:right;">Value</th>
           </tr>
         </thead>
         <tbody>${stonesTableRows}</tbody>
         <tfoot>
           <tr class="totals-row">
-            <td colspan="4" style="text-align:right;"><strong>Total — ${allStones.length} stone${allStones.length === 1 ? '' : 's'}</strong></td>
+            <td colspan="5" style="text-align:right;"><strong>Total — ${allStones.length} stone${allStones.length === 1 ? '' : 's'}</strong></td>
             <td><strong>${totalWeight.toFixed(2)} ct</strong></td>
-            <td></td>
             <td style="text-align:right;"><strong>$${fmt(totalValue)}</strong></td>
           </tr>
         </tfoot>
@@ -153,6 +157,14 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
     hour: '2-digit',
     minute: '2-digit',
   });
+
+  // Doc title (plan Jul 09 2026): outbound shipments (lab → client) get
+  // the "Shipment Memo Return" label. Inbound (client → lab) keeps the
+  // existing "Shipment Memo - Gemstones" label so returning customers
+  // don't see a confusing name change on their intake paperwork.
+  const isOutbound = shipment.shipment_type === 'stones_from_lab'
+    || shipment.shipment_type === 'certificates_from_lab';
+  const docTitle = isOutbound ? 'Shipment Memo Return' : 'Shipment Memo - Gemstones';
 
   const html = `
 <!DOCTYPE html>
@@ -227,7 +239,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
   </div>
 
   <div class="doc-title-bar">
-    <h1>Shipment Memo - Gemstones</h1>
+    <h1>${docTitle}</h1>
     <div class="shipment-number">Shipment #${shipment.shipment_number} · ${dateSent}</div>
   </div>
 

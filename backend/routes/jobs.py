@@ -21,7 +21,7 @@ from pricing import (
     calculate_parcel_fee_from_brackets,
 )
 from utils import generate_sku
-from jobs_helpers import active_stones, recompute_job_totals, is_parcel, physical_stone_count
+from jobs_helpers import active_stones, recompute_job_totals, is_parcel, physical_stone_count, _clean_customer_sku
 from activity_log import Action, log_activity
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
@@ -203,6 +203,11 @@ def _build_stones_for_create(
             stone_doc = {
                 "id": str(uuid.uuid4()),
                 "sku": sku,
+                # Customer SKU is user-supplied, optional, ≤64 chars,
+                # whitespace-trimmed. We normalize `""` → None here so
+                # downstream code only has to check "is None" (and empty
+                # strings don't render as a visible blank in print docs).
+                "customer_sku": _clean_customer_sku(getattr(stone_data, "customer_sku", None)),
                 "stone_type": stone_data.stone_type,
                 "weight": stone_data.weight,
                 "shape": stone_data.shape,
@@ -557,6 +562,7 @@ async def add_stone_to_job(job_id: str, stone: AddStoneRequest, user: dict = Dep
     new_stone = {
         "id": str(uuid.uuid4()),
         "sku": sku,
+        "customer_sku": _clean_customer_sku(stone.customer_sku),
         "stone_type": stone.stone_type,
         "weight": stone.weight,
         "shape": stone.shape,
