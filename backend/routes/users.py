@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Body
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 from database import db
@@ -23,7 +23,7 @@ async def get_users(user: dict = Depends(require_super_admin)):
             phone=u.get("phone"),
             email_verified=u.get("email_verified", False),
             two_factor_enabled=u.get("two_factor_enabled", False),
-            created_at=u["created_at"]
+            created_at=u.get("created_at") or datetime.now(timezone.utc)
         )
         for u in users
     ]
@@ -66,7 +66,7 @@ async def create_admin_user(data: AdminUserCreate, user: dict = Depends(require_
         phone=user_doc["phone"],
         email_verified=True,
         two_factor_enabled=False,
-        created_at=user_doc["created_at"]
+        created_at=user_doc.get("created_at") or datetime.now(timezone.utc)
     )
 
 
@@ -109,7 +109,7 @@ async def create_signing_pad_user(
         phone=None,
         email_verified=True,
         two_factor_enabled=False,
-        created_at=user_doc["created_at"],
+        created_at=user_doc.get("created_at") or datetime.now(timezone.utc),
     )
 
 
@@ -148,7 +148,7 @@ async def update_admin_user(user_id: str, data: AdminUserUpdate, user: dict = De
         phone=updated.get("phone"),
         email_verified=updated.get("email_verified", False),
         two_factor_enabled=updated.get("two_factor_enabled", False),
-        created_at=updated["created_at"]
+        created_at=updated.get("created_at") or datetime.now(timezone.utc)
     )
 
 

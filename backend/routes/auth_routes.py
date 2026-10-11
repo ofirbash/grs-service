@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Body, Request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 import uuid
 import pyotp
@@ -81,7 +81,7 @@ async def register(user_data: UserCreate):
             phone=user_data.phone,
             email_verified=False,
             two_factor_enabled=False,
-            created_at=user_doc["created_at"]
+            created_at=user_doc.get("created_at") or datetime.now(timezone.utc)
         )
     )
 
@@ -101,7 +101,12 @@ async def login(credentials: UserLogin, request: Request):
         await verify_turnstile(credentials.turnstile_token, request)
 
     user = await db.users.find_one({"email": credentials.email.lower()})
-    if not user or not verify_password(credentials.password, user["password_hash"]):
+    # Treat a missing user, a missing/empty password_hash, or a verify
+    # failure identically — all three are "invalid email or password".
+    # Previously a user row missing password_hash (legacy / half-migrated
+    # row) caused a 500 KeyError, both leaking info and crashing the
+    # endpoint. See iter-46 report.
+    if not user or not user.get("password_hash") or not verify_password(credentials.password, user["password_hash"]):
         await record_login_failure(ip)
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -118,7 +123,7 @@ async def login(credentials: UserLogin, request: Request):
                     phone=user.get("phone"),
                     email_verified=user.get("email_verified", False),
                     two_factor_enabled=True,
-                    created_at=user["created_at"]
+                    created_at=user.get("created_at") or datetime.now(timezone.utc)
                 ),
                 requires_2fa=True
             )
@@ -157,7 +162,7 @@ async def login(credentials: UserLogin, request: Request):
             phone=user.get("phone"),
             email_verified=user.get("email_verified", False),
             two_factor_enabled=user.get("two_factor_enabled", False),
-            created_at=user["created_at"]
+            created_at=user.get("created_at") or datetime.now(timezone.utc)
         )
     )
 
@@ -174,7 +179,7 @@ async def get_current_user_info(user: dict = Depends(get_current_user)):
         phone=user.get("phone"),
         email_verified=user.get("email_verified", False),
         two_factor_enabled=user.get("two_factor_enabled", False),
-        created_at=user["created_at"]
+        created_at=user.get("created_at") or datetime.now(timezone.utc)
     )
 
 
@@ -225,7 +230,7 @@ async def update_my_profile(request: Request, current_user: dict = Depends(get_c
         phone=updated.get("phone"),
         email_verified=updated.get("email_verified", False),
         two_factor_enabled=updated.get("two_factor_enabled", False),
-        created_at=updated["created_at"]
+        created_at=updated.get("created_at") or datetime.now(timezone.utc)
     )
 
 
@@ -317,6 +322,13 @@ async def disable_2fa(
     laptop-left-unattended guard. Either one failing returns 400 with
     a message that doesn't disclose which half was wrong (reduces
     oracle value for an attacker who has only one of the two)."""
+    # Role gate FIRST — plan: 'customers out of scope'. Setup-2fa and
+    # enable-2fa gate the same way; this one was previously missing it,
+    # which let a customer learn "2fa is not enabled" via a 400 response
+    # (status-code oracle). Now any non-admin gets 403, matching the
+    # other two endpoints and the plan's scope.
+    if user.get("role") not in ("super_admin", "branch_admin"):
+        raise HTTPException(status_code=403, detail="2FA is available for admin accounts only")
     if not user.get("two_factor_enabled") or not user.get("two_factor_secret"):
         raise HTTPException(status_code=400, detail="2FA is not enabled")
 
@@ -427,7 +439,7 @@ async def setup_password(data: SetupPasswordRequest):
             phone=data.phone if data.phone is not None else user.get("phone"),
             email_verified=True,
             two_factor_enabled=False,
-            created_at=user["created_at"]
+            created_at=user.get("created_at") or datetime.now(timezone.utc)
         )
     )
 

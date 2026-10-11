@@ -184,3 +184,43 @@ def test_disable_2fa_rejects_when_not_enabled(seeded_admin):
     )
     assert r.status_code == 400
     assert "not enabled" in r.json()["detail"].lower()
+
+
+@pytest.fixture()
+def seeded_customer():
+    """A customer (non-admin) with a working login — for the role-gate tests."""
+    client = MongoClient(MONGO_URL)
+    db = client[DB_NAME]
+    email = f"2fa-cx-{uuid.uuid4().hex[:8]}@example.com"
+    password = "CustomerPass123!"
+    db.users.insert_one({
+        "email": email,
+        "password_hash": get_password_hash(password),
+        "full_name": "2FA Customer Role Gate",
+        "role": "customer",
+        "email_verified": True,
+        "two_factor_enabled": False,
+        "two_factor_secret": None,
+        "created_at": datetime.now(timezone.utc),
+    })
+    r = requests.post(f"{BASE_URL}/auth/login", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+    token = r.json()["access_token"]
+    yield {"email": email, "password": password, "token": token, "db": db}
+    db.users.delete_one({"email": email})
+    client.close()
+
+
+def test_all_2fa_endpoints_reject_non_admin(seeded_customer):
+    """Plan: 'customers out of scope'. All three 2FA endpoints must return
+    403 for non-admin roles — not 400 (which was the pre-fix status-code
+    oracle on disable-2fa, see iter-46 report)."""
+    headers = _auth(seeded_customer["token"])
+    r1 = requests.post(f"{BASE_URL}/auth/setup-2fa", headers=headers)
+    r2 = requests.post(f"{BASE_URL}/auth/enable-2fa", headers=headers,
+                       json={"secret": "AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHH", "totp_code": "000000"})
+    r3 = requests.post(f"{BASE_URL}/auth/disable-2fa", headers=headers,
+                       json={"password": seeded_customer["password"], "totp_code": "000000"})
+    assert r1.status_code == 403, f"setup-2fa expected 403, got {r1.status_code}: {r1.text}"
+    assert r2.status_code == 403, f"enable-2fa expected 403, got {r2.status_code}: {r2.text}"
+    assert r3.status_code == 403, f"disable-2fa expected 403, got {r3.status_code}: {r3.text}"
