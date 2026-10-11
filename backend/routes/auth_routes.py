@@ -246,6 +246,15 @@ async def verify_email(token: str):
 
 @router.post("/auth/setup-2fa")
 async def setup_2fa(user: dict = Depends(get_current_user)):
+    """Generate a fresh TOTP secret + provisioning QR for the current admin.
+
+    PLAN-OF-RECORD: nothing is persisted here. The returned secret is held
+    in the client's memory until the admin types a 6-digit code from their
+    authenticator app and the server verifies it in `enable-2fa`. If the
+    admin abandons enrollment, no artifact is left on the account — this
+    is what the product plan calls out as "The old pre-verify secret is
+    never persisted." Starting enrollment again just gets a fresh secret.
+    """
     if user.get("role") not in ("super_admin", "branch_admin"):
         raise HTTPException(status_code=403, detail="2FA is available for admin accounts only")
     secret = pyotp.random_base32()
@@ -261,11 +270,6 @@ async def setup_2fa(user: dict = Depends(get_current_user)):
     img.save(buffer, format="PNG")
     qr_base64 = base64.b64encode(buffer.getvalue()).decode()
 
-    await db.users.update_one(
-        {"_id": user["_id"]},
-        {"$set": {"two_factor_secret": secret}}
-    )
-
     return {
         "secret": secret,
         "qr_code": f"data:image/png;base64,{qr_base64}",
@@ -274,38 +278,59 @@ async def setup_2fa(user: dict = Depends(get_current_user)):
 
 
 @router.post("/auth/enable-2fa")
-async def enable_2fa(totp_code: str = Body(..., embed=True), user: dict = Depends(get_current_user)):
+async def enable_2fa(
+    secret: str = Body(..., embed=True),
+    totp_code: str = Body(..., embed=True),
+    user: dict = Depends(get_current_user),
+):
+    """Verify the 6-digit code against the client-held secret, then — and
+    only then — persist the pair to the account. The client is expected
+    to send back the exact `secret` it received from `setup-2fa`."""
     if user.get("role") not in ("super_admin", "branch_admin"):
         raise HTTPException(status_code=403, detail="2FA is available for admin accounts only")
-    if not user.get("two_factor_secret"):
-        raise HTTPException(status_code=400, detail="2FA not set up. Call /auth/setup-2fa first")
+    # Light sanity on the shape of a base32 TOTP secret (pyotp will crash on
+    # garbage input). pyotp.random_base32() returns 32 upper-case A-Z/2-7
+    # chars; accept any length in that alphabet so manually-entered keys
+    # from an authenticator app still work.
+    if not secret or not all(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567" for c in secret):
+        raise HTTPException(status_code=400, detail="Invalid 2FA setup — please restart enrollment")
 
-    totp = pyotp.TOTP(user["two_factor_secret"])
+    totp = pyotp.TOTP(secret)
     if not totp.verify(totp_code):
-        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+        raise HTTPException(status_code=400, detail="Invalid code — check your authenticator app and try again")
 
     await db.users.update_one(
         {"_id": user["_id"]},
-        {"$set": {"two_factor_enabled": True}}
+        {"$set": {"two_factor_secret": secret, "two_factor_enabled": True}},
     )
-
     return {"message": "2FA enabled successfully"}
 
 
 @router.post("/auth/disable-2fa")
-async def disable_2fa(totp_code: str = Body(..., embed=True), user: dict = Depends(get_current_user)):
-    if not user.get("two_factor_enabled"):
+async def disable_2fa(
+    password: str = Body(..., embed=True),
+    totp_code: str = Body(..., embed=True),
+    user: dict = Depends(get_current_user),
+):
+    """Disable 2FA for the current admin. Requires BOTH the account
+    password AND a valid 6-digit code — plan calls this out as the
+    laptop-left-unattended guard. Either one failing returns 400 with
+    a message that doesn't disclose which half was wrong (reduces
+    oracle value for an attacker who has only one of the two)."""
+    if not user.get("two_factor_enabled") or not user.get("two_factor_secret"):
         raise HTTPException(status_code=400, detail="2FA is not enabled")
 
+    password_ok = verify_password(password, user["password_hash"])
     totp = pyotp.TOTP(user["two_factor_secret"])
-    if not totp.verify(totp_code):
-        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+    code_ok = totp.verify(totp_code)
+    if not (password_ok and code_ok):
+        # Generic message — see docstring.
+        raise HTTPException(status_code=400, detail="Password or code is incorrect")
 
     await db.users.update_one(
         {"_id": user["_id"]},
         {"$set": {"two_factor_enabled": False, "two_factor_secret": None}}
     )
-
     return {"message": "2FA disabled successfully"}
 
 

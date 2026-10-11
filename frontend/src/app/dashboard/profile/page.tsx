@@ -182,9 +182,15 @@ function TwoFactorCard() {
   const { user, setAuth } = useAuthStore();
   const enabled = !!user?.two_factor_enabled;
   const [mode, setMode] = useState<'idle' | 'enrolling' | 'disabling'>('idle');
+  // `secret` is held in client memory ONLY during enrollment and is sent
+  // back to the server in enable-2fa for verify-and-persist. The server
+  // never persists it until the admin proves possession with a 6-digit
+  // code — abandoning enrollment leaves nothing on the account.
   const [secret, setSecret] = useState('');
   const [qrCode, setQrCode] = useState('');
   const [code, setCode] = useState('');
+  // Disable also requires the account password (laptop-left-unattended guard).
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -210,7 +216,7 @@ function TwoFactorCard() {
     setError('');
     setSubmitting(true);
     try {
-      await authApi.enable2fa(code);
+      await authApi.enable2fa(secret, code);
       const token = getToken() || '';
       if (user) setAuth(token, { ...user, two_factor_enabled: true });
       setMode('idle');
@@ -229,11 +235,12 @@ function TwoFactorCard() {
     setError('');
     setSubmitting(true);
     try {
-      await authApi.disable2fa(code);
+      await authApi.disable2fa(password, code);
       const token = getToken() || '';
       if (user) setAuth(token, { ...user, two_factor_enabled: false });
       setMode('idle');
       setCode('');
+      setPassword('');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setError(e.response?.data?.detail || 'Invalid code. Try again.');
@@ -278,7 +285,7 @@ function TwoFactorCard() {
           {mode === 'idle' && enabled && (
             <Button
               variant="outline"
-              onClick={() => { setMode('disabling'); setCode(''); setError(''); }}
+              onClick={() => { setMode('disabling'); setCode(''); setPassword(''); setError(''); }}
               className="shrink-0 border-red-200 text-red-600 hover:bg-red-50"
               data-testid="2fa-disable-button"
             >
@@ -339,7 +346,7 @@ function TwoFactorCard() {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-2.5 text-xs text-red-700">
+              <div className="bg-red-50 border border-red-200 rounded-md p-2.5 text-xs text-red-700" data-testid="2fa-enroll-error">
                 {error}
               </div>
             )}
@@ -370,35 +377,54 @@ function TwoFactorCard() {
               Confirm disabling 2FA
             </p>
             <p className="text-xs text-red-800">
-              Enter the current 6-digit code from your authenticator app to disable 2FA.
+              Enter your account password AND the current 6-digit code from your authenticator app.
+              Both are required to disable two-factor authentication.
             </p>
-            <Input
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="border-red-200 bg-white h-11 text-center text-xl tracking-[0.5em] font-mono"
-              placeholder="123456"
-              data-testid="2fa-disable-code-input"
-              autoFocus
-            />
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-red-900">Account password</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="border-red-200 bg-white h-10"
+                placeholder="Your login password"
+                data-testid="2fa-disable-password-input"
+                autoComplete="current-password"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-red-900">Current 6-digit code</Label>
+              <Input
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="border-red-200 bg-white h-11 text-center text-xl tracking-[0.5em] font-mono"
+                placeholder="123456"
+                data-testid="2fa-disable-code-input"
+              />
+            </div>
             {error && (
-              <div className="bg-white border border-red-200 rounded-md p-2.5 text-xs text-red-700">
+              <div className="bg-white border border-red-200 rounded-md p-2.5 text-xs text-red-700" data-testid="2fa-disable-error">
                 {error}
               </div>
             )}
+            <p className="text-[11px] text-red-700/80 italic">
+              Lost your authenticator? There&apos;s no self-reset — contact support to recover your account.
+            </p>
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => { setMode('idle'); setCode(''); setError(''); }}
+                onClick={() => { setMode('idle'); setCode(''); setPassword(''); setError(''); }}
                 className="flex-1"
               >
                 Cancel
               </Button>
               <Button
                 onClick={confirmDisable}
-                disabled={submitting || code.length !== 6}
+                disabled={submitting || code.length !== 6 || password.length === 0}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                 data-testid="2fa-disable-confirm-button"
               >

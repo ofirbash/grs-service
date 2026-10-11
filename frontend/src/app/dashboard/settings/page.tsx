@@ -46,6 +46,7 @@ import {
   AlertCircle,
   Search,
   Shield,
+  ShieldCheck,
   Diamond,
   CreditCard,
   Truck,
@@ -141,6 +142,7 @@ export default function SettingsPage() {
     role: string;
     branch_id?: string;
     phone?: string;
+    two_factor_enabled?: boolean;
     created_at: string;
   }
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
@@ -1945,6 +1947,11 @@ export default function SettingsPage() {
                       <TableHead className="font-semibold text-navy-700">Name</TableHead>
                       <TableHead className="font-semibold text-navy-700">Email</TableHead>
                       <TableHead className="font-semibold text-navy-700">Role</TableHead>
+                      {/* 2FA column — read-only shield badge per admin.
+                          Super-admins intentionally do NOT get a disable
+                          button here (plan: lost-authenticator recovery
+                          runs through support, not a cross-admin reset). */}
+                      <TableHead className="font-semibold text-navy-700 w-16">2FA</TableHead>
                       <TableHead className="font-semibold text-navy-700">Branch</TableHead>
                       <TableHead className="font-semibold text-navy-700 w-20">Actions</TableHead>
                     </TableRow>
@@ -1952,7 +1959,7 @@ export default function SettingsPage() {
                   <TableBody>
                     {adminOnlyUsers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-navy-500">
+                        <TableCell colSpan={6} className="text-center py-8 text-navy-500">
                           No admin users found
                         </TableCell>
                       </TableRow>
@@ -1966,6 +1973,23 @@ export default function SettingsPage() {
                               <Badge className="bg-brand-red text-white">Super Admin</Badge>
                             ) : (
                               <Badge className="bg-navy-200 text-navy-700">Branch Admin</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell data-testid={`admin-2fa-${admin.id}`}>
+                            {admin.two_factor_enabled ? (
+                              <span
+                                className="inline-flex items-center text-emerald-600"
+                                title="Two-factor authentication is active"
+                              >
+                                <ShieldCheck className="h-4 w-4" />
+                              </span>
+                            ) : (
+                              <span
+                                className="inline-flex items-center text-navy-300"
+                                title="Two-factor authentication not enabled"
+                              >
+                                —
+                              </span>
                             )}
                           </TableCell>
                           <TableCell className="text-navy-600">

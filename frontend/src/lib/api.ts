@@ -165,12 +165,12 @@ export const authApi = {
       provisioning_uri: string;
     };
   },
-  enable2fa: async (totp_code: string) => {
-    const response = await api.post('/auth/enable-2fa', { totp_code });
+  enable2fa: async (secret: string, totp_code: string) => {
+    const response = await api.post('/auth/enable-2fa', { secret, totp_code });
     return response.data;
   },
-  disable2fa: async (totp_code: string) => {
-    const response = await api.post('/auth/disable-2fa', { totp_code });
+  disable2fa: async (password: string, totp_code: string) => {
+    const response = await api.post('/auth/disable-2fa', { password, totp_code });
     return response.data;
   },
 };
