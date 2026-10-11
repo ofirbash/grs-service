@@ -1,0 +1,29 @@
+{
+  "summary": "Iteration 48 — Customer SKU, Shape-removal from shipment tables/memos, and 'Shipment Memo Return' title. Backend pytest 7/7 PASS. Frontend E2E PASS for Create Job dialog, Stones page table + edit dialog, Job detail JobStonesTable, and bundle verification for Shipments memo titles.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_customer_sku.py",
+    "/app/test_reports/pytest/iter48_customer_sku.xml"
+  ],
+  "action_items": [
+    "Non-blocking: when this feature is merged, the Next.js static export must be rebuilt (yarn build in /app/frontend). The deployed /app/frontend/build was stale and showed the old UI (no Customer SKU column, old shipment titles). Testing-agent rebuilt it to validate the changes; main agent / deploy pipeline should ensure this happens on every merge."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/jobs_helpers.py :: _clean_customer_sku silently truncates to 64 chars rather than rejecting the request. Behavior is consistent across POST /jobs, POST /jobs/{id}/stones, and PUT /stones/{id}. If the product intent is validation (not truncation), swap to raising 400 and surface a toast — currently a user who pastes a 100-char code gets a silently cut 64-char code with no warning.",
+    "/app/frontend/src/components/jobs/JobStonesTable.tsx compact variant comment still references 'SKU/Customer SKU/Type/Weight/Value/Certificate' which matches the full view in the test but is not under test here — if the compact (shipments embed) variant diverges from this comment it will drift silently; worth a snapshot test.",
+    "/app/frontend/src/components/dialogs/StoneEditDialog.tsx exposes the Customer SKU input only inside the edit-mode branch; the read-only summary at the top of the dialog does not display customer_sku at all. Minor UX gap — admins viewing a stone cannot see customer_sku without entering edit mode.",
+    "test_credentials.md still lists customer@test.com though not needed here. Carried over from iter 47."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_customer_sku.py (NEW)",
+    "/app/frontend/build (rebuilt from source via yarn build so the three fixes are actually served)"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% (all checks passed after rebuild)"},
+  "test_credentials": "admin@bashari.com / admin123 (Turnstile secret already blank in /app/backend/.env, so API login works unauthenticated).",
+  "seed_data_creation": "test_customer_sku.py creates and tears down jobs (DELETE on teardown). A few test-created stones remain visible on the Stones page from backend tests (e.g. 'CUST-ABC-001', truncated 64x'X', 'EDIT-UI-TEST-...', 'PDF-SHIP-1') — these are safely cleaned when their parent job is deleted by the autouse fixture. Expected residual: at most one 'EDIT-UI-TEST-*' row from the frontend edit test which modified an existing stone (DI100J62101 on Job #621).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Next.js is in static-export mode: /app/frontend/package.json 'build' writes to /app/frontend/build which is served by `serve build -l 3000`. HOT RELOAD DOES NOT APPLY to committed changes under /app/frontend/src — a `yarn build` + `sudo supervisorctl restart frontend` is required before frontend testing. In iter 48 the deployed bundle was stale and all UI assertions failed until a rebuild. Add this as a precondition in future iterations.",
+  "rca of the issue": "No functional bugs this iteration. The initial frontend failures (missing Customer SKU everywhere, shipment title not updated) were a build-staleness artifact of the Next.js static export, not a code regression. Rebuilding /app/frontend made all UI checks pass. Backend trim/truncate/clear/preserve semantics are correct per _clean_customer_sku: trims whitespace, converts '' to null, caps at 64 chars, and PUT /stones/{id} only writes customer_sku when the key is present in the body (verified: omitting it leaves the stored value unchanged)."
+}

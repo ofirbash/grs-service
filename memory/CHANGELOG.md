@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-06 — Three small fixes: Shipment Memo Return, Shape column removal, Customer SKU
+
+- Outbound shipment memos titled "Shipment Memo Return" (inbound stays "Shipment Memo - Gemstones").
+- Shape column removed from shipment memos and the shared `JobStonesTable` (jobs + shipments job-detail).
+- Optional Customer SKU (≤64, trimmed, "" clears) wired end-to-end: Create Job rows, Add Stone, StoneEditDialog save (jobs + stones pages — previously dropped by save handlers), `JobStonesTable` + Stones page columns (right after SKU), shipment memos (mapping fixed), PDFs, emails.
+- Tested: iteration_48 (backend 7/7, frontend 100%). New test: `backend/tests/test_customer_sku.py`.
+
+---
+
+
 ## 2026-07-09 — Admin self-service 2FA (end-to-end)
 
 User-approved plan: admins (super-admin + branch-admin) can turn 2FA on/off from the Profile page, and super-admins see a read-only 2FA column in the Users admin table.
