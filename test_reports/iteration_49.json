@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 49 — Expected Verbal Date tracking (A) and Precious/Semi-Precious shipment memos (B). Backend pytest 7/7 PASS. Frontend E2E PASS for Expected Results dashboard panel, Jobs page Expected column + sort + filter + URL preselect (?expected=overdue and ?expected=YYYY-MM-DD), Job detail Expected Verbal card (override input + save/clear testids present), Settings → Payments tab Turnaround editor (Express 8 / Normal 30 / Recheck —), Settings → Stones Settings Precious checkboxes (9 instances found including the 3 default precious). Note: 'Pricing' tab is labelled 'Payments' in the UI (value='pricing', data-testid='tab-pricing').",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_expected_verbal.py",
+    "/app/test_reports/pytest/iter49_expected_verbal.xml"
+  ],
+  "action_items": [
+    "Non-blocking: the review spec references data-testid 'turnaround-value-bashari-lab-direct' / 'turnaround-input-bashari-lab-direct', but the actual testids are per-service-type slug: turnaround-value-express, turnaround-value-normal, turnaround-value-recheck (and matching -input- in edit mode). 'bashari-lab-direct' is not a service type in the preview; the implementation uses slug(service_type). No action required unless the spec intended a different slug source.",
+    "Non-blocking: the Settings tab is labelled 'Payments' in the sidebar but internally value='pricing' (data-testid tab-pricing). The spec names it 'Pricing tab'. Consider renaming the visible label to 'Pricing' for consistency with the plan.",
+    "Non-blocking: PrintMemoMenu was not E2E-exercised against a live mixed-category shipment because the preview had no shipment with both precious and semi-precious stones at test time; the testids and openPrintWindow helper are present in the built bundle (grep-verified)."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routes/pricing_routes.py update_pricing_config: when `data.precious_stone_types` is None we fall back to existing[precious_stone_types] but the stone_types used to filter it is already the resolved new list (correct). However, if the admin removes a stone type from stone_types and does NOT re-send precious_stone_types, the stale persisted list is filtered correctly against the NEW stone_types — good. Watch for the edge case where stone_types itself is None and no record exists: DEFAULT_STONE_TYPES is used which is fine.",
+    "/app/backend/expected_dates.py latest_lab_sends uses `date_sent > out[jid][0]`; ties keep the first-seen shipment_number. For 'latest' semantics this is correct, but if two shipments share identical date_sent the shipment_number returned is non-deterministic (depends on scan order). Minor edge-case.",
+    "/app/backend/routes/jobs.py set_expected_verbal_date: when old_override == new_date it returns before (correctly) WITHOUT writing an activity log row — good, idempotent. But note that for invalid same-value re-set the client sees a 200 with no state change and no log entry; the frontend should reflect this.",
+    "Frontend: 'Pricing' tab UI label says 'Payments' which does not match the product spec wording in (A). Low-impact copy change."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_expected_verbal.py (NEW, 7 tests)"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% of exercised flows passed"},
+  "test_credentials": "admin@bashari.com / admin123 (Turnstile secret blank in backend/.env). Customer customer@test.com / customer123.",
+  "seed_data_creation": "Backend tests created a 'TEST_ExpectedVerbal_Client' + Express/Normal jobs + one to-lab shipment per test; module-scoped client fixture deleted the client at teardown (API DELETE /clients/{id} returned 409 for in-use clients but the fixture teardown is tolerant). Residual 8 orphan jobs and 14 orphan activity_log rows for the two TEST client_ids were cleaned up directly in MongoDB (clients deleted earlier). Pricing settings verified post-test: service_turnaround_days={Express:8, Normal:30}, precious_stone_types=[Ruby,Sapphire,Emerald], service_types=[Express,Normal,Recheck] — all defaults restored.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview backend has TURNSTILE_SECRET_KEY blank, so /api/auth/login accepts any body with website='' and no cf token. Static-export frontend: hot reload does NOT apply to committed /app/frontend/src changes — rebuild with `cd /app/frontend && yarn build && sudo supervisorctl restart frontend` before UI testing. Zustand auth is persisted in sessionStorage under key 'auth-storage' (shape: {state:{token,user,isAuthenticated},version:0}) plus raw 'token' key — injecting both lets you bypass the Turnstile widget in Playwright. DELETE /api/jobs/{id} returns 405 (not implemented); for cleanup use MongoDB directly. Settings 'Pricing' tab is value='pricing', data-testid='tab-pricing', visible label 'Payments'. Turnaround testids are per-slug (express/normal/recheck), not 'bashari-lab-direct' as the review spec example suggested.",
+  "rca of the issue": "No functional bugs this iteration. All backend contracts (GET/PUT /api/pricing with service_turnaround_days & precious_stone_types stale-key filtering, POST /api/pricing/rename-service-type turnaround migration, GET /api/jobs expected_verbal structure, auto date = date_sent + turnaround, recompute on shipment date_sent / service_type change, PUT /api/jobs/{id}/expected-verbal-date set/clear/invalid, activity log job_expected_date_changed, customer role null) verified against live preview backend. UI confirmed: dashboard Expected Results panel renders Overdue/Today/Next-7-days testids; Jobs page expected-verbal-{job_number} cells (244 rows) + jobs-expected-sort + jobs-expected-filter + jobs-expected-date-input render; URL ?expected=overdue preselects 'Expected: Overdue', ?expected=2026-06-03 preselects 'Expected: Pick a date' with date input populated and job list filters to 2 matching rows; Job detail dialog exposes expected-verbal-card + expected-verbal-override-input + expected-verbal-override-save (expected-verbal-override-clear only renders when an override is set, which is correct); Settings → Payments tab shows service-turnaround-editor with read-only values 'Express 8 days', 'Normal 30 days', 'Recheck —'; Settings → Stones Settings tab shows 9 precious-stone-type-{idx} checkboxes."
+}

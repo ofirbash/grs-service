@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-06 — Expected Verbal Results + Precious / Semi-Precious shipment memos
+
+- Settings: "Turnaround (calendar days)" per service type (defaults Express 8, Normal 30) and a "Precious" checkbox per stone type (defaults Ruby/Sapphire/Emerald). Stored on `pricing_config.service_turnaround_days` / `precious_stone_types`; pruned on save, carried over by service-type rename.
+- `backend/expected_dates.py`: expected date = latest non-cancelled `send_stones_to_lab` shipment `date_sent` + turnaround, computed on read (`JobResponse.expected_verbal`); override via `PUT /api/jobs/{id}/expected-verbal-date` (logged as `job_expected_date_changed`). Hidden from customers.
+- Dashboard "Expected Results" panel (Overdue / Today / Next 7 days); Jobs page Expected Results column (sort), filter (Any/Overdue/Today/This week/Pick a date, `?expected=` URL); job detail card with override set/clear.
+- Shipment full memo split: Print menu Precious / Semi-Precious / Both (direct print if only one category); titles per direction + category; per-category stones and totals.
+- Tested: iteration_49 (backend 7/7, frontend pass) + node check of memo builder output.
+
+---
+
+
 ## 2026-06 — Three small fixes: Shipment Memo Return, Shape column removal, Customer SKU
 
 - Outbound shipment memos titled "Shipment Memo Return" (inbound stays "Shipment Memo - Gemstones").

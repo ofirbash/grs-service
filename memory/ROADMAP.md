@@ -33,6 +33,10 @@ _None currently._
   1. SMS/email remote-signing link for absent clients (admin clicks "Send remote link" → client gets URL → signs on their phone). Reuses `signature_requests`; adds a token-bound mobile signing page.
   2. Admin acknowledgment signature — admin signs on desktop on behalf with `acknowledged_by_admin: true` flag, clearly labeled on the PDF (for verbal authorization cases).
 
+- [x] **Expected Verbal Results tracking + Precious/Semi-Precious shipment memos (Phase 1)** ✅ done Jun 2026 (iter-49). See CHANGELOG.
+- [ ] **Expected Results Phase 2**: daily morning email to admins (today + overdue), bulk override per shipment, Precious/Semi-Precious counts on shipments list/details.
+- [ ] **Expected Results Phase 3**: show expected date to customers + in "sent to lab" notification, turnaround performance stats, optional category split for per-job memos/attachments.
+
 ## P2 — Medium Priority
 
 - [ ] **Mobile responsive audit** across all pages.
