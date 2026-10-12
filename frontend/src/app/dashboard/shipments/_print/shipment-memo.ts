@@ -49,13 +49,30 @@ interface PrintShipmentOptions {
   /** Optional name -> full-address lookup. Used to expand the stored short
    * label (e.g. "Israel Office") into a full street address on the print. */
   addressBook?: Record<string, string>;
+  /** Stone types classified Precious in Settings. */
+  preciousTypes?: string[];
+  /** Which category document(s) to print; omitted = single unsplit doc. */
+  category?: MemoCategory;
+}
+
+export type MemoCategory = 'precious' | 'semi' | 'both';
+
+const CATEGORY_LABEL = { precious: 'Precious', semi: 'Semi-Precious' } as const;
+
+/** Categories that actually have stones in the given jobs. */
+export function memoCategoriesPresent(jobs: Job[], preciousTypes: string[]): Array<'precious' | 'semi'> {
+  const stones = jobs.flatMap((j) => j.stones || []);
+  const out: Array<'precious' | 'semi'> = [];
+  if (stones.some((s) => preciousTypes.includes(s.stone_type))) out.push('precious');
+  if (stones.some((s) => !preciousTypes.includes(s.stone_type))) out.push('semi');
+  return out;
 }
 
 /**
  * Opens a new window with a polished memo-style Shipment document matching
  * the Bashari brand. Used for printing/signing off on a shipment.
  */
-export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipmentOptions): void {
+export function printShipmentMemo({ shipment, jobs, addressBook, preciousTypes = [], category }: PrintShipmentOptions): void {
   const typeLabel = SHIPMENT_TYPE_LABELS[shipment.shipment_type] || shipment.shipment_type;
 
   /** Resolve a stored short address label (e.g. "Israel Office") into two
@@ -80,9 +97,12 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
     job_number: number;
     cert_group?: number;
   };
+  const fmt = (n: number): string => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const buildStonesTable = (include: (s: Stone) => boolean): string => {
   const allStones: StoneRow[] = [];
   jobs.forEach((j) => {
-    (j.stones || []).forEach((s: Stone) =>
+    (j.stones || []).filter(include).forEach((s: Stone) =>
       allStones.push({
         sku: s.sku,
         customer_sku: s.customer_sku,
@@ -98,8 +118,6 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
   });
   const totalValue = allStones.reduce((sum, s) => sum + (s.value || 0), 0);
   const totalWeight = allStones.reduce((sum, s) => sum + (Number(s.weight) || 0), 0);
-
-  const fmt = (n: number): string => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const stonesTableRows = allStones
     .map(
@@ -119,7 +137,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
   // Shipment doc stones table (plan Jul 09 2026): Shape column removed
   // (customers already have shape in their original paperwork). Customer
   // SKU column added after SKU for cross-referencing their inventory.
-  const stonesTableHtml = allStones.length
+  return allStones.length
     ? `<table>
         <thead>
           <tr>
@@ -142,6 +160,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
         </tfoot>
       </table>`
     : '<p style="color:#71717a;font-size:12px;">No stones assigned to this shipment.</p>';
+  };
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const absoluteLogo = COMPANY.logoUrl.startsWith('http')
@@ -164,7 +183,19 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
   // don't see a confusing name change on their intake paperwork.
   const isOutbound = shipment.shipment_type === 'stones_from_lab'
     || shipment.shipment_type === 'certificates_from_lab';
-  const docTitle = isOutbound ? 'Shipment Memo Return' : 'Shipment Memo - Gemstones';
+  const baseTitle = isOutbound ? 'Shipment Memo Return' : 'Shipment Memo – Gemstones';
+
+  const isPrecious = (st: Stone) => preciousTypes.includes(st.stone_type);
+  const docs: Array<{ title: string; include: (st: Stone) => boolean }> = [];
+  if (category === 'precious' || category === 'both') {
+    docs.push({ title: `${baseTitle} – ${CATEGORY_LABEL.precious}`, include: isPrecious });
+  }
+  if (category === 'semi' || category === 'both') {
+    docs.push({ title: `${baseTitle} – ${CATEGORY_LABEL.semi}`, include: (st) => !isPrecious(st) });
+  }
+  const allJobStones = jobs.flatMap((j) => j.stones || []);
+  const nonEmpty = docs.filter((d) => allJobStones.some(d.include));
+  if (!nonEmpty.length) nonEmpty.push({ title: baseTitle, include: () => true });
 
   const html = `
 <!DOCTYPE html>
@@ -228,6 +259,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
   </style>
 </head>
 <body>
+${nonEmpty.map((doc, i) => `${i > 0 ? '<div class="page-break"></div>' : ''}
   <div class="company-header">
     <div class="company-brand">
       <img src="${absoluteLogo}" alt="${COMPANY.displayName}" onerror="this.style.display='none'" />
@@ -239,7 +271,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
   </div>
 
   <div class="doc-title-bar">
-    <h1>${docTitle}</h1>
+    <h1>${doc.title}</h1>
     <div class="shipment-number">Shipment #${shipment.shipment_number} · ${dateSent}</div>
   </div>
 
@@ -277,7 +309,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
 
   <div class="section">
     <h3>Stones Manifest</h3>
-    ${stonesTableHtml}
+    ${buildStonesTable(doc.include)}
   </div>
 
   ${
@@ -308,6 +340,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook }: PrintShipment
     <div style="margin-top:4px;">Printed ${printedAt}</div>
   </div>
 
+`).join('')}
   <script>
     window.addEventListener('load', function() {
       setTimeout(function() { window.print(); }, 200);

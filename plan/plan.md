@@ -1,74 +1,110 @@
-# Three small fixes: shipment-return title, cleaner stones table, Customer SKU
+# Expected Verbal Results Tracking + Precious / Semi-Precious Shipment Memos
 
-Three independent adjustments to shipment documents and stone tracking that affect what admins see on screen, what customers see on paper, and what identifiers travel through the system.
+Each job gets an Expected Verbal Date, counted from the day it actually left for the lab plus its service type's turnaround, and admins see all jobs due on the same day in one place.
+Shipment memos are split into a Precious document and a Semi-Precious document, based on a stone-type classification you control in Settings.
 
 ## Who it's for
-
-Lab operators and the admins who send stones back out, plus the customers who receive the returned-shipment documents and emails. Customer-visible docs use the new label and new column; admins get a new input to fill in.
+- Super admins and branch admins who send stones to and from the lab, follow up on verbal results, and print shipment paperwork.
+- Branch admins see only their own branch's jobs and shipments, the same as today.
 
 ## Core features and experience
 
-### 1. "Shipment Memo Return" — the outbound-from-lab document gets its name
+### A. Expected verbal results
+- **Turnaround days per service type (Settings)**
+  - Each service type in Settings (Express, Normal, Recheck, and any added later, such as Priority) gets a "Turnaround (calendar days)" number.
+  - Starting values are Express 8 and Normal 30. All other types start empty.
+  - A service type with no turnaround set gives no expected date.
+- **Expected Verbal Date per job (automatic)**
+  - The date is the "Date sent" of the to-lab shipment carrying the job, plus the turnaround days of the job's current service type.
+  - A job that hasn't been shipped to the lab yet shows "Not shipped yet".
+  - The date recalculates automatically when any of these change:
+    - the shipment's "Date sent"
+    - the job's service type (for example Express → Priority)
+    - the turnaround value in Settings
+- **Manual override**
+  - An admin can set a specific expected date on a job, for example after the lab announces a delay. The job then shows an "Adjusted" tag.
+  - The override stays until it's cleared, and clearing it brings back the automatic date.
+  - Every set, change and clear is recorded in the job's Activity Log as old date → new date, with who made it and when.
+- **Dashboard panel "Expected Results"**
+  - Jobs are grouped into **Overdue**, **Today** and **Next 7 days**. Next 7 days has one row per date, with a job count.
+  - Each job line shows the job number, client, service type, stone count, shipment number and expected date.
+  - Clicking a job opens it. Clicking a date opens the Jobs page filtered to that date.
+- **Jobs page**
+  - A new, sortable "Expected Results" column shows the date with Overdue (red), Today (amber) and Adjusted tags.
+  - A new filter offers Overdue / Today / This week / Pick a date.
+- **Leaving the list**
+  - A job drops off the panel and the Overdue/Today views as soon as either of these happens:
+    - its status moves to the verbal-results-received stage
+    - the Verbal Results notification is sent
+  - The date stays visible on the job afterwards.
 
-When the lab ships stones back out to a client (the outbound half of a shipment cycle), the generated PDF/document is titled **"Shipment Memo Return"**. The incoming / dispatched-to-lab shipment document keeps its existing title. The change is a label swap on the generated document and its filename — nothing about the shipment flow itself moves.
-
-### 2. Shape column removed from all shipment-document stone tables
-
-In every shipment-document stone table (incoming shipment, shipment memo return), the "Shape" column is removed. Columns like SKU, Stone Type, Weight, Value stay. Stone-level documents outside the shipment flow (job memos, cert collections, individual memos) keep their Shape column — this is a shipment-document-only change.
-
-### 3. Customer SKU — a second identifier that follows the stone
-
-Alongside the auto-generated SKU (e.g. `DI100J60001`), each stone can carry an optional **Customer SKU** — a short free-text identifier supplied by the customer (their own inventory code, lot number, their internal reference). It is per stone and stays on the stone for its lifetime.
-
-**Where admins enter it**
-
-- **At job creation**: the "Add Stone" form in the job-creation flow gets a new "Customer SKU" field, placed under or next to the stone's type/weight fields. Blank is fine.
-- **After the fact**: the Stone Edit dialog (opened from the stones table or the stones page) gets the same field in its editable section. An admin who forgets at creation can fill it in later. Editing uses the same inline-edit mechanism that already handles weight / type / shape / value, so no new buttons or modals.
-
-**Where it appears in output**
-
-- **Job dialog stones table**: a new "Customer SKU" column after the auto SKU. If the stone has no customer SKU, the cell shows a muted dash.
-- **Stones admin page**: same column, same rule.
-- **Shipment Memo Return** and the incoming / dispatched-to-lab shipment document: new "Customer SKU" column after the auto SKU, before Stone Type.
-- **Memos, cert-collection docs, job-level memos (any customer-facing document that already lists stones)**: new "Customer SKU" column after the auto SKU.
-- **Customer-facing emails that list stones** (intake confirmation, dispatch notification, delivery notification, payment receipt): the stone line now shows the Customer SKU in parentheses after the auto SKU, if it exists — e.g. `DI100J60001 (ABC-123)`. If no Customer SKU, the parentheses are omitted.
-- **Nothing changes about search / lookup** in this phase — admins can see the Customer SKU in the table, but searching by Customer SKU is a later consideration.
+### B. Precious / Semi-Precious shipment memos
+- **Classification (Settings)**
+  - Each stone type in Settings gets a "Precious" checkbox.
+  - Ruby, Sapphire and Emerald are ticked to start. Every other type, including ones added later, is Semi-Precious unless it's ticked.
+- **Split documents on one shipment**
+  - A shipment stays a single record with one courier, one tracking number and one set of jobs. Only the printed full shipment memo is split.
+  - The "Print" action on a shipment offers **Precious**, **Semi-Precious** or **Both**:
+    - Precious and Semi-Precious each print one document.
+    - Both prints the two documents back to back.
+  - Each document has the same layout as today, with the category added to the title:
+    - To-lab: "Shipment Memo – Gemstones – Precious" / "Shipment Memo – Gemstones – Semi-Precious"
+    - From-lab: "Shipment Memo Return – Precious" / "Shipment Memo Return – Semi-Precious"
+  - Each document lists only its own category's stones, with its own totals (stone count, total value, fees).
+  - Each document lists only the jobs that have stones in that category, so a job with mixed stones appears on both documents.
+  - If a shipment holds only one category, only that document is offered and printed.
+- **Scope**
+  - Applies to the full shipment memo in both directions.
+  - Per-job memos printed from a shipment stay as they are today, with all of the job's stones.
 
 ## User flow
-
-1. An admin opens a new job and adds stones. For each stone, they fill in the usual fields plus (optionally) the customer's SKU. They save the job. The stones table on the job dialog shows both IDs side by side.
-2. The customer receives an intake-confirmation email that lists each stone by both IDs where provided, giving them something to cross-reference against their own books.
-3. Testing happens on the lab side as usual.
-4. When the lab sends stones back, the generated "Shipment Memo Return" document carries both IDs for every stone and omits the Shape column (cleaner for the recipient who already has Shape in their original paperwork).
-5. If the admin forgot to enter a Customer SKU at creation, they open the stone from the job or stones page, hit Edit, type the Customer SKU in, and save. The next generated document picks it up.
+1. One-time setup in Settings:
+   - set turnaround days per service type
+   - tick which stone types count as Precious
+2. Jobs are created as usual and show "Not shipped yet".
+3. On Thursday, the admin creates the to-lab shipment with Date sent = Thursday and adds 5 jobs. Each job immediately gets its expected date (Express: Thursday + 8, Normal: Thursday + 30).
+4. The admin clicks Print → Both and gets a Precious memo and a Semi-Precious memo for that shipment.
+5. Each day after login, the dashboard shows Overdue, Today and the coming week. Today mixes old and new jobs that are all due the same day.
+6. The admin opens a due job, enters the verbal findings and sends the Verbal Results notification. The job leaves the panel.
+7. If the lab reports a delay, the admin sets an override date on the affected jobs, and the change is logged.
+8. When stones come back, the return shipment's Print offers the Precious / Semi-Precious split again.
 
 ## UI/UX feel
-
-- The Customer SKU input is a plain text field, same visual weight as every other input in the Add Stone form — not highlighted, not required.
-- The new table column has a muted dash where empty so blank rows don't shout.
-- In emails, the inline parentheses form keeps the stone line short and scannable: `DI100J60001 (ABC-123)` rather than a separate paragraph.
-- In documents, the two-column layout (auto SKU, Customer SKU) means a customer scanning the paper can go top-to-bottom on their own code without reading past the auto SKU.
-- The "Shipment Memo Return" title uses the same heading style as the existing shipment document — purely a label swap. No layout change, no logo change.
-- The Shape column disappearing from shipment-document tables is silent — the remaining columns reflow to use the freed width.
+- Fits the existing navy dashboard. The Expected Results panel is a compact card that stays quiet unless something is due.
+- Colour is used only for urgency: red for Overdue, amber for Today.
+- The "Adjusted" tag shows the original automatic date on hover.
+- Print choices are a small menu on the existing Print button, with no extra screens.
+- Category is shown clearly in each memo's title, and stays readable in black-and-white printing.
 
 ## Implementation phases
-
-**Phase 1 — MVP (built now).** All three fixes above, in full: the label change on the outbound-from-lab shipment document, the Shape column removal across every shipment-document stones table, and end-to-end Customer SKU (create + edit on the stone, visible in every table / document / email that already lists stones).
-
-**Phase 2 — later, not now.** Search / filter by Customer SKU across jobs and stones. Bulk-import a job with Customer SKUs from a CSV. These are useful once customers start using the field heavily.
-
-**Phase 3 — later, not now.** A per-customer namespace that validates Customer SKU uniqueness within that customer's own history and warns if a value has been used before. Also, surfacing the Customer SKU on the customer's own portal view of their job.
+- **Phase 1 (MVP, built now)**
+  - Turnaround days per service type in Settings
+  - Automatic Expected Verbal Date with recalculation
+  - Manual override, logged in the Activity Log
+  - Expected Results dashboard panel
+  - Jobs page column, sort and filter
+  - Expected date shown in the job details
+  - "Precious" checkbox per stone type in Settings
+  - Split full shipment memo (Precious / Semi-Precious / Both) in both directions
+- **Phase 2**
+  - Optional daily morning email to admins listing today's and overdue jobs
+  - Bulk override: set one new date for every job in a shipment at once
+  - Precious/Semi-Precious counts shown on the shipments list and in the shipment details
+- **Phase 3**
+  - Expected date shown to customers in their portal and in the "sent to lab" notification
+  - Lab turnaround performance stats per service type
+  - Optional category split for per-job memos and email attachments
 
 ## Assumptions
-
-- **Customer SKU is per stone, in its own column** (chosen in the pre-plan question round).
-- **Customer SKU is optional everywhere.** No validation, no uniqueness check, no required-field asterisk. If an admin leaves it blank, nothing bad happens.
-- **No length cap enforced in this phase** beyond a soft maximum of 64 characters at the input level — enough for any inventory code a customer would reasonably send, short enough to not blow up a table cell.
-- **Any character accepted.** Customer SKUs out in the wild include slashes, dashes, spaces, dots. The field accepts them all, trimmed of leading/trailing whitespace on save.
-- **No audit-log entry for setting / changing the Customer SKU.** It is a label, not a value that affects fees or status, and the stone's own update audit already covers who changed what on the stone.
-- **The "Shipment Memo Return" title applies only to the outbound-from-lab shipment document.** The incoming shipment document retains its current title. If the incoming one should rename too, say so during review and I'll fold it in.
-- **The Shape column removal is scoped to shipment documents only.** Memos and cert-collection docs continue to show Shape — those are per-stone documents where shape matters for identification; shipments are bulk and the shape is already in the per-stone paperwork customers already have.
-- **Email changes apply only to emails that already list stones in a line-by-line format.** Transactional emails that don't enumerate stones (password reset, access-request OTP, etc.) are unaffected.
-- **No change to the auto-generated SKU format.** Customer SKU sits beside it, never replaces it.
-- **"Customer SKU" is the label used across the UI, docs, and emails.** Not "Client SKU", not "Customer Reference", not "Client Code" — one consistent name so admins and customers can refer to it unambiguously.
-- **The incoming shipment document also gets the Customer SKU column** — if a customer sent in their own SKUs, they expect to see them on the paperwork that comes back when they send the stones in too.
+- Days are calendar days, so weekends and holidays are counted.
+- The count starts from the to-lab shipment's "Date sent", not from when the job or the shipment was created. If "Date sent" is empty, the job has no expected date.
+- If one job's stones went to the lab on more than one shipment, the latest send date is used for the whole job.
+- Changing turnaround days in Settings also updates jobs already at the lab, unless they have an override.
+- An override stays in place even if the job's service type changes.
+- "Results received" means the job's status reaches the existing verbal-results stage, or the Verbal Results notification has been sent.
+- Cancelled jobs never appear in the Expected Results panel.
+- Classification is by stone type only. A parcel follows its stone type.
+- A stone type removed from Settings and later added back starts as Semi-Precious.
+- Mixed jobs appear on both memos, and each memo shows only that job's stones in its category.
+- The two documents share the shipment number. No separate document numbers are created.
+- Existing shipments get the split automatically when printed. Nothing about the shipment itself changes.

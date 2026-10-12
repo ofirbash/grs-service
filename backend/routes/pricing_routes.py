@@ -6,6 +6,7 @@ from database import db
 from auth import get_current_user, require_admin
 from models import PricingUpdateRequest
 from pricing import normalize_bracket, PRICING_BRACKETS, COLOR_STABILITY_FEE
+from expected_dates import DEFAULT_TURNAROUND_DAYS
 
 DEFAULT_STONE_TYPES = ['Ruby', 'Sapphire', 'Emerald', 'Diamond', 'Alexandrite', 'Spinel', 'Padparadscha', 'Paraiba', 'Tanzanite', 'Other']
 DEFAULT_SHAPES = ['Round', 'Oval', 'Cushion', 'Pear', 'Heart', 'Marquise', 'Princess', 'Emerald Cut', 'Cabochon', 'Other']
@@ -16,6 +17,7 @@ DEFAULT_SHAPES = ['Round', 'Oval', 'Cushion', 'Pear', 'Heart', 'Marquise', 'Prin
 # Settings → Recheck Reasons. Defaults mirror the four verbal-finding fields
 # that are typically the subject of a recheck.
 DEFAULT_RECHECK_REASONS = ["Origin", "Color", "Identification", "Comment"]
+DEFAULT_PRECIOUS_STONE_TYPES = ["Ruby", "Sapphire", "Emerald"]
 
 
 router = APIRouter()
@@ -60,6 +62,8 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
             "payment_destinations": pricing.get("payment_destinations", DEFAULT_PAYMENT_DESTINATIONS),
             "couriers": pricing.get("couriers", DEFAULT_COURIERS),
             "recheck_reasons": pricing.get("recheck_reasons", DEFAULT_RECHECK_REASONS),
+            "service_turnaround_days": pricing.get("service_turnaround_days", DEFAULT_TURNAROUND_DAYS),
+            "precious_stone_types": pricing.get("precious_stone_types", DEFAULT_PRECIOUS_STONE_TYPES),
         }
 
     brackets = [normalize_bracket(b) for b in PRICING_BRACKETS]
@@ -73,6 +77,8 @@ async def get_pricing_config(user: dict = Depends(get_current_user)):
         "payment_destinations": DEFAULT_PAYMENT_DESTINATIONS,
         "couriers": DEFAULT_COURIERS,
         "recheck_reasons": DEFAULT_RECHECK_REASONS,
+        "service_turnaround_days": DEFAULT_TURNAROUND_DAYS,
+        "precious_stone_types": DEFAULT_PRECIOUS_STONE_TYPES,
     }
 
 
@@ -96,6 +102,22 @@ async def update_pricing_config(data: PricingUpdateRequest, user: dict = Depends
         update_data["couriers"] = data.couriers
     if data.recheck_reasons is not None:
         update_data["recheck_reasons"] = data.recheck_reasons
+
+    # Keep turnaround keys / precious list in sync with the current type lists
+    # so a removed-then-re-added type starts fresh (no turnaround, Semi-Precious).
+    existing = await db.pricing_config.find_one({"type": "pricing"}) or {}
+    stone_types = update_data.get("stone_types", existing.get("stone_types", DEFAULT_STONE_TYPES))
+    turnaround = data.service_turnaround_days
+    if turnaround is None:
+        turnaround = existing.get("service_turnaround_days", DEFAULT_TURNAROUND_DAYS)
+    update_data["service_turnaround_days"] = {
+        k: (int(v) if v is not None and v >= 0 else None)
+        for k, v in turnaround.items() if k in data.service_types
+    }
+    precious = data.precious_stone_types
+    if precious is None:
+        precious = existing.get("precious_stone_types", DEFAULT_PRECIOUS_STONE_TYPES)
+    update_data["precious_stone_types"] = [t for t in precious if t in stone_types]
 
     await db.pricing_config.update_one(
         {"type": "pricing"},
@@ -175,10 +197,16 @@ async def rename_service_type(data: RenameServiceTypeRequest, user: dict = Depen
                 fees[new_name] = old_fee
         new_brackets.append({**b, "fees": fees})
 
+    turnaround = dict(pricing.get("service_turnaround_days", DEFAULT_TURNAROUND_DAYS))
+    if old_name in turnaround:
+        old_days = turnaround.pop(old_name)
+        turnaround.setdefault(new_name, old_days)
+
     await db.pricing_config.update_one(
         {"type": "pricing"},
         {"$set": {
             "service_types": service_types,
+            "service_turnaround_days": turnaround,
             "brackets": new_brackets,
             "updated_at": datetime.utcnow(),
         }},

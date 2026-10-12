@@ -42,6 +42,7 @@ class Action:
     JOB_UPDATED = "job_updated"
     JOB_STATUS_CHANGED = "job_status_changed"
     JOB_NOTIFICATION_SENT = "job_notification_sent"
+    JOB_EXPECTED_DATE_CHANGED = "job_expected_date_changed"
 
     STONE_VERBAL_ENTERED = "stone_verbal_entered"
     STONE_FEES_UPDATED = "stone_fees_updated"

@@ -14,6 +14,7 @@
 import {
   ArrowLeftRight,
   Briefcase,
+  CalendarClock,
   CircleDot,
   CreditCard,
   FileCheck2,
@@ -34,6 +35,7 @@ const ACTION_META: Record<string, { label: string; Icon: React.ComponentType<{ c
   job_updated: { label: 'Job updated', Icon: Pencil },
   job_status_changed: { label: 'Status changed', Icon: ArrowLeftRight },
   job_notification_sent: { label: 'Notification sent', Icon: Send },
+  job_expected_date_changed: { label: 'Expected date changed', Icon: CalendarClock },
 
   stone_verbal_entered: { label: 'Verbal findings saved', Icon: FileText },
   stone_fees_updated: { label: 'Stone fees updated', Icon: CircleDot },

@@ -365,6 +365,10 @@ export const jobsApi = {
     const response = await api.put(`/jobs/${id}`, data);
     return response.data;
   },
+  setExpectedVerbalDate: async (id: string, date: string | null) => {
+    const response = await api.put(`/jobs/${id}/expected-verbal-date`, { date });
+    return response.data;
+  },
   addStone: async (id: string, stone: {
     stone_type: string;
     weight: number;
@@ -573,6 +577,8 @@ export const settingsApi = {
     shapes?: string[];
     couriers?: string[];
     recheck_reasons?: string[];
+    service_turnaround_days?: Record<string, number | null>;
+    precious_stone_types?: string[];
   }) => {
     const response = await api.put('/pricing', data);
     return response.data;

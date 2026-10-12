@@ -42,7 +42,7 @@ import type {
   Shipment, StructuredVerbalFindings, Stone, Job, DropdownSettings,
   ShipmentOptions,
 } from './_types';
-import { printShipmentMemo } from './_print/shipment-memo';
+import { printShipmentMemo, memoCategoriesPresent, type MemoCategory } from './_print/shipment-memo';
 import { DoubleConfirmDialog } from '@/components/DoubleConfirmDialog';
 
 /** Job statuses eligible to JOIN a fresh shipment, keyed by shipment type.
@@ -96,6 +96,7 @@ function eligibleJobsForShipmentType(
 
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [preciousTypes, setPreciousTypes] = useState<string[]>(['Ruby', 'Sapphire', 'Emerald']);
   const [availableJobs, setAvailableJobs] = useState<Job[]>([]);
   const [filteredAvailableJobs, setFilteredAvailableJobs] = useState<Job[]>([]);
   const [options, setOptions] = useState<ShipmentOptions | null>(null);
@@ -266,6 +267,7 @@ export default function ShipmentsPage() {
         const p = pricingR.value as Record<string, unknown>;
         if (typeof p.color_stability_fee === 'number') setCsFeeCost(p.color_stability_fee);
         if (typeof p.mounted_jewellery_fee === 'number') setMountedFeeCost(p.mounted_jewellery_fee);
+        if (Array.isArray(p.precious_stone_types)) setPreciousTypes(p.precious_stone_types as string[]);
       }
       if (archivedR.status === 'fulfilled') {
         const archived = archivedR.value as Array<{ status?: string }>;
@@ -669,10 +671,10 @@ export default function ShipmentsPage() {
     }
   };
 
-  const handleGeneratePdf = async (shipment: Shipment, jobs: Job[]) => {
+  const handleGeneratePdf = async (shipment: Shipment, jobs: Job[], category: MemoCategory) => {
     setGeneratingPdf(true);
     try {
-      printShipmentMemo({ shipment, jobs, addressBook });
+      printShipmentMemo({ shipment, jobs, addressBook, preciousTypes, category });
     } catch (error) {
       console.error('Failed to generate shipment memo:', error);
     } finally {
@@ -1099,7 +1101,8 @@ export default function ShipmentsPage() {
         shipment={selectedShipment}
         jobs={shipmentJobs}
         generatingPdf={generatingPdf}
-        onPrintPdf={() => selectedShipment && handleGeneratePdf(selectedShipment, shipmentJobs)}
+        printCategories={memoCategoriesPresent(shipmentJobs, preciousTypes)}
+        onPrintPdf={(category) => selectedShipment && handleGeneratePdf(selectedShipment, shipmentJobs, category)}
         editing={editingShipment}
         onToggleEdit={() => editingShipment ? setEditingShipment(false) : handleStartEditShipment()}
         onAddJobs={() => {

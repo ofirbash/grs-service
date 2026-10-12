@@ -84,6 +84,9 @@ import { UnsavedChangesDialog, BulkStatusDialog, ClientInvoiceDialog } from './_
 import { GroupStonesDialog, AddStoneDialog } from './_components/StoneDialogs';
 import { CreateJobDialog } from './_components/CreateJobDialog';
 import { JobSummaryGrid } from './_components/JobSummaryGrid';
+import { ExpectedVerbalCard } from './_components/ExpectedVerbalCard';
+import { ExpectedVerbalCell } from '@/components/jobs/ExpectedVerbalCell';
+import { matchesExpectedFilter, type ExpectedFilter } from '@/lib/expectedVerbal';
 import { JobPaymentCard } from './_components/JobPaymentCard';
 import { JobNotificationsCard } from './_components/JobNotificationsCard';
 import { StoneStatusBadges } from './_components/StoneStatusBadges';
@@ -119,12 +122,22 @@ function JobsPageContent() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
+  const [expectedFilter, setExpectedFilter] = useState<ExpectedFilter>('any');
+  const [expectedDate, setExpectedDate] = useState('');
+  const [expectedSort, setExpectedSort] = useState<'none' | 'asc' | 'desc'>('none');
 
-  // Read status filter from URL params
+  // Read status / expected-results filters from URL params
   useEffect(() => {
     const statusParam = searchParams.get('status');
     if (statusParam) {
       setStatusFilter(statusParam);
+    }
+    const expectedParam = searchParams.get('expected');
+    if (expectedParam === 'overdue' || expectedParam === 'today' || expectedParam === 'week') {
+      setExpectedFilter(expectedParam);
+    } else if (expectedParam && /^\d{4}-\d{2}-\d{2}$/.test(expectedParam)) {
+      setExpectedFilter('date');
+      setExpectedDate(expectedParam);
     }
   }, [searchParams]);
   const [serviceTypes, setServiceTypes] = useState<string[]>(['Express', 'Normal', 'Recheck']);
@@ -782,9 +795,17 @@ function JobsPageContent() {
       } else {
         matchesStatus = job.status === statusFilter;
       }
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesExpectedFilter(job, expectedFilter, expectedDate);
+    }).sort((a, b) => {
+      if (expectedSort === 'none') return 0;
+      const da = a.expected_verbal?.date;
+      const db = b.expected_verbal?.date;
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return expectedSort === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
     }),
-    [jobs, searchTerm, statusFilter],
+    [jobs, searchTerm, statusFilter, expectedFilter, expectedDate, expectedSort],
   );
 
   // Memoised derivations of the currently-open job's stones.
@@ -1386,6 +1407,29 @@ function JobsPageContent() {
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
+            {isAdmin && (
+              <Select value={expectedFilter} onValueChange={(v) => setExpectedFilter(v as ExpectedFilter)}>
+                <SelectTrigger className="w-full sm:w-48 border-navy-200" data-testid="jobs-expected-filter">
+                  <SelectValue placeholder="Expected results" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Expected: Any</SelectItem>
+                  <SelectItem value="overdue">Expected: Overdue</SelectItem>
+                  <SelectItem value="today">Expected: Today</SelectItem>
+                  <SelectItem value="week">Expected: This week</SelectItem>
+                  <SelectItem value="date">Expected: Pick a date</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {isAdmin && expectedFilter === 'date' && (
+              <Input
+                type="date"
+                value={expectedDate}
+                onChange={(e) => setExpectedDate(e.target.value)}
+                className="w-full sm:w-44 border-navy-200"
+                data-testid="jobs-expected-date-input"
+              />
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1464,6 +1508,12 @@ function JobsPageContent() {
                   {job.payment_status === 'paid' && (
                     <div className="mt-1.5"><Badge className="bg-navy-900 text-white text-[10px]">Paid</Badge></div>
                   )}
+                  {isAdmin && (
+                    <div className="mt-1.5 flex items-center gap-2 text-xs text-navy-500">
+                      <span>Expected:</span>
+                      <ExpectedVerbalCell job={job} />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1490,6 +1540,19 @@ function JobsPageContent() {
                     <TableHead className="font-semibold text-navy-700 w-14 text-center">Stones</TableHead>
                     <TableHead className="font-semibold text-navy-700 w-28">Value / Fee</TableHead>
                     <TableHead className="font-semibold text-navy-700 w-32">Status</TableHead>
+                    {isAdmin && (
+                      <TableHead className="font-semibold text-navy-700 w-32">
+                        <button
+                          type="button"
+                          onClick={() => setExpectedSort((s) => (s === 'none' ? 'asc' : s === 'asc' ? 'desc' : 'none'))}
+                          className="inline-flex items-center gap-1 hover:text-navy-900"
+                          data-testid="jobs-expected-sort"
+                        >
+                          Expected Results
+                          <span className="text-[10px]">{expectedSort === 'asc' ? '▲' : expectedSort === 'desc' ? '▼' : '↕'}</span>
+                        </button>
+                      </TableHead>
+                    )}
                     {isAdmin && <TableHead className="font-semibold text-navy-700 w-20">Payment</TableHead>}
                     <TableHead className="font-semibold text-navy-700 w-36">Shipment</TableHead>
                   </TableRow>
@@ -1571,6 +1634,11 @@ function JobsPageContent() {
                       <TableCell onClick={() => openJobDetails(job)}>
                         {getStatusBadge(job.status)}
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell onClick={() => openJobDetails(job)}>
+                          <ExpectedVerbalCell job={job} />
+                        </TableCell>
+                      )}
                       {isAdmin && (
                         <TableCell onClick={() => openJobDetails(job)}>
                           {job.payment_status === 'paid' ? (
@@ -1732,6 +1800,16 @@ function JobsPageContent() {
                 availableServiceTypes={serviceTypes}
                 recheckReasonOptions={recheckReasonOptions}
               />
+              {isAdmin && (
+                <ExpectedVerbalCard
+                  job={selectedJob}
+                  isAdmin={isAdmin}
+                  onUpdated={(updated) => {
+                    setSelectedJob(updated);
+                    setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+                  }}
+                />
+              )}
 
               {/* Two-column layout: Stones (left) + Actions sidebar (right) */}
               <div className="space-y-4 border-t pt-4">

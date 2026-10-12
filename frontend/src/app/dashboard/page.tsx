@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { dashboardApi, shipmentsApi, jobsApi } from '@/lib/api';
 import { useAuthStore, useBranchFilterStore } from '@/lib/store';
+import { ExpectedResultsPanel } from '@/components/dashboard/ExpectedResultsPanel';
+import type { ExpectedVerbal } from '@/lib/expectedVerbal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -59,6 +61,7 @@ interface Stone {
 }
 
 interface Job {
+  expected_verbal?: ExpectedVerbal | null;
   id: string;
   job_number: number;
   client_id: string;
@@ -371,6 +374,13 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {isAdmin && (
+        <ExpectedResultsPanel
+          jobs={allJobs}
+          onOpenJob={(job) => router.push(`/dashboard/jobs/?jobId=${job.id}`)}
+        />
+      )}
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

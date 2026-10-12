@@ -23,6 +23,8 @@ from pricing import (
 from utils import generate_sku
 from jobs_helpers import active_stones, recompute_job_totals, is_parcel, physical_stone_count, _clean_customer_sku
 from activity_log import Action, log_activity
+from expected_dates import expected_for_jobs
+from pydantic import BaseModel
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
 
@@ -75,8 +77,10 @@ def _build_payment_url(job: dict) -> Optional[str]:
     return f"{FRONTEND_URL}/pay/?token={token}" if token and FRONTEND_URL else None
 
 
-async def build_job_response(job: dict) -> JobResponse:
+async def build_job_response(job: dict, expected_verbal: Optional[dict] = None) -> JobResponse:
     """Build a JobResponse from a job document, enriching with client/branch/shipment data"""
+    if expected_verbal is None:
+        expected_verbal = (await expected_for_jobs([job]))[str(job["_id"])]
     client = await db.clients.find_one({"_id": ObjectId(job["client_id"])})
     branch = await db.branches.find_one({"_id": ObjectId(job["branch_id"])})
 
@@ -114,6 +118,7 @@ async def build_job_response(job: dict) -> JobResponse:
         payment_token=job.get("payment_token"),
         payment_url=_build_payment_url(job),
         payments=_serialize_payments(job),
+        expected_verbal=expected_verbal,
         created_at=job["created_at"],
         updated_at=job["updated_at"],
     )
@@ -376,9 +381,13 @@ async def get_jobs(
 
     jobs = await db.jobs.find(query).sort("created_at", -1).to_list(1000)
 
+    expected = await expected_for_jobs(jobs)
     response = []
     for job in jobs:
-        response.append(await build_job_response(job))
+        r = await build_job_response(job, expected[str(job["_id"])])
+        if user["role"] == "customer":
+            r.expected_verbal = None
+        response.append(r)
 
     return response
 
@@ -388,7 +397,58 @@ async def get_job(job_id: str, user: dict = Depends(get_current_user)):
     job = await db.jobs.find_one({"_id": ObjectId(job_id)})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return await build_job_response(job)
+    r = await build_job_response(job)
+    if user["role"] == "customer":
+        r.expected_verbal = None
+    return r
+
+
+class ExpectedVerbalOverride(BaseModel):
+    date: Optional[str] = None
+
+
+@router.put("/jobs/{job_id}/expected-verbal-date", response_model=JobResponse)
+async def set_expected_verbal_date(job_id: str, data: ExpectedVerbalOverride, user: dict = Depends(require_admin)):
+    """Set (YYYY-MM-DD) or clear (null/"") the manual expected-verbal-date override."""
+    job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if user["role"] == "branch_admin" and job.get("branch_id") != user.get("branch_id"):
+        raise HTTPException(status_code=403, detail="Not allowed for this branch")
+    new_date = (data.date or "").strip() or None
+    if new_date:
+        try:
+            new_date = datetime.strptime(new_date, "%Y-%m-%d").date().isoformat()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+
+    before = (await expected_for_jobs([job]))[job_id]
+    old_override = job.get("expected_verbal_date_override")
+    if old_override == new_date:
+        return await build_job_response(job, before)
+
+    await db.jobs.update_one(
+        {"_id": job["_id"]},
+        {"$set": {"expected_verbal_date_override": new_date, "updated_at": datetime.utcnow()}},
+    )
+    job["expected_verbal_date_override"] = new_date
+    after = (await expected_for_jobs([job]))[job_id]
+    if new_date and old_override:
+        verb = "changed"
+    elif new_date:
+        verb = "set"
+    else:
+        verb = "cleared"
+    await log_activity(
+        Action.JOB_EXPECTED_DATE_CHANGED,
+        actor=user,
+        job_id=job_id,
+        client_id=job.get("client_id"),
+        branch_id=job.get("branch_id"),
+        summary=f"Expected verbal date override {verb}: {before['date'] or 'none'} → {after['date'] or 'none'}",
+        metadata={"old_date": before["date"], "new_date": after["date"], "old_override": old_override, "new_override": new_date},
+    )
+    return await build_job_response(job, after)
 
 
 @router.put("/jobs/{job_id}/status", response_model=JobResponse)

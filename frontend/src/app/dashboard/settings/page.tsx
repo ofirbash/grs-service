@@ -64,6 +64,7 @@ import type {
 } from './_types';
 import { DROPDOWN_FIELDS } from './_types';
 import { PadConnectQrDialog } from '@/components/settings/PadConnectQrDialog';
+import { ServiceTurnaroundEditor } from '@/components/settings/ServiceTurnaroundEditor';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -1002,25 +1003,41 @@ export default function SettingsPage() {
                   <Diamond className="h-5 w-5" />
                   Stone Types
                 </CardTitle>
-                <CardDescription>Used when creating a stone on a job</CardDescription>
+                <CardDescription>Used when creating a stone on a job. Tick &quot;Precious&quot; to print it on the Precious shipment memo; all others go on Semi-Precious.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-1.5">
                   {pricingForm.stone_types.map((type, idx) => (
                     <div key={`${type}-${idx}`} className="flex items-center justify-between py-1.5 px-3 bg-navy-50 rounded">
                       <span className="text-sm text-navy-900">{type}</span>
+                      <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 text-xs text-navy-600 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 rounded border-navy-300"
+                          checked={(pricingForm.precious_stone_types || []).includes(type)}
+                          onChange={(e) => setPricingForm(prev => {
+                            const cur = (prev.precious_stone_types || []).filter(t => t !== type);
+                            return { ...prev, precious_stone_types: e.target.checked ? [...cur, type] : cur };
+                          })}
+                          data-testid={`precious-stone-type-${idx}`}
+                        />
+                        Precious
+                      </label>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setPricingForm(prev => ({
                           ...prev,
                           stone_types: prev.stone_types.filter((_, i) => i !== idx),
+                          precious_stone_types: (prev.precious_stone_types || []).filter(t => t !== type),
                         }))}
                         className="h-6 w-6 p-0 hover:bg-red-50"
                         data-testid={`delete-stone-type-${idx}`}
                       >
                         <X className="h-3 w-3 text-red-500" />
                       </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1587,6 +1604,12 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 )}
+                <ServiceTurnaroundEditor
+                  serviceTypes={editingPricing ? pricingForm.service_types : pricing.service_types}
+                  values={(editingPricing ? pricingForm.service_turnaround_days : pricing.service_turnaround_days) || {}}
+                  editing={editingPricing}
+                  onChange={(next) => setPricingForm(prev => ({ ...prev, service_turnaround_days: next }))}
+                />
               </div>
 
               {/* Additional Fees */}

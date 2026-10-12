@@ -2,7 +2,6 @@
 
 import React from 'react';
 import {
-  FileText,
   Loader2,
   Pencil,
   PlusCircle,
@@ -35,6 +34,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { summariseJob } from './JobPickerRow';
+import { PrintMemoMenu } from './PrintMemoMenu';
+import type { MemoCategory } from '../_print/shipment-memo';
 import type { Job, Shipment, ShipmentOptions } from '../_types';
 
 interface EditFormData {
@@ -55,7 +56,8 @@ interface Props {
 
   // top-right actions
   generatingPdf: boolean;
-  onPrintPdf: () => void;
+  onPrintPdf: (category: MemoCategory) => void;
+  printCategories: Array<'precious' | 'semi'>;
   editing: boolean;
   onToggleEdit: () => void;
   onAddJobs: () => void;
@@ -94,6 +96,7 @@ export const ShipmentDetailDialog: React.FC<Props> = ({
   jobs,
   generatingPdf,
   onPrintPdf,
+  printCategories,
   editing,
   onToggleEdit,
   onAddJobs,
@@ -121,16 +124,11 @@ export const ShipmentDetailDialog: React.FC<Props> = ({
           <span>Shipment #{shipment?.shipment_number}</span>
           {shipment && (
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onPrintPdf}
-                disabled={generatingPdf}
-                data-testid="generate-pdf-button"
-              >
-                <FileText className="h-4 w-4 mr-1" />
-                {generatingPdf ? 'Generating...' : 'Print PDF'}
-              </Button>
+              <PrintMemoMenu
+                categories={printCategories}
+                generating={generatingPdf}
+                onPrint={onPrintPdf}
+              />
               <Button
                 variant="outline"
                 size="sm"

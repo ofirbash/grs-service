@@ -1,3 +1,4 @@
+import type { ExpectedVerbal } from '@/lib/expectedVerbal';
 // Shared type definitions for the Jobs page and its subcomponents.
 
 export interface ParcelStoneFinding {
@@ -72,6 +73,7 @@ export interface CertificateGroup {
 }
 
 export interface Job {
+  expected_verbal?: ExpectedVerbal | null;
   id: string;
   job_number: number;
   client_id: string;

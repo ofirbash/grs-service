@@ -293,6 +293,7 @@ class JobResponse(BaseModel):
     payment_token: Optional[str] = None
     payment_url: Optional[str] = None
     payments: List[Dict[str, Any]] = []
+    expected_verbal: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
 
@@ -409,6 +410,8 @@ class PricingUpdateRequest(BaseModel):
     payment_destinations: Optional[List[str]] = None
     couriers: Optional[List[str]] = None
     recheck_reasons: Optional[List[str]] = None
+    service_turnaround_days: Optional[Dict[str, Optional[int]]] = None
+    precious_stone_types: Optional[List[str]] = None
 
 
 # Dropdown Settings
