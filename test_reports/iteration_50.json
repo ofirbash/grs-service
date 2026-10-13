@@ -1,0 +1,38 @@
+{
+  "summary": "Phase 1 performance refactor (server-paged lists + batched responses + indexes) verified end-to-end. Backend: 32 passed / 1 skipped / 0 failed in /app/backend/tests/test_phase1_perf_lists.py — covers shape+paging+light-items on all four /list endpoints, status comma-list, ids, job_number, search, expected=overdue/today/week/date, sort=expected_asc, exclude_locked, type_counts ignore shipment_type, completed_count only counts completed, X-Response-Time-ms header, Mongo indexes on jobs/shipments/clients, backward-compat GET /api/jobs still full w/ expected_verbal, GET /api/jobs/{id} includes notification_log, customer role scoping (expected_verbal null, clients/list empty), GET /api/jobs/expected-results. Frontend: all testids present on Jobs/Stones/Shipments/Clients (pager + range + prev/next + search-input + status/expected filters + sort). Pager advances 1–50→51–100 of 124 on Next. Debounced search 'bash' narrows to 1–2 of 2. Deep link /dashboard/jobs/?job=1 opens Job #1 dialog even though it is not on page 1. ?status=all preselects 'All Statuses'; ?expected=overdue preselects 'Expected: Overdue' and shows 1–2 of 2. Header count 'All Jobs (124)' matches server total. Dashboard renders expected-results-panel (OVERDUE (2) with #585/#586), stats cards (124 jobs / 111 clients), Shipments + Recent Jobs panels.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/login", "issue": "Branch admin ofir1@bashds.com / admin123 listed in /app/memory/test_credentials.md returns 401 'Invalid email or password'. Test for branch-admin role scoping was skipped. Super admin and customer credentials work. Recommend refreshing branch admin seed or updating credentials file."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase1_perf_lists.py",
+    "/app/test_reports/pytest/iter50_phase1.xml"
+  ],
+  "action_items": [
+    "Low priority: refresh IL/USA branch admin seed users (ofir1@bashds.com, ofir2@bashds.com) or update /app/memory/test_credentials.md so branch_admin-scoped tests can run (currently skipped, not a product bug)."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routes/jobs.py list_jobs expected branch: when `use_expected` is true the code loads ALL candidates matching the scope/search/status into memory to compute expected dates, then paginates. For small datasets (<10k) this is fine, but at larger scale this becomes O(N) per request and defeats paging. Consider caching expected_for_jobs results or a scheduled denormalization into a jobs.expected_verbal_date field. Non-blocking at current volume (~124 jobs).",
+    "/app/backend/routes/shipments.py list_shipments: `base['job_ids'] = {'$elemMatch': {'$in': ids}}` is a correct branch filter, but when a branch has thousands of jobs the `ids` array embedded in the query can exceed MongoDB document limits. Non-blocking at current scale.",
+    "/app/backend/routes/shipments.py list_shipments.completed_count: computed BEFORE the status clause is added to `base`, which is correct per spec ('completed_count counts only completed'). The variable name is clear but a comment would help future readers.",
+    "/app/backend/routes/stones.py list_stones still calls get_all_stones (full in-memory pass) and then paginates — same scalability caveat as jobs/list expected branch. Fine at current volumes.",
+    "Minor: /api/jobs/list `page_size` is capped at 200 — good; but if a UI ever requests >200 the server silently clamps. Consider returning the effective page_size in the response (already done) and documenting the cap in OpenAPI."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phase1_perf_lists.py (NEW, 33 tests)"
+  ],
+  "success_rate": {"backend": "97% (32/33 passed, 1 skipped due to stale branch-admin credential)", "frontend": "100% of exercised flows passed"},
+  "test_credentials": "admin@bashari.com / admin123 (super admin, OK). customer@test.com / customer123 (OK). ofir1@bashds.com / admin123 (branch admin) — 401 Invalid, see action_items.",
+  "seed_data_creation": "None — tests are read-only against existing preview data. No cleanup required.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview has ~124 jobs / 111 clients / 151 stones / 12 shipments. TURNSTILE_SECRET_KEY is blank so /api/auth/login works with any body containing website='' + cf_turnstile_response=''. Login response key is 'access_token' (also returned as top-level 'token' via auth middleware? verify — our tests check both). Zustand store 'auth-storage' in sessionStorage + raw 'token' key is the bypass for the UI (also mirror to localStorage, both work). Static Next.js export: any committed /app/frontend/src change needs `cd /app/frontend && yarn build && sudo supervisorctl restart frontend`. The /api/jobs/list expected-branch loads all candidates in memory — fine today but monitor at scale. test_phase1_perf_lists.py is the regression suite for this refactor; re-run as `pytest /app/backend/tests/test_phase1_perf_lists.py -v`.",
+  "rca of the issue": "N/A — no bugs reproduced. Phase 1 refactor (batched build_job_responses / build_shipment_responses, light list items, startup DB indexes, server-paged /list endpoints with role scoping and X-Response-Time-ms middleware) matches the approved plan and passes all contract tests."
+}

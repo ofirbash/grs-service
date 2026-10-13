@@ -3,7 +3,7 @@
 ## Admin Accounts
 - **Super Admin**: admin@bashari.com / admin123
 - **Super Admin 2**: ofir@bashds.com / admin123
-- **Israel Branch Admin**: ofir1@bashds.com / admin123
+- **Israel Branch Admin**: ofir1@bashds.com / admin123 (NOTE Jun 2026: returns 401 in preview — password unknown/changed; branch-admin scoping was verified via a locally minted JWT for ofir2@bashds.com)
 - **USA Branch Admin**: ofir2@bashds.com / admin123
 
 ## Signing Pad Accounts (kiosk role, can only call signing-pad endpoints)

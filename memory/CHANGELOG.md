@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-06 — Faster screen switching (performance Phase 1)
+
+- Production RCA (deployer): N+1 in GET /api/jobs (~316 sequential Atlas round-trips for 105 jobs, only _id indexes) → 6–13 s per screen. Data volume tiny (105 jobs / 245 stones / 23 shipments / 108 clients).
+- Backend: batched `build_job_responses` / `build_shipment_responses` (≈4 queries per list), light list items, startup indexes (jobs/shipments/clients/users), `X-Response-Time-ms` header + slow-request (>500 ms) log.
+- New paged endpoints `{items,total,page,page_size}`: `/api/jobs/list`, `/api/shipments/list` (+type_counts, completed_count), `/api/stones/list`, `/api/clients/list`, plus `/api/jobs/expected-results`. Old list endpoints kept (now batched).
+- Frontend: shared `components/ui/pager.tsx` (Pager, useDebounced, ListLoading); Jobs/Stones/Shipments/Clients paged 50 with server search/filter/sort; deep links fetch the job directly; dashboard uses stats + recent page + expected feed; shipment pickers load only eligible jobs; shipment jobs loaded by ids.
+- Preview timings (local DB): /api/jobs 93 ms → 12 ms. Tested iteration_50 (backend 32/33, 1 skipped for stale branch-admin creds; frontend 100%).
+
 ## 2026-06 — Astteria (HK) branding on from-lab shipment memos
 
 - `GET/PUT /api/settings/return-sender` (`company_settings` doc `type=return_sender`; GET admin, PUT super_admin; defaults = Astteria (HK) Limited details + Astteria icon).

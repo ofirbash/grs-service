@@ -37,6 +37,10 @@ _None currently._
 - [ ] **Expected Results Phase 2**: daily morning email to admins (today + overdue), bulk override per shipment, Precious/Semi-Precious counts on shipments list/details.
 - [ ] **Expected Results Phase 3**: show expected date to customers + in "sent to lab" notification, turnaround performance stats, optional category split for per-job memos/attachments.
 
+- [x] **Faster screen switching — Phase 1** ✅ done Jun 2026 (iter-50). Post-deploy production timing still to confirm.
+- [ ] **Perf Phase 2**: optional "last viewed" instant display, faster PDF/print + smaller images, resize server only if prod still slow.
+- [ ] **Perf Phase 3**: admin system-health view (slowest requests), archive old Done/Cancelled jobs.
+
 ## P2 — Medium Priority
 
 - [ ] **Mobile responsive audit** across all pages.
