@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { Pager, PAGE_SIZE, useDebounced, ListLoading } from '@/components/ui/pager';
 import { clientsApi, branchesApi, authApi, notificationsApi } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { usePendingAccessRequestsStore } from '@/lib/usePendingAccessRequests';
@@ -172,19 +173,40 @@ export default function ClientsPage() {
     }
   };
 
+  const [page, setPage] = useState(1);
+  const [totalClients, setTotalClients] = useState(0);
+  const [listLoading, setListLoading] = useState(false);
+  const debouncedSearch = useDebounced(searchTerm);
+  const filterKey = `${selectedBranchId}|${debouncedSearch}|${branchFilter}`;
+  const fetchSeq = useRef(0);
+  useEffect(() => {
+    setPage(1);
+  }, [filterKey]);
   useEffect(() => {
     fetchData();
-  }, [selectedBranchId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey, page]);
 
   const fetchData = async () => {
+    const seq = ++fetchSeq.current;
+    setListLoading(true);
     try {
       // allSettled so one flaky endpoint doesn't blank the whole clients
       // page; session-expired (401/403) is handled by the global interceptor.
       const [clientsR, branchesR] = await Promise.allSettled([
-        clientsApi.getAll(selectedBranchId || undefined),
+        clientsApi.list({
+          page,
+          page_size: PAGE_SIZE,
+          search: debouncedSearch || undefined,
+          branch_id: (branchFilter !== 'all' ? branchFilter : selectedBranchId) || undefined,
+        }),
         branchesApi.getAll(),
       ]);
-      if (clientsR.status === 'fulfilled') setClients(clientsR.value);
+      if (seq !== fetchSeq.current) return;
+      if (clientsR.status === 'fulfilled') {
+        setClients(clientsR.value.items);
+        setTotalClients(clientsR.value.total);
+      }
       else console.error('Failed to load clients', clientsR.reason);
       if (branchesR.status === 'fulfilled') setBranches(branchesR.value);
       else console.error('Failed to load branches', branchesR.reason);
@@ -192,6 +214,7 @@ export default function ClientsPage() {
       console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
+      setListLoading(false);
     }
   };
 
@@ -274,14 +297,8 @@ export default function ClientsPage() {
     }
   };
 
-  const filteredClients = clients.filter((client) => {
-    const matchesSearch =
-      client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.company?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesBranch = branchFilter === 'all' || client.branch_id === branchFilter;
-    return matchesSearch && matchesBranch;
-  });
+  // Server applies search / branch filter / paging.
+  const filteredClients = clients;
 
   const getBranchName = (branchId: string) => {
     const branch = branches.find((b) => b.id === branchId);
@@ -392,7 +409,7 @@ export default function ClientsPage() {
         <CardHeader className="border-b border-navy-200">
           <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
             <Users className="h-5 w-5" />
-            All Clients ({filteredClients.length})
+            All Clients ({totalClients})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -547,6 +564,8 @@ export default function ClientsPage() {
             </div>
             </>
           )}
+          <ListLoading show={listLoading} />
+          <Pager page={page} total={totalClients} loading={listLoading} onPageChange={setPage} testId="clients-pager" />
         </CardContent>
       </Card>
 

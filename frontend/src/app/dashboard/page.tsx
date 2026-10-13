@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { dashboardApi, shipmentsApi, jobsApi } from '@/lib/api';
 import { useAuthStore, useBranchFilterStore } from '@/lib/store';
 import { ExpectedResultsPanel } from '@/components/dashboard/ExpectedResultsPanel';
-import type { ExpectedVerbal } from '@/lib/expectedVerbal';
+import { todayISO, type ExpectedVerbal } from '@/lib/expectedVerbal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -127,17 +127,19 @@ export default function DashboardPage() {
     const fetchData = async () => {
       try {
         const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
-        const [statsData, shipmentsData, jobsData] = await Promise.all([
+        // Small, purpose-built requests: server-side stats, a short recent-jobs
+        // page, and only the jobs awaiting verbal results (Expected Results panel).
+        const [statsData, shipmentsData, recentData, expectedData] = await Promise.all([
           dashboardApi.getStats(branchParam),
           shipmentsApi.getAll(branchParam),
-          jobsApi.getAll(branchParam),
+          jobsApi.list({ ...branchParam, status: 'all', page_size: 10 }),
+          isAdmin ? jobsApi.expectedResults({ ...branchParam, today: todayISO() }) : Promise.resolve([]),
         ]);
         setStats(statsData);
         setAllShipments(shipmentsData);
         // Exclude cancelled jobs from dashboard summaries (Recent Jobs panel).
-        const visibleJobs = (jobsData as Job[]).filter((j) => j.status !== 'cancelled');
-        setRecentJobs(visibleJobs.slice(0, 5));
-        setAllJobs(visibleJobs);
+        setRecentJobs((recentData.items as Job[]).filter((j) => j.status !== 'cancelled').slice(0, 5));
+        setAllJobs(expectedData as Job[]);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -146,7 +148,7 @@ export default function DashboardPage() {
     };
 
     fetchData();
-  }, [selectedBranchId]);
+  }, [selectedBranchId, isAdmin]);
 
   const getStatusColor = (status: string) => {
     const styles: Record<string, string> = {

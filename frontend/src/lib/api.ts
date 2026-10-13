@@ -257,8 +257,21 @@ export const usersApi = {
   },
 };
 
+export interface Paged<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export type ListParams = Record<string, string | number | boolean | undefined>;
+
 // Shipments API
 export const shipmentsApi = {
+  list: async (params: ListParams) => {
+    const response = await api.get('/shipments/list', { params });
+    return response.data;
+  },
   getAll: async (params?: { status?: string; courier?: string; branch_id?: string; include_archived?: boolean }) => {
     const response = await api.get('/shipments', { params });
     return response.data;
@@ -314,6 +327,19 @@ export const shipmentsApi = {
 
 // Jobs API
 export const jobsApi = {
+  list: async (params: ListParams) => {
+    const response = await api.get('/jobs/list', { params });
+    return response.data;
+  },
+  getByIds: async (ids: string[]) => {
+    if (!ids.length) return [];
+    const response = await api.get('/jobs/list', { params: { ids: ids.join(','), full: true, status: 'all', page_size: 200 } });
+    return response.data.items;
+  },
+  expectedResults: async (params: ListParams) => {
+    const response = await api.get('/jobs/expected-results', { params });
+    return response.data;
+  },
   getAll: async (params?: { branch_id?: string; client_id?: string; status?: string }) => {
     const response = await api.get('/jobs', { params });
     return response.data;
@@ -391,6 +417,10 @@ export const jobsApi = {
 
 // Stones API
 export const stonesApi = {
+  list: async (params: ListParams) => {
+    const response = await api.get('/stones/list', { params });
+    return response.data;
+  },
   getAll: async (params?: { branch_id?: string }) => {
     const response = await api.get('/stones', { params });
     return response.data;
@@ -471,6 +501,10 @@ export const stonesApi = {
 
 // Clients API
 export const clientsApi = {
+  list: async (params: ListParams) => {
+    const response = await api.get('/clients/list', { params });
+    return response.data;
+  },
   getAll: async (branch_id?: string) => {
     const response = await api.get('/clients', { params: { branch_id } });
     return response.data;

@@ -86,7 +86,9 @@ import { CreateJobDialog } from './_components/CreateJobDialog';
 import { JobSummaryGrid } from './_components/JobSummaryGrid';
 import { ExpectedVerbalCard } from './_components/ExpectedVerbalCard';
 import { ExpectedVerbalCell } from '@/components/jobs/ExpectedVerbalCell';
-import { matchesExpectedFilter, type ExpectedFilter } from '@/lib/expectedVerbal';
+import { todayISO, type ExpectedFilter } from '@/lib/expectedVerbal';
+import { Pager, PAGE_SIZE, useDebounced, ListLoading } from '@/components/ui/pager';
+import type { ListParams } from '@/lib/api';
 import { JobPaymentCard } from './_components/JobPaymentCard';
 import { JobNotificationsCard } from './_components/JobNotificationsCard';
 import { StoneStatusBadges } from './_components/StoneStatusBadges';
@@ -125,6 +127,9 @@ function JobsPageContent() {
   const [expectedFilter, setExpectedFilter] = useState<ExpectedFilter>('any');
   const [expectedDate, setExpectedDate] = useState('');
   const [expectedSort, setExpectedSort] = useState<'none' | 'asc' | 'desc'>('none');
+  const [page, setPage] = useState(1);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [listLoading, setListLoading] = useState(false);
 
   // Read status / expected-results filters from URL params
   useEffect(() => {
@@ -325,25 +330,39 @@ function JobsPageContent() {
   const [smsPreview, setSmsPreview] = useState<{ type: string; message: string; phone: string; name: string } | null>(null);
 
   useEffect(() => {
-    fetchData();
+    fetchRefs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranchId]);
 
-  // Handle opening a specific job from URL parameter
+  const debouncedSearch = useDebounced(searchTerm);
+  const filterKey = `${selectedBranchId}|${debouncedSearch}|${statusFilter}|${expectedFilter}|${expectedDate}|${expectedSort}`;
+  useEffect(() => {
+    setPage(1);
+  }, [filterKey]);
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey, page]);
+
+  // Handle opening a specific job from URL parameter (fetched directly, so it
+  // works even when the job isn't on the current page)
   useEffect(() => {
     // Support both jobId (from dashboard) and job (job number)
     const jobId = searchParams.get('jobId');
     const jobNumber = searchParams.get('job');
-    
-    if (jobs.length > 0) {
+    if (!jobId && !jobNumber) return;
+    (async () => {
       let job: Job | undefined;
-      
-      if (jobId) {
-        job = jobs.find(j => j.id === jobId);
-      } else if (jobNumber) {
-        job = jobs.find(j => j.job_number === parseInt(jobNumber));
+      try {
+        if (jobId) {
+          job = await jobsApi.getById(jobId);
+        } else if (jobNumber) {
+          const found = (await jobsApi.list({ job_number: parseInt(jobNumber), status: 'all', page_size: 1 })).items[0];
+          if (found) job = await jobsApi.getById(found.id);
+        }
+      } catch (error) {
+        console.error('Failed to open job from link:', error);
       }
-      
       if (job) {
         setSelectedJob(job);
         setEditFormData({ notes: job.notes || '', status: job.status, discount: job.discount != null ? String(job.discount) : '', service_type: job.service_type || '', recheck_reasons: job.recheck_reasons || [] });
@@ -353,32 +372,57 @@ function JobsPageContent() {
           fetchNotificationStatuses(job.id);
         }
       }
-    }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, jobs, user]);
+  }, [searchParams, user]);
 
+  const fetchSeq = useRef(0);
   const fetchData = async () => {
+    const seq = ++fetchSeq.current;
+    setListLoading(true);
     try {
-      const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
+      const params: ListParams = {
+        page,
+        page_size: PAGE_SIZE,
+        status: statusFilter,
+        search: debouncedSearch || undefined,
+        branch_id: selectedBranchId || undefined,
+        expected: expectedFilter,
+        expected_date: expectedFilter === 'date' ? expectedDate || undefined : undefined,
+        today: todayISO(),
+        sort: expectedSort === 'none' ? undefined : `expected_${expectedSort}`,
+      };
+      const res = await jobsApi.list(params);
+      if (seq !== fetchSeq.current) return;
+      setJobs(res.items);
+      setTotalJobs(res.total);
+    } catch (error) {
+      console.error('Failed to fetch jobs:', error);
+    } finally {
+      setListLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const fetchRefs = async () => {
+    try {
       // Use allSettled so a single flaky endpoint (e.g. transient 502) does
       // not blank out the entire dashboard. Failed slices are logged and
       // skipped; the rest still render. Session-expired (401/403) is handled
       // by the global axios interceptor in lib/api.ts → redirect to /login.
       const results = await Promise.allSettled([
-        jobsApi.getAll(branchParam),
         clientsApi.getAll(selectedBranchId || undefined),
         branchesApi.getAll(),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
         settingsApi.getPricing().catch(() => ({ service_types: ['Express', 'Normal', 'Recheck'] })),
       ]);
-      const [jobsR, clientsR, branchesR, dropdownR, pricingR] = results;
+      const [clientsR, branchesR, dropdownR, pricingR] = results;
       results.forEach((r, i) => {
         if (r.status === 'rejected') {
-          const labels = ['jobs', 'clients', 'branches', 'dropdowns', 'pricing'];
+          const labels = ['clients', 'branches', 'dropdowns', 'pricing'];
           console.error(`fetchData: failed to load ${labels[i]}`, r.reason);
         }
       });
-      if (jobsR.status === 'fulfilled') setJobs(jobsR.value);
       if (clientsR.status === 'fulfilled') setClients(clientsR.value);
       if (branchesR.status === 'fulfilled') setBranches(branchesR.value);
       if (dropdownR.status === 'fulfilled') setDropdownSettings(dropdownR.value);
@@ -402,9 +446,7 @@ function JobsPageContent() {
         });
       }
     } catch (error) {
-      console.error('Failed to fetch data:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to fetch reference data:', error);
     }
   };
 
@@ -779,34 +821,8 @@ function JobsPageContent() {
     }
   };
 
-  const filteredJobs = useMemo(
-    () => jobs.filter((job) => {
-      const matchesSearch =
-        job.job_number.toString().includes(searchTerm) ||
-        job.client_name?.toLowerCase().includes(searchTerm.toLowerCase());
-      // 'active' = everything except done + cancelled (default view)
-      // 'all'    = everything including done + cancelled
-      // any other value = exact status match
-      let matchesStatus: boolean;
-      if (statusFilter === 'active') {
-        matchesStatus = job.status !== 'done' && job.status !== 'cancelled';
-      } else if (statusFilter === 'all') {
-        matchesStatus = true;
-      } else {
-        matchesStatus = job.status === statusFilter;
-      }
-      return matchesSearch && matchesStatus && matchesExpectedFilter(job, expectedFilter, expectedDate);
-    }).sort((a, b) => {
-      if (expectedSort === 'none') return 0;
-      const da = a.expected_verbal?.date;
-      const db = b.expected_verbal?.date;
-      if (!da && !db) return 0;
-      if (!da) return 1;
-      if (!db) return -1;
-      return expectedSort === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
-    }),
-    [jobs, searchTerm, statusFilter, expectedFilter, expectedDate, expectedSort],
-  );
+  // Server already applied search / status / expected filters and sorting.
+  const filteredJobs = jobs;
 
   // Memoised derivations of the currently-open job's stones.
   // Without useMemo these recompute on every keystroke in the dialog body.
@@ -834,6 +850,8 @@ function JobsPageContent() {
 
   const openJobDetails = (job: Job) => {
     setSelectedJob(job);
+    // List rows are light; load the complete job (findings, notifications, payments).
+    jobsApi.getById(job.id).then((full: Job) => setSelectedJob((cur) => (cur && cur.id === full.id ? full : cur))).catch(() => undefined);
     setEditFormData({
       notes: job.notes || '',
       status: job.status,
@@ -879,8 +897,7 @@ function JobsPageContent() {
       fetchData();
       setEditMode(false);
       // Refresh selected job
-      const updatedJobs = await jobsApi.getAll();
-      const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
+      const updated: Job | undefined = await jobsApi.getById(selectedJob.id);
       if (updated) {
         setSelectedJob(updated);
         // Refresh notification statuses after status change
@@ -955,8 +972,7 @@ function JobsPageContent() {
       
       // Refresh the job data
       fetchData();
-      const updatedJobs = await jobsApi.getAll();
-      const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
+      const updated: Job | undefined = await jobsApi.getById(selectedJob.id);
       if (updated) setSelectedJob(updated);
       
       setSelectedStones([]);
@@ -978,8 +994,7 @@ function JobsPageContent() {
       
       // Refresh the job data
       fetchData();
-      const updatedJobs = await jobsApi.getAll();
-      const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
+      const updated: Job | undefined = await jobsApi.getById(selectedJob.id);
       if (updated) setSelectedJob(updated);
       
       setSelectedStones([]);
@@ -1035,8 +1050,7 @@ function JobsPageContent() {
       
       // Refresh the job data
       fetchData();
-      const updatedJobs = await jobsApi.getAll();
-      const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
+      const updated: Job | undefined = await jobsApi.getById(selectedJob.id);
       if (updated) setSelectedJob(updated);
       
       // Reset form and close dialog
@@ -1063,8 +1077,7 @@ function JobsPageContent() {
       // Save URL to backend
       await jobsApi.uploadMemo(selectedJob.id, file.name, url);
       fetchData();
-      const updatedJobs = await jobsApi.getAll();
-      const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
+      const updated: Job | undefined = await jobsApi.getById(selectedJob.id);
       if (updated) setSelectedJob(updated);
     } catch (error) {
       console.error('Failed to upload memo:', error);
@@ -1091,8 +1104,7 @@ function JobsPageContent() {
       // Save URL to backend
       await jobsApi.uploadLabInvoice(selectedJob.id, file.name, url);
       fetchData();
-      const updatedJobs = await jobsApi.getAll();
-      const updated = updatedJobs.find((j: Job) => j.id === selectedJob.id);
+      const updated: Job | undefined = await jobsApi.getById(selectedJob.id);
       if (updated) setSelectedJob(updated);
     } catch (error) {
       console.error('Failed to upload lab invoice:', error);
@@ -1440,7 +1452,7 @@ function JobsPageContent() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg text-navy-800 flex items-center gap-2">
               <Briefcase className="h-5 w-5" />
-              All Jobs ({filteredJobs.length})
+              All Jobs ({totalJobs})
             </CardTitle>
             {isAdmin && selectedJobIds.length > 0 && (
               <Button
@@ -1455,6 +1467,7 @@ function JobsPageContent() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
+          <ListLoading show={listLoading} />
           {filteredJobs.length === 0 ? (
             <div className="p-8 text-center text-navy-500">
               <Briefcase className="h-12 w-12 mx-auto mb-4 text-navy-300" />
@@ -1664,6 +1677,7 @@ function JobsPageContent() {
             </div>
             </>
           )}
+          <Pager page={page} total={totalJobs} loading={listLoading} onPageChange={setPage} testId="jobs-pager" />
         </CardContent>
       </Card>
 

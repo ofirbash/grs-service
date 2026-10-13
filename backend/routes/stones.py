@@ -278,6 +278,42 @@ async def get_all_stones(
     return all_stones
 
 
+_STONE_FILTERS = {
+    "with_verbal": lambda st: bool(st.get("verbal_findings")),
+    "without_verbal": lambda st: not st.get("verbal_findings"),
+    "with_cert": lambda st: bool(st.get("certificate_scan_url")),
+    "without_cert": lambda st: not st.get("certificate_scan_url"),
+    "grouped": lambda st: bool(st.get("certificate_group")),
+    "ungrouped": lambda st: not st.get("certificate_group"),
+}
+
+
+@router.get("/stones/list")
+async def list_stones(
+    page: int = 1,
+    page_size: int = 50,
+    branch_id: Optional[str] = None,
+    search: Optional[str] = None,
+    filter: str = "all",
+    user: dict = Depends(get_current_user),
+):
+    """Paged stones list {items, total, page, page_size}; same rows/order as GET /stones."""
+    page = max(1, page)
+    page_size = max(1, min(page_size, 200))
+    rows = await get_all_stones(branch_id=branch_id, user=user)
+    term = (search or "").strip().lower()
+    if term:
+        rows = [r for r in rows if term in (r.get("sku") or "").lower()
+                or term in (r.get("stone_type") or "").lower()
+                or term in (r.get("client_name") or "").lower()
+                or term in (r.get("customer_sku") or "").lower()
+                or term in f"#{r.get('job_number')}"]
+    check = _STONE_FILTERS.get(filter)
+    if check:
+        rows = [r for r in rows if check(r)]
+    return {"items": rows[(page - 1) * page_size: page * page_size], "total": len(rows), "page": page, "page_size": page_size}
+
+
 @router.get("/stones/{stone_id}")
 async def get_stone(stone_id: str, user: dict = Depends(require_admin)):
     """Get a specific stone by ID"""

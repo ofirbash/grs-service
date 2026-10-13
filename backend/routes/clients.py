@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 from datetime import datetime
@@ -144,6 +145,41 @@ async def get_clients(branch_id: Optional[str] = None, user: dict = Depends(get_
         user_id=user_map.get(str(c["_id"])),
         **{k: v for k, v in c.items() if k not in ("_id",)}
     ) for c in clients]
+
+
+@router.get("/clients/list")
+async def list_clients(
+    page: int = 1,
+    page_size: int = 50,
+    branch_id: Optional[str] = None,
+    search: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+):
+    """Paged clients {items, total, page, page_size}; search on name/email/company."""
+    if user["role"] == "customer":
+        return {"items": [], "total": 0, "page": 1, "page_size": page_size}
+    page = max(1, page)
+    page_size = max(1, min(page_size, 200))
+    query: dict = {}
+    if branch_id:
+        query["branch_id"] = branch_id
+    elif user["role"] == "branch_admin":
+        query["branch_id"] = user.get("branch_id")
+    term = (search or "").strip()
+    if term:
+        rx = {"$regex": re.escape(term), "$options": "i"}
+        query["$or"] = [{"name": rx}, {"email": rx}, {"company": rx}]
+    total = await db.clients.count_documents(query)
+    clients = await db.clients.find(query).skip((page - 1) * page_size).limit(page_size).to_list(None)
+    client_ids = [str(c["_id"]) for c in clients]
+    users = await db.users.find({"client_id": {"$in": client_ids}}, {"_id": 1, "client_id": 1}).to_list(None)
+    user_map = {u["client_id"]: str(u["_id"]) for u in users}
+    items = [ClientResponse(
+        id=str(c["_id"]),
+        user_id=user_map.get(str(c["_id"])),
+        **{k: v for k, v in c.items() if k not in ("_id",)}
+    ) for c in clients]
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/clients/{client_id}", response_model=ClientResponse)

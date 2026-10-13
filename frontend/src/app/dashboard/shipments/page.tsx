@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesApi, addressesApi, type ReturnSender } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { openPrintWindow } from '@/lib/sanitize';
@@ -44,6 +44,7 @@ import type {
 } from './_types';
 import { printShipmentMemo, memoCategoriesPresent, type MemoCategory } from './_print/shipment-memo';
 import { DoubleConfirmDialog } from '@/components/DoubleConfirmDialog';
+import { Pager, PAGE_SIZE, useDebounced, ListLoading } from '@/components/ui/pager';
 
 /** Job statuses eligible to JOIN a fresh shipment, keyed by shipment type.
  *  Mirrors the natural lab lifecycle — admins explicitly asked Feb 27 2026
@@ -219,46 +220,56 @@ export default function ShipmentsPage() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
 
+  const [page, setPage] = useState(1);
+  const [totalShipments, setTotalShipments] = useState(0);
+  const [listLoading, setListLoading] = useState(false);
+  const [typeCounts, setTypeCounts] = useState<Record<string, number>>({
+    all: 0, send_stones_to_lab: 0, stones_from_lab: 0, certificates_from_lab: 0,
+  });
+  const debouncedSearch = useDebounced(searchTerm);
+  const filterKey = `${selectedBranchId}|${showCompleted}|${statusFilter}|${typeFilter}|${debouncedSearch}`;
+  useEffect(() => {
+    setPage(1);
+  }, [filterKey]);
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBranchId, showCompleted, statusFilter]);
+  }, [filterKey, page]);
+
+  const fetchSeq = useRef(0);
 
   const fetchData = async () => {
     try {
-      const branchParam: { branch_id?: string; include_archived?: boolean } = selectedBranchId ? { branch_id: selectedBranchId } : {};
-      // include_archived expands the API response to also return
-      // `completed` + `cancelled` shipments. We send it when:
-      //  - the operator explicitly toggled "Show completed", OR
-      //  - they picked a status filter that *only* makes sense with
-      //    archived rows (`completed`, `cancelled`, or `all`).
-      const needsArchived =
-        showCompleted ||
-        statusFilter === 'completed' ||
-        statusFilter === 'cancelled' ||
-        statusFilter === 'all';
-      if (needsArchived) branchParam.include_archived = true;
-      // Always fetch the completed/cancelled count separately so the stats
-      // card has a number to display even when the main list filters them
-      // out. Cheap: same endpoint, status filter, count locally.
-      const archivedParam: { branch_id?: string; include_archived: boolean } = { include_archived: true };
-      if (selectedBranchId) archivedParam.branch_id = selectedBranchId;
-      // allSettled so one flaky endpoint doesn't blank the whole shipments
-      // page; session-expired (401/403) is handled by the global interceptor.
+      const seq = ++fetchSeq.current;
+      setListLoading(true);
       const results = await Promise.allSettled([
-        shipmentsApi.getAll(branchParam),
-        jobsApi.getAll(selectedBranchId ? { branch_id: selectedBranchId } : {}),
+        shipmentsApi.list({
+          page,
+          page_size: PAGE_SIZE,
+          status: statusFilter,
+          shipment_type: typeFilter,
+          show_completed: showCompleted,
+          search: debouncedSearch || undefined,
+          branch_id: selectedBranchId || undefined,
+        }),
+        // Only jobs that can join a shipment (eligible statuses, not on an active shipment).
+        jobsApi.list({
+          status: Object.values(SHIPMENT_ELIGIBLE_STATUSES).flat().join(','),
+          exclude_locked: true,
+          page_size: 200,
+          branch_id: selectedBranchId || undefined,
+        }).then((r: { items: Job[] }) => r.items),
         shipmentsApi.getOptions(),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
         branchesApi.getAll(),
         addressesApi.getAll().catch(() => [] as Array<{ name: string; address?: string }>),
-        shipmentsApi.getAll(archivedParam).catch(() => []),
         settingsApi.getPricing().catch(() => ({} as Record<string, unknown>)),
       ]);
-      const [shipmentsR, jobsR, optionsR, dropdownR, branchesR, addressesR, archivedR, pricingR] = results;
+      const [shipmentsR, jobsR, optionsR, dropdownR, branchesR, addressesR, pricingR] = results;
+      if (seq !== fetchSeq.current) return;
       results.forEach((r, i) => {
         if (r.status === 'rejected') {
-          const labels = ['shipments', 'jobs', 'options', 'dropdowns', 'branches', 'addresses', 'archived', 'pricing'];
+          const labels = ['shipments', 'jobs', 'options', 'dropdowns', 'branches', 'addresses', 'pricing'];
           console.error(`fetchData: failed to load ${labels[i]}`, r.reason);
         }
       });
@@ -270,15 +281,16 @@ export default function ShipmentsPage() {
         if (typeof p.mounted_jewellery_fee === 'number') setMountedFeeCost(p.mounted_jewellery_fee);
         if (Array.isArray(p.precious_stone_types)) setPreciousTypes(p.precious_stone_types as string[]);
       }
-      if (archivedR.status === 'fulfilled') {
-        const archived = archivedR.value as Array<{ status?: string }>;
-        setCompletedCount(archived.filter((s) => s.status === 'completed').length);
+      if (shipmentsR.status === 'fulfilled') {
+        setShipments(shipmentsR.value.items);
+        setTotalShipments(shipmentsR.value.total);
+        setTypeCounts(shipmentsR.value.type_counts);
+        setCompletedCount(shipmentsR.value.completed_count);
       }
-      if (shipmentsR.status === 'fulfilled') setShipments(shipmentsR.value);
       if (jobsR.status === 'fulfilled') {
         // Hide finished + cancelled jobs from the "Add jobs to shipment"
         // picker — only live jobs are eligible for new shipments.
-        setAvailableJobs(jobsR.value.filter((j: Job) => j.status !== 'done' && j.status !== 'cancelled'));
+        setAvailableJobs(jobsR.value);
       }
       if (optionsR.status === 'fulfilled') setOptions(optionsR.value);
       if (dropdownR.status === 'fulfilled') setDropdownSettings(dropdownR.value);
@@ -318,6 +330,7 @@ export default function ShipmentsPage() {
       console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
+      setListLoading(false);
     }
   };
 
@@ -448,8 +461,7 @@ export default function ShipmentsPage() {
       
       // Refresh shipment jobs to get the updated memo URL
       if (selectedShipment) {
-        const allJobs = await jobsApi.getAll();
-        const jobs = allJobs.filter((j: Job) => selectedShipment.job_ids.includes(j.id));
+        const jobs: Job[] = await jobsApi.getByIds(selectedShipment.job_ids);
         setShipmentJobs(jobs);
         // Update the selected job with the new memo URL
         const updatedJob = jobs.find((j: Job) => j.id === selectedJob.id);
@@ -530,11 +542,7 @@ export default function ShipmentsPage() {
       // Refresh selected shipment — include archived because if the user
       // just marked a cert-from-lab shipment as delivered, it auto-flipped
       // to "completed" and would otherwise be hidden from the default fetch.
-      const updatedShipments = await shipmentsApi.getAll({
-        ...(selectedBranchId ? { branch_id: selectedBranchId } : {}),
-        include_archived: true,
-      });
-      const updated = updatedShipments.find((s: Shipment) => s.id === selectedShipment.id);
+      const updated: Shipment | undefined = await shipmentsApi.getById(selectedShipment.id);
       if (updated) setSelectedShipment(updated);
     } catch (error) {
       console.error('Failed to update shipment:', error);
@@ -554,8 +562,7 @@ export default function ShipmentsPage() {
       });
       // Refresh shipment jobs
       if (selectedShipment) {
-        const allJobs = await jobsApi.getAll();
-        const jobs = allJobs.filter((j: Job) => selectedShipment.job_ids.includes(j.id));
+        const jobs: Job[] = await jobsApi.getByIds(selectedShipment.job_ids);
         setShipmentJobs(jobs);
         const updatedJob = jobs.find((j: Job) => j.id === selectedJob.id);
         if (updatedJob) {
@@ -693,8 +700,7 @@ export default function ShipmentsPage() {
     // Fetch full job details for jobs in this shipment
     if (shipment.job_ids && shipment.job_ids.length > 0) {
       try {
-        const allJobs = await jobsApi.getAll();
-        const jobs = allJobs.filter((j: Job) => shipment.job_ids.includes(j.id));
+        const jobs: Job[] = await jobsApi.getByIds(shipment.job_ids);
         setShipmentJobs(jobs);
       } catch (error) {
         console.error('Failed to fetch shipment jobs:', error);
@@ -705,59 +711,8 @@ export default function ShipmentsPage() {
     }
   };
 
-  /** Matches a shipment against the status pill. "active" = pending +
-   * in_transit + delivered (the everyday working view — operators want
-   * to see freshly-delivered work alongside in-flight shipments). "all"
-   * still includes cancelled + completed for historical lookups. When
-   * `showCompleted` is on, the "active" and "delivered" buckets also
-   * reveal `completed` rows so the operator can audit recently-closed
-   * work without losing the live queue. */
-  const matchesStatusFilter = (status: string): boolean => {
-    if (statusFilter === 'all') return true;
-    if (statusFilter === 'active') {
-      if (status === 'pending' || status === 'in_transit' || status === 'delivered') return true;
-      return showCompleted && status === 'completed';
-    }
-    if (statusFilter === 'delivered') {
-      if (status === 'delivered') return true;
-      return showCompleted && status === 'completed';
-    }
-    return status === statusFilter;
-  };
-
-  const filteredShipments = useMemo(
-    () => shipments.filter((shipment) => {
-      const matchesSearch =
-        shipment.shipment_number.toString().includes(searchTerm) ||
-        shipment.courier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        shipment.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = matchesStatusFilter(shipment.status);
-      const matchesType = typeFilter === 'all' || shipment.shipment_type === typeFilter;
-      return matchesSearch && matchesStatus && matchesType;
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shipments, searchTerm, statusFilter, typeFilter, showCompleted],
-  );
-
-  // Counts per type (ignores type filter but respects status + search)
-  const typeCounts: Record<string, number> = useMemo(() => {
-    const counts: Record<string, number> = {
-      all: 0, send_stones_to_lab: 0, stones_from_lab: 0, certificates_from_lab: 0,
-    };
-    shipments.forEach((s) => {
-      const matchesSearch =
-        s.shipment_number.toString().includes(searchTerm) ||
-        s.courier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = matchesStatusFilter(s.status);
-      if (matchesSearch && matchesStatus) {
-        counts.all += 1;
-        if (s.shipment_type in counts) counts[s.shipment_type] += 1;
-      }
-    });
-    return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shipments, searchTerm, statusFilter, showCompleted]);
+  // Server applies search / status / type filters and paging.
+  const filteredShipments = shipments;
 
   const getStatusBadge = (status: string) => {
     // `completed` is visually distinct from `delivered` so the operator can
@@ -997,6 +952,7 @@ export default function ShipmentsPage() {
         </CardContent>
       </Card>
 
+      <ListLoading show={listLoading} />
       {/* Shipments — card grid */}
       {filteredShipments.length === 0 ? (
         <Card className="border-navy-200">
@@ -1081,6 +1037,11 @@ export default function ShipmentsPage() {
             </div>
           ))}
         </div>
+      )}
+      {totalShipments > 0 && (
+        <Card className="border-navy-200">
+          <Pager page={page} total={totalShipments} loading={listLoading} onPageChange={setPage} testId="shipments-pager" />
+        </Card>
       )}
 
       <CreateShipmentDialog

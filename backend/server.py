@@ -116,6 +116,36 @@ app.add_middleware(
 from database import client as db_client
 
 
+@app.middleware("http")
+async def log_slow_requests(request, call_next):
+    import time
+    start = time.perf_counter()
+    response = await call_next(request)
+    ms = (time.perf_counter() - start) * 1000
+    response.headers["X-Response-Time-ms"] = f"{ms:.0f}"
+    if ms > 500:
+        logging.getLogger("perf").warning("slow request %s %s %.0fms", request.method, request.url.path, ms)
+    return response
+
+
+@app.on_event("startup")
+async def ensure_db_indexes():
+    from database import db
+    specs = {
+        "jobs": [[("created_at", -1)], [("job_number", 1)], [("client_id", 1)], [("branch_id", 1), ("created_at", -1)],
+                 [("status", 1)], [("stones.id", 1)], [("stones.sku", 1)], [("payment_token", 1)]],
+        "shipments": [[("created_at", -1)], [("job_ids", 1)], [("shipment_type", 1), ("status", 1)], [("shipment_number", -1)]],
+        "clients": [[("branch_id", 1)], [("name", 1)], [("email", 1)]],
+        "users": [[("client_id", 1)]],
+    }
+    for coll, idx_list in specs.items():
+        for keys in idx_list:
+            try:
+                await db[coll].create_index(keys)
+            except Exception as exc:  # noqa: BLE001
+                logging.getLogger(__name__).warning("index %s %s failed: %s", coll, keys, exc)
+
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     db_client.close()

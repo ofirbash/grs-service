@@ -10,6 +10,12 @@ RECEIVED_STATUSES = {"verbal_uploaded", "stones_returned", "cert_uploaded", "cer
 VERBAL_NOTIFICATION_TYPES = {"verbal_uploaded", "sms_verbal_uploaded"}
 
 
+def todays_date_iso() -> str:
+    # Business runs on Israel time; used only when the client doesn't send its local date.
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("Asia/Jerusalem")).date().isoformat()
+
+
 async def get_turnaround_map() -> dict:
     pricing = await db.pricing_config.find_one({"type": "pricing"}, {"service_turnaround_days": 1})
     if pricing and "service_turnaround_days" in pricing:

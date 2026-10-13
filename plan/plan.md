@@ -1,56 +1,83 @@
-# Astteria (HK) Branding on HK → Israel Shipment Memos
+# Faster Screen Switching in Lab-Direct
 
-Stones and certificates returned from Hong Kong to Israel are sent by Astteria (HK) Limited, not by Bashari. Their full shipment memo will carry Astteria's logo, name and contact details instead of Bashari's.
+Lab-Direct should move between Jobs, Shipments, Stones, Clients and the Dashboard in about a second or two, not 10+ seconds. The fix is in the code first; adding server resources is considered only if the measurements show it's still needed.
 
 ## Who it's for
-- Super admins and branch admins who print the paperwork that travels with return shipments from the HK lab to Israel.
+- Super admins and branch admins, who switch screens all day.
+- Customers using their portal also benefit, because their lists load the same way.
 
 ## Core features and experience
-- **Sender identity follows the shipment direction**
-  - **To-lab shipments (Israel → HK):** unchanged. They keep the Bashari logo, "Bashari Lab-Direct", "Eliyahu Bashari Diamonds LTD", the Bashari address and phones, and the VAT line.
-  - **From-lab shipments (HK → Israel):** these are the "Stones from Lab" and "Certificates from Lab" types. Their full shipment memo uses the Astteria identity throughout.
-- **Astteria header**
-  - The layout matches today's Bashari header: the Astteria icon sits on the left, with "Astteria (HK) Limited" and the address next to it.
-  - Address: Room 4B, 16/F, Cheong K. Building, No. 84-86 Des Voeux Road Central, Hong Kong.
-- **Astteria footer**
-  - The bottom contact block shows Astteria's name and address, Tel +852 2526 7780 and grs-il@bashds.com.
-  - The Bashari VAT number is removed, and no VAT line is shown for Astteria.
-- **Applies to every version of the full memo:** the Precious, Semi-Precious and Both prints from the Print menu all switch to Astteria.
-- **Not changed:**
-  - Per-job memos printed from a shipment keep the Bashari identity.
-  - The rest of the full memo stays as it is today: the "Shipment Memo Return – …" titles, the shipment details, the From/To addresses, the stones list, the totals and the Sender/Courier signature lines.
-- **Editable in Settings**
-  - A new "Return Shipment Sender (HK)" section holds the company name, address, phone, email and logo.
-  - It starts pre-filled with the details above and the Astteria icon you sent.
-  - The logo can be replaced by uploading a new image. Changes apply to the next memo printed, including for existing shipments.
+
+### 1. Measure production first
+- Before any code changes:
+  - record how long each main screen and its data requests take in production
+  - record server memory and CPU use, and the database response time
+  - record how much data there is (number of jobs, stones, shipments, clients)
+- The same measurements are repeated after the changes, so there are clear before/after numbers.
+- If the measurements show something unexpected (for example a slow or distant database), that is addressed first. Phase 1 is reordered to match.
+
+### 2. Lighter, smarter data loading (main fix)
+- **The cause:** today, every list screen loads every job with all its stones, notifications and payments. For each job, the server then makes three extra database lookups (client, branch, shipment).
+- **The fix:**
+  - The server gathers that information in a few combined lookups instead of one set per job.
+  - Lists receive only the fields they display. The full job (stones, findings, notification history, payments) loads when a job is opened.
+  - The database gets indexes for the lookups the app uses most (job number, client, branch, status, shipment membership), so each search finds its records directly instead of reading everything.
+
+### 3. Paged lists (50 rows at a time)
+- **Screens:** Jobs, Stones, Shipments and Clients show 50 rows per page, with Previous / Next controls and a total count (for example "1–50 of 612").
+- **Search, filters and sorting run across all records, not just the visible page:**
+  - search by job number, client or SKU
+  - the status filter
+  - the Expected Results filter (Overdue / Today / This week / Pick a date)
+  - the branch selector
+  - column sorting
+- Existing links keep working: Dashboard → Jobs filtered by status or expected date, and opening a specific job by link even when it isn't on the current page.
+- **Pickers search the server as you type** instead of loading every job up front. This covers "Add jobs to shipment" and similar job and client pickers.
+
+### 4. Dashboard
+- Totals and pipeline counts are calculated on the server and sent as small summaries, without loading every job.
+- The Expected Results panel loads only the jobs that are awaiting results: overdue, today and the next 7 days.
+- The recent jobs and shipments panels load only what they show.
+
+### 5. Always fresh data
+- Every screen fetches fresh data when it opens, as chosen. Nothing stale is shown.
+- A short loading indicator appears while it loads. It should last about a second, not 10.
 
 ## User flow
-1. (Optional) The admin opens Settings → Return Shipment Sender (HK) and checks the pre-filled Astteria details and logo.
-2. The admin opens an HK → Israel shipment ("Stones from Lab" or "Certificates from Lab") and clicks Print PDF, then picks Precious, Semi-Precious or Both.
-3. The memo prints with the Astteria icon, name and address at the top and the Astteria contact details at the bottom.
-4. Israel → HK shipments print exactly as they do today, with Bashari.
+1. The admin opens Jobs. The first 50 jobs (newest first) appear in about a second, with the total count shown.
+2. They type a client name. Matching jobs from the whole system appear within moments.
+3. They switch to Shipments. That screen loads its own first page quickly, without reloading all jobs.
+4. They open a shipment and click "Add jobs". They search for a job number and pick it from the results.
+5. They return to the Dashboard. Summary numbers and Expected Results load straight away.
 
 ## UI/UX feel
-- The memo keeps its current clean black-and-white document style. Only the logo and the text details change, so both senders' memos look like the same family of documents.
-- The Astteria icon is shown at the same size and framing as the Bashari logo, and prints clearly in black and white.
-- The Settings section is a simple form, matching the other Settings cards: text fields, a logo preview and an upload button.
+- The screens look the same as today. The only visible additions are page controls and a "showing X–Y of Z" count under each list.
+- The loading state is a light placeholder in the table area, not a blank screen.
+- Bulk actions (such as Update Status with the select-all checkbox) work on the rows on the current page. The count shown on the button is the number of selected rows.
 
 ## Implementation phases
 - **Phase 1 (MVP, built now)**
-  - Astteria identity on the full shipment memo for from-lab shipments (header and footer), covering Precious, Semi-Precious and Both
-  - Settings section to edit the name, address, phone, email and logo, pre-filled with the Astteria details
+  - Production measurement before and after, with the numbers shared
+  - Combined lookups instead of per-job lookups, lighter list data, full detail loaded when a job is opened
+  - Database indexes for the main lookups
+  - Paged lists of 50 rows with search, filters and sorting run on the server, for Jobs, Stones, Shipments and Clients (admin screens and the customer portal)
+  - Server-calculated Dashboard summaries and a dedicated Expected Results feed
+  - Search-as-you-type job and client pickers
 - **Phase 2**
-  - Optional switch to apply the Astteria identity to per-job memos printed from HK → Israel shipments
-  - Optional fields for an Astteria registration number or VAT line on the footer
+  - Optional instant "last viewed" display while refreshing, if wanted later
+  - Faster PDF and print generation, and smaller images and logos
+  - Adjust server resources only if the Phase 1 measurements still show the server is undersized
 - **Phase 3**
-  - Sender identity chosen per shipment, or per origin address, for future branches or partner companies beyond HK
-  - The same sender identity on emailed PDF attachments for return shipments
+  - A simple admin "system health" view (slowest requests, response times) to spot slowdowns early
+  - Optional archiving of old Done and Cancelled jobs out of the active lists, still searchable
 
 ## Assumptions
-- "HK → Israel" means any shipment of type "Stones from Lab" or "Certificates from Lab". The shipment's From/To addresses are not checked.
-- The header uses the icon-only Astteria mark, not the stacked icon + "ASTTERIA" wordmark, with the company name written as text beside it.
-- There is no second line under the company name in the Astteria header (Bashari's header has "Eliyahu Bashari Diamonds LTD" there). The address takes that spot instead.
-- The email shown for Astteria is grs-il@bashds.com, as provided.
-- The From/To blocks in the shipment details still show the stored shipment addresses, unchanged.
-- The browser tab and print-file name for these memos read "Shipment #N — Astteria (HK) Limited" instead of "— Bashari Lab-Direct".
-- Only super admins can edit the Return Shipment Sender settings, consistent with other company-level settings.
+- The production check couldn't run during planning, so it is the first step of the build. Its findings may reorder the Phase 1 work, but they don't change the scope.
+- The page size is fixed at 50 rows. Default sort is newest first, the same as today.
+- Select-all and bulk actions apply only to the current page.
+- The Active / All / per-status filters and the Expected Results filter keep their current meaning. They now cover every record, not just loaded ones.
+- Opening a job, stone or shipment always shows its complete, fresh details.
+- No data is changed, moved or deleted. Only how it is fetched changes.
+- Printing, PDFs, emails, payments and signing pad behaviour stay the same.
+- Server resources are not increased in Phase 1.
+- Success target: a typical screen switch in production in about 1–2 seconds with current data volumes, confirmed by the before/after measurements.

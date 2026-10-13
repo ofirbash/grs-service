@@ -23,7 +23,9 @@ from pricing import (
 from utils import generate_sku
 from jobs_helpers import active_stones, recompute_job_totals, is_parcel, physical_stone_count, _clean_customer_sku
 from activity_log import Action, log_activity
-from expected_dates import expected_for_jobs
+from expected_dates import expected_for_jobs, todays_date_iso, RECEIVED_STATUSES
+RECEIVED_AND_CANCELLED = RECEIVED_STATUSES | {"cancelled"}
+import re
 from pydantic import BaseModel
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "")
@@ -36,29 +38,6 @@ def _resolve_shipment_ids(job: dict) -> list:
     if not shipment_ids and job.get("shipment_id"):
         return [job.get("shipment_id")]
     return shipment_ids
-
-
-async def _fetch_latest_shipment_info(shipment_ids: list) -> Optional[dict]:
-    if not shipment_ids:
-        return None
-    try:
-        shipment = await db.shipments.find_one({"_id": ObjectId(shipment_ids[-1])})
-    except Exception:
-        return None
-    if not shipment:
-        return None
-    date_sent = shipment.get("date_sent")
-    return {
-        "id": str(shipment["_id"]),
-        "shipment_number": shipment["shipment_number"],
-        "shipment_type": shipment["shipment_type"],
-        "courier": shipment["courier"],
-        "tracking_number": shipment.get("tracking_number"),
-        "source_address": shipment["source_address"],
-        "destination_address": shipment["destination_address"],
-        "status": shipment["status"],
-        "date_sent": date_sent.isoformat() if date_sent else None,
-    }
 
 
 def _serialize_payments(job: dict) -> list:
@@ -77,16 +56,65 @@ def _build_payment_url(job: dict) -> Optional[str]:
     return f"{FRONTEND_URL}/pay/?token={token}" if token and FRONTEND_URL else None
 
 
+def _oid(value) -> Optional[ObjectId]:
+    try:
+        return ObjectId(value)
+    except Exception:
+        return None
+
+
+def _shipment_info_from_doc(shipment: Optional[dict]) -> Optional[dict]:
+    if not shipment:
+        return None
+    date_sent = shipment.get("date_sent")
+    return {
+        "id": str(shipment["_id"]),
+        "shipment_number": shipment["shipment_number"],
+        "shipment_type": shipment["shipment_type"],
+        "courier": shipment["courier"],
+        "tracking_number": shipment.get("tracking_number"),
+        "source_address": shipment["source_address"],
+        "destination_address": shipment["destination_address"],
+        "status": shipment["status"],
+        "date_sent": date_sent.isoformat() if hasattr(date_sent, "isoformat") else date_sent,
+    }
+
+
+async def build_job_responses(jobs: list, light: bool = False, expected: Optional[dict] = None) -> List[JobResponse]:
+    """Batched JobResponse builder: one query each for clients, branches, shipments
+    instead of three per job. `light` drops heavy detail-only fields for list views."""
+    if not jobs:
+        return []
+    client_ids = {o for o in (_oid(j.get("client_id")) for j in jobs) if o}
+    branch_ids = {o for o in (_oid(j.get("branch_id")) for j in jobs) if o}
+    latest_ship_ids = {o for o in (_oid((_resolve_shipment_ids(j) or [None])[-1]) for j in jobs) if o}
+    clients = {str(c["_id"]): c for c in await db.clients.find({"_id": {"$in": list(client_ids)}}, {"name": 1}).to_list(None)}
+    branches = {str(b["_id"]): b for b in await db.branches.find({"_id": {"$in": list(branch_ids)}}, {"name": 1}).to_list(None)}
+    shipments = {str(s["_id"]): s for s in await db.shipments.find({"_id": {"$in": list(latest_ship_ids)}}).to_list(None)}
+    if expected is None:
+        expected = await expected_for_jobs(jobs)
+    out = []
+    for job in jobs:
+        ship_ids = _resolve_shipment_ids(job)
+        out.append(_job_response(
+            job,
+            clients.get(job.get("client_id")),
+            branches.get(job.get("branch_id")),
+            _shipment_info_from_doc(shipments.get(ship_ids[-1])) if ship_ids else None,
+            expected.get(str(job["_id"])),
+            light,
+        ))
+    return out
+
+
 async def build_job_response(job: dict, expected_verbal: Optional[dict] = None) -> JobResponse:
-    """Build a JobResponse from a job document, enriching with client/branch/shipment data"""
-    if expected_verbal is None:
-        expected_verbal = (await expected_for_jobs([job]))[str(job["_id"])]
-    client = await db.clients.find_one({"_id": ObjectId(job["client_id"])})
-    branch = await db.branches.find_one({"_id": ObjectId(job["branch_id"])})
+    """Build a full JobResponse for a single job."""
+    expected = {str(job["_id"]): expected_verbal} if expected_verbal is not None else None
+    return (await build_job_responses([job], expected=expected))[0]
 
+
+def _job_response(job: dict, client, branch, shipment_info, expected_verbal, light: bool) -> JobResponse:
     shipment_ids = _resolve_shipment_ids(job)
-    shipment_info = await _fetch_latest_shipment_info(shipment_ids)
-
     return JobResponse(
         id=str(job["_id"]),
         job_number=job["job_number"],
@@ -99,8 +127,8 @@ async def build_job_response(job: dict, expected_verbal: Optional[dict] = None) 
         status=job["status"],
         notes=job.get("notes"),
         stones=[StoneResponse(**s) for s in job.get("stones", [])],
-        verbal_findings=[VerbalFindingResponse(**vf) for vf in job.get("verbal_findings", [])],
-        notification_log=[NotificationLog(**nl) for nl in job.get("notification_log", [])],
+        verbal_findings=[] if light else [VerbalFindingResponse(**vf) for vf in job.get("verbal_findings", [])],
+        notification_log=[] if light else [NotificationLog(**nl) for nl in job.get("notification_log", [])],
         total_stones=job["total_stones"],
         total_certificates=job.get("total_certificates", len(job.get("stones", []))),
         total_value=job["total_value"],
@@ -117,7 +145,7 @@ async def build_job_response(job: dict, expected_verbal: Optional[dict] = None) 
         payment_status=job.get("payment_status"),
         payment_token=job.get("payment_token"),
         payment_url=_build_payment_url(job),
-        payments=_serialize_payments(job),
+        payments=[] if light else _serialize_payments(job),
         expected_verbal=expected_verbal,
         created_at=job["created_at"],
         updated_at=job["updated_at"],
@@ -381,15 +409,164 @@ async def get_jobs(
 
     jobs = await db.jobs.find(query).sort("created_at", -1).to_list(1000)
 
-    expected = await expected_for_jobs(jobs)
-    response = []
-    for job in jobs:
-        r = await build_job_response(job, expected[str(job["_id"])])
-        if user["role"] == "customer":
+    response = await build_job_responses(jobs)
+    if user["role"] == "customer":
+        for r in response:
             r.expected_verbal = None
-        response.append(r)
-
     return response
+
+
+def _scope_query(user: dict, branch_id: Optional[str], client_id: Optional[str]) -> Optional[dict]:
+    """Role scoping shared by list endpoints. None = customer with no client (empty result)."""
+    query: dict = {}
+    if user["role"] == "customer":
+        if not user.get("client_id"):
+            return None
+        query["client_id"] = user["client_id"]
+    elif user["role"] == "branch_admin":
+        query["branch_id"] = user.get("branch_id")
+    if branch_id and user["role"] == "super_admin":
+        query["branch_id"] = branch_id
+    if client_id and user["role"] != "customer":
+        query["client_id"] = client_id
+    return query
+
+
+async def _search_clause(search: str) -> Optional[dict]:
+    term = search.strip()
+    if not term:
+        return None
+    rx = {"$regex": re.escape(term), "$options": "i"}
+    client_ids = [str(c["_id"]) for c in await db.clients.find({"name": rx}, {"_id": 1}).to_list(None)]
+    ors = [
+        {"client_id": {"$in": client_ids}},
+        {"stones.sku": rx},
+        {"stones.customer_sku": rx},
+    ]
+    if term.isdigit():
+        ors.append({"$expr": {"$regexMatch": {"input": {"$toString": "$job_number"}, "regex": re.escape(term)}}})
+    return {"$or": ors}
+
+
+def _status_clause(status: Optional[str]) -> Optional[dict]:
+    if not status or status == "all":
+        return None
+    if status == "active":
+        return {"status": {"$nin": ["done", "cancelled"]}}
+    if "," in status:
+        return {"status": {"$in": [x for x in status.split(",") if x]}}
+    return {"status": status}
+
+
+def _add_days(iso: str, days: int) -> str:
+    from datetime import date, timedelta
+    return (date.fromisoformat(iso) + timedelta(days=days)).isoformat()
+
+
+def _matches_expected(ev: dict, status: str, expected: str, expected_date: Optional[str], today: str) -> bool:
+    if not ev or not ev.get("date") or ev.get("received") or status == "cancelled":
+        return False
+    d = ev["date"]
+    if expected == "overdue":
+        return d < today
+    if expected == "today":
+        return d == today
+    if expected == "week":
+        return today <= d <= _add_days(today, 7)
+    if expected == "upcoming":
+        return d <= _add_days(today, 7)
+    if expected == "date":
+        return bool(expected_date) and d == expected_date
+    return True
+
+
+_EXPECTED_PROJECTION = {
+    "status": 1, "service_type": 1, "expected_verbal_date_override": 1,
+    "notification_log.notification_type": 1, "notification_log.status": 1, "created_at": 1,
+}
+
+
+@router.get("/jobs/list")
+async def list_jobs(
+    page: int = 1,
+    page_size: int = 50,
+    branch_id: Optional[str] = None,
+    client_id: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    expected: Optional[str] = None,
+    expected_date: Optional[str] = None,
+    today: Optional[str] = None,
+    sort: Optional[str] = None,
+    ids: Optional[str] = None,
+    job_number: Optional[int] = None,
+    full: bool = False,
+    exclude_locked: bool = False,
+    user: dict = Depends(get_current_user),
+):
+    """Paged, server-filtered job list: {items, total, page, page_size}. Items are light
+    (no verbal_findings / notification_log / payments) — open a job via GET /jobs/{id}."""
+    page = max(1, page)
+    page_size = max(1, min(page_size, 200))
+    scope = _scope_query(user, branch_id, client_id)
+    if scope is None:
+        return {"items": [], "total": 0, "page": page, "page_size": page_size}
+    clauses = [scope]
+    for c in (_status_clause(status), await _search_clause(search or "")):
+        if c:
+            clauses.append(c)
+    if ids:
+        clauses.append({"_id": {"$in": [o for o in (_oid(i) for i in ids.split(",")) if o]}})
+    if job_number is not None:
+        clauses.append({"job_number": job_number})
+    if exclude_locked:
+        locked = await db.shipments.distinct("job_ids", {"status": {"$in": ["pending", "in_transit"]}})
+        clauses.append({"_id": {"$nin": [o for o in (_oid(i) for i in locked) if o]}})
+    query = {"$and": clauses}
+    is_customer = user["role"] == "customer"
+    use_expected = not is_customer and (bool(expected and expected != "any") or sort in ("expected_asc", "expected_desc"))
+
+    if use_expected:
+        today = today or todays_date_iso()
+        cands = await db.jobs.find(query, _EXPECTED_PROJECTION).sort("created_at", -1).to_list(None)
+        exp = await expected_for_jobs(cands)
+        if expected and expected != "any":
+            cands = [c for c in cands if _matches_expected(exp[str(c["_id"])], c.get("status"), expected, expected_date, today)]
+        if sort in ("expected_asc", "expected_desc"):
+            dated = [c for c in cands if exp[str(c["_id"])]["date"]]
+            undated = [c for c in cands if not exp[str(c["_id"])]["date"]]
+            dated.sort(key=lambda c: exp[str(c["_id"])]["date"], reverse=sort == "expected_desc")
+            cands = dated + undated
+        total = len(cands)
+        page_ids = [c["_id"] for c in cands[(page - 1) * page_size: page * page_size]]
+        docs = {d["_id"]: d for d in await db.jobs.find({"_id": {"$in": page_ids}}).to_list(None)}
+        jobs = [docs[i] for i in page_ids if i in docs]
+        items = await build_job_responses(jobs, light=not full, expected={k: exp[k] for k in (str(i) for i in page_ids)})
+    else:
+        total = await db.jobs.count_documents(query)
+        jobs = await db.jobs.find(query).sort("created_at", -1).skip((page - 1) * page_size).limit(page_size).to_list(None)
+        items = await build_job_responses(jobs, light=not full)
+    if is_customer:
+        for r in items:
+            r.expected_verbal = None
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/jobs/expected-results", response_model=List[JobResponse])
+async def expected_results(
+    branch_id: Optional[str] = None,
+    today: Optional[str] = None,
+    user: dict = Depends(require_admin),
+):
+    """Jobs awaiting verbal results that are overdue or due within the next 7 days."""
+    scope = _scope_query(user, branch_id, None)
+    query = {"$and": [scope, {"status": {"$nin": list(RECEIVED_AND_CANCELLED)}}]}
+    today = today or todays_date_iso()
+    cands = await db.jobs.find(query, _EXPECTED_PROJECTION).to_list(None)
+    exp = await expected_for_jobs(cands)
+    keep = [c["_id"] for c in cands if _matches_expected(exp[str(c["_id"])], c.get("status"), "upcoming", None, today)]
+    jobs = await db.jobs.find({"_id": {"$in": keep}}).to_list(None)
+    return await build_job_responses(jobs, light=True, expected={str(j["_id"]): exp[str(j["_id"])] for j in jobs})
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)

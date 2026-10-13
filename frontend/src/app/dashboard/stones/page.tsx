@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { stonesApi, settingsApi, cloudinaryApi } from '@/lib/api';
+import { Pager, PAGE_SIZE, useDebounced, ListLoading } from '@/components/ui/pager';
 import { useAuthStore, useBranchFilterStore } from '@/lib/store';
 import { filterOptionsForStone } from '@/lib/stoneDropdownFilter';
 import { Button } from '@/components/ui/button';
@@ -165,21 +166,43 @@ export default function StonesPage() {
   // Delete-stone double-confirm dialog
   const [cancelTarget, setCancelTarget] = useState<Stone | null>(null);
 
+  const [page, setPage] = useState(1);
+  const [totalStones, setTotalStones] = useState(0);
+  const [listLoading, setListLoading] = useState(false);
+  const debouncedSearch = useDebounced(searchQuery);
+  const filterKey = `${selectedBranchId}|${debouncedSearch}|${filterType}`;
+  const fetchSeq = useRef(0);
+  useEffect(() => {
+    setPage(1);
+  }, [filterKey]);
   useEffect(() => {
     fetchStones();
-  }, [selectedBranchId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey, page]);
 
   const fetchStones = async () => {
+    const seq = ++fetchSeq.current;
+    setListLoading(true);
     try {
       const branchParam = selectedBranchId ? { branch_id: selectedBranchId } : {};
       // allSettled so one flaky endpoint doesn't blank the whole stones
       // page; session-expired (401/403) is handled by the global interceptor.
       const [stonesR, dropdownR, pricingR] = await Promise.allSettled([
-        stonesApi.getAll(branchParam),
+        stonesApi.list({
+          ...branchParam,
+          page,
+          page_size: PAGE_SIZE,
+          search: debouncedSearch || undefined,
+          filter: filterType,
+        }),
         settingsApi.getDropdowns().catch(() => ({ identification: [], color: [], origin: [], comment: [] })),
         settingsApi.getPricing().catch(() => ({})),
       ]);
-      if (stonesR.status === 'fulfilled') setStones(stonesR.value);
+      if (seq !== fetchSeq.current) return;
+      if (stonesR.status === 'fulfilled') {
+        setStones(stonesR.value.items);
+        setTotalStones(stonesR.value.total);
+      }
       else console.error('Failed to load stones', stonesR.reason);
       if (dropdownR.status === 'fulfilled') setDropdownSettings(dropdownR.value);
       if (pricingR.status === 'fulfilled') {
@@ -203,6 +226,7 @@ export default function StonesPage() {
       console.error('Failed to fetch stones:', error);
     } finally {
       setLoading(false);
+      setListLoading(false);
     }
   };
 
@@ -284,10 +308,7 @@ export default function StonesPage() {
       }
 
       await fetchStones();
-      const refreshedStones = await stonesApi.getAll(
-        selectedBranchId ? { branch_id: selectedBranchId } : {},
-      );
-      const refreshedStone = refreshedStones.find((s: Stone) => s.id === selectedStone.id);
+      const refreshedStone: Stone | undefined = await stonesApi.getById(selectedStone.id);
       if (refreshedStone) {
         setSelectedStone(refreshedStone);
         setColorStabilityTest(refreshedStone.color_stability_test || false);
@@ -357,25 +378,8 @@ export default function StonesPage() {
     }
   };
 
-  // Filter stones
-  const filteredStones = stones.filter(stone => {
-    const matchesSearch = 
-      stone.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      stone.stone_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      stone.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      `#${stone.job_number}`.includes(searchQuery);
-    
-    const matchesFilter = 
-      filterType === 'all' ||
-      (filterType === 'with_verbal' && stone.verbal_findings) ||
-      (filterType === 'without_verbal' && !stone.verbal_findings) ||
-      (filterType === 'with_cert' && stone.certificate_scan_url) ||
-      (filterType === 'without_cert' && !stone.certificate_scan_url) ||
-      (filterType === 'grouped' && stone.certificate_group) ||
-      (filterType === 'ungrouped' && !stone.certificate_group);
-    
-    return matchesSearch && matchesFilter;
-  });
+  // Server applies search / filter / paging.
+  const filteredStones = stones;
 
   const getStatusIndicators = (stone: Stone) => {
     const indicators = [];
@@ -446,7 +450,7 @@ export default function StonesPage() {
         <CardContent className="p-0">
           <div className="flex items-center gap-2 px-6 py-4 border-b border-navy-200">
             <Diamond className="h-5 w-5 text-navy-600" />
-            <span className="font-semibold text-navy-900">All Stones ({filteredStones.length})</span>
+            <span className="font-semibold text-navy-900">All Stones ({totalStones})</span>
           </div>
           
           {/* Mobile Card View */}
@@ -588,6 +592,8 @@ export default function StonesPage() {
             </TableBody>
           </Table>
           </div>
+          <ListLoading show={listLoading} />
+          <Pager page={page} total={totalStones} loading={listLoading} onPageChange={setPage} testId="stones-pager" />
         </CardContent>
       </Card>
 

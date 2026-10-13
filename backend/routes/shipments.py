@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, HTTPException, Depends, Body
 from typing import List, Optional
 from datetime import datetime
@@ -106,28 +107,53 @@ def _is_partial_shipment(shipment: dict) -> bool:
 router = APIRouter()
 
 
-async def build_shipment_response(shipment: dict) -> ShipmentResponse:
-    """Build ShipmentResponse from a shipment document"""
-    creator = await db.users.find_one({"_id": ObjectId(shipment["created_by"])})
-    creator_name = creator["full_name"] if creator else "Unknown"
-
-    jobs_data = []
-    for job_id in shipment.get("job_ids", []):
+def _oids(values) -> list:
+    out = []
+    for v in values:
         try:
-            job = await db.jobs.find_one({"_id": ObjectId(job_id)})
+            out.append(ObjectId(v))
+        except Exception:
+            pass
+    return out
+
+
+async def build_shipment_responses(shipments: list) -> List[ShipmentResponse]:
+    """Batched builder: 3 queries total (creators, jobs, clients) instead of 1 + 2 per job."""
+    if not shipments:
+        return []
+    creators = {str(u["_id"]): u for u in await db.users.find(
+        {"_id": {"$in": _oids({s.get("created_by") for s in shipments})}}, {"full_name": 1}).to_list(None)}
+    job_ids = {jid for s in shipments for jid in s.get("job_ids", [])}
+    jobs = {str(j["_id"]): j for j in await db.jobs.find(
+        {"_id": {"$in": _oids(job_ids)}},
+        {"job_number": 1, "client_id": 1, "status": 1, "total_stones": 1, "total_value": 1}).to_list(None)}
+    clients = {str(c["_id"]): c for c in await db.clients.find(
+        {"_id": {"$in": _oids({j.get("client_id") for j in jobs.values()})}}, {"name": 1}).to_list(None)}
+    out = []
+    for shipment in shipments:
+        jobs_data = []
+        for jid in shipment.get("job_ids", []):
+            job = jobs.get(jid)
             if job:
-                client = await db.clients.find_one({"_id": ObjectId(job["client_id"])})
+                client = clients.get(job.get("client_id"))
                 jobs_data.append({
-                    "id": str(job["_id"]),
+                    "id": jid,
                     "job_number": job["job_number"],
                     "client_name": client.get("name") if client else "N/A",
                     "status": job["status"],
                     "total_stones": job["total_stones"],
-                    "total_value": job["total_value"]
+                    "total_value": job["total_value"],
                 })
-        except Exception:
-            pass
+        creator = creators.get(shipment.get("created_by"))
+        out.append(_shipment_response(shipment, creator["full_name"] if creator else "Unknown", jobs_data))
+    return out
 
+
+async def build_shipment_response(shipment: dict) -> ShipmentResponse:
+    return (await build_shipment_responses([shipment]))[0]
+
+
+def _shipment_response(shipment: dict, creator_name: str, jobs_data: list) -> ShipmentResponse:
     return ShipmentResponse(
         id=str(shipment["_id"]),
         shipment_number=shipment["shipment_number"],
@@ -299,12 +325,57 @@ async def get_shipments(
         query["job_ids"] = {"$elemMatch": {"$in": branch_job_ids}}
 
     shipments = await db.shipments.find(query).sort("created_at", -1).to_list(1000)
+    return await build_shipment_responses(shipments)
 
-    response = []
-    for shipment in shipments:
-        response.append(await build_shipment_response(shipment))
 
-    return response
+@router.get("/shipments/list")
+async def list_shipments(
+    page: int = 1,
+    page_size: int = 50,
+    branch_id: Optional[str] = None,
+    status: str = "active",
+    shipment_type: Optional[str] = None,
+    show_completed: bool = False,
+    search: Optional[str] = None,
+    user: dict = Depends(require_admin),
+):
+    """Paged shipments: {items, total, page, page_size, type_counts, completed_count}.
+    status: all | active (pending/in_transit/delivered) | delivered | exact; show_completed
+    adds `completed` to active/delivered (same meaning as the shipments page pills)."""
+    page = max(1, page)
+    page_size = max(1, min(page_size, 200))
+    base: dict = {}
+    filter_branch = user.get("branch_id") if user["role"] == "branch_admin" else (branch_id if user["role"] == "super_admin" else None)
+    if filter_branch:
+        ids = [str(j["_id"]) for j in await db.jobs.find({"branch_id": filter_branch}, {"_id": 1}).to_list(None)]
+        base["job_ids"] = {"$elemMatch": {"$in": ids}}
+    completed_count = await db.shipments.count_documents({**base, "status": "completed"})
+    if status == "active":
+        base["status"] = {"$in": ["pending", "in_transit", "delivered"] + (["completed"] if show_completed else [])}
+    elif status == "delivered":
+        base["status"] = {"$in": ["delivered"] + (["completed"] if show_completed else [])}
+    elif status and status != "all":
+        base["status"] = status
+    term = (search or "").strip()
+    if term:
+        rx = {"$regex": re.escape(term), "$options": "i"}
+        ors = [{"courier": rx}, {"tracking_number": rx}]
+        if term.isdigit():
+            ors.append({"$expr": {"$regexMatch": {"input": {"$toString": "$shipment_number"}, "regex": re.escape(term)}}})
+        base["$or"] = ors
+    counts = {"all": 0, "send_stones_to_lab": 0, "stones_from_lab": 0, "certificates_from_lab": 0}
+    for row in await db.shipments.aggregate([{"$match": base}, {"$group": {"_id": "$shipment_type", "n": {"$sum": 1}}}]).to_list(None):
+        counts["all"] += row["n"]
+        if row["_id"] in counts:
+            counts[row["_id"]] += row["n"]
+    query = {**base, **({"shipment_type": shipment_type} if shipment_type and shipment_type != "all" else {})}
+    total = await db.shipments.count_documents(query)
+    docs = await db.shipments.find(query).sort("created_at", -1).skip((page - 1) * page_size).limit(page_size).to_list(None)
+    return {
+        "items": await build_shipment_responses(docs),
+        "total": total, "page": page, "page_size": page_size,
+        "type_counts": counts, "completed_count": completed_count,
+    }
 
 
 @router.get("/shipments/config/options")
