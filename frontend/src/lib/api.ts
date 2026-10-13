@@ -550,7 +550,23 @@ export const branchesApi = {
 };
 
 // Settings API
+export interface ReturnSender {
+  company_name: string;
+  address: string;
+  phone: string;
+  email: string;
+  logo_url: string;
+}
+
 export const settingsApi = {
+  getReturnSender: async (): Promise<ReturnSender> => {
+    const response = await api.get('/settings/return-sender');
+    return response.data;
+  },
+  updateReturnSender: async (data: ReturnSender): Promise<ReturnSender> => {
+    const response = await api.put('/settings/return-sender', data);
+    return response.data;
+  },
   getDropdowns: async () => {
     const response = await api.get('/settings/dropdowns');
     return response.data;

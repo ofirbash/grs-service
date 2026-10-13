@@ -65,6 +65,7 @@ import type {
 import { DROPDOWN_FIELDS } from './_types';
 import { PadConnectQrDialog } from '@/components/settings/PadConnectQrDialog';
 import { ServiceTurnaroundEditor } from '@/components/settings/ServiceTurnaroundEditor';
+import { ReturnSenderCard } from '@/components/settings/ReturnSenderCard';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -1165,6 +1166,7 @@ export default function SettingsPage() {
 
         {/* ==================== BRANCHES TAB ==================== */}
         <TabsContent value="branches" className="space-y-6">
+          {isSuperAdmin && <ReturnSenderCard />}
           <Card className="border-navy-200">
             <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>

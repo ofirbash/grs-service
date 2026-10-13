@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesApi, addressesApi } from '@/lib/api';
+import { shipmentsApi, jobsApi, stonesApi, settingsApi, cloudinaryApi, branchesApi, addressesApi, type ReturnSender } from '@/lib/api';
 import { useBranchFilterStore, useAuthStore } from '@/lib/store';
 import { openPrintWindow } from '@/lib/sanitize';
 import { buildShipmentJobMemoHtml } from './_lib/buildShipmentJobMemoHtml';
@@ -96,6 +96,7 @@ function eligibleJobsForShipmentType(
 
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [returnSender, setReturnSender] = useState<ReturnSender | null>(null);
   const [preciousTypes, setPreciousTypes] = useState<string[]>(['Ruby', 'Sapphire', 'Emerald']);
   const [availableJobs, setAvailableJobs] = useState<Job[]>([]);
   const [filteredAvailableJobs, setFilteredAvailableJobs] = useState<Job[]>([]);
@@ -674,7 +675,7 @@ export default function ShipmentsPage() {
   const handleGeneratePdf = async (shipment: Shipment, jobs: Job[], category: MemoCategory) => {
     setGeneratingPdf(true);
     try {
-      printShipmentMemo({ shipment, jobs, addressBook, preciousTypes, category });
+      printShipmentMemo({ shipment, jobs, addressBook, preciousTypes, category, returnSender });
     } catch (error) {
       console.error('Failed to generate shipment memo:', error);
     } finally {
@@ -684,6 +685,9 @@ export default function ShipmentsPage() {
 
   const openShipmentDetails = async (shipment: Shipment) => {
     setSelectedShipment(shipment);
+    // Refresh the HK return-sender identity so Settings edits apply to the next print
+    // (fetched here, not at print time, so the print popup keeps its user gesture).
+    settingsApi.getReturnSender().then(setReturnSender).catch(() => undefined);
     setViewDialogOpen(true);
     
     // Fetch full job details for jobs in this shipment

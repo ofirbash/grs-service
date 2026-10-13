@@ -4,7 +4,9 @@ from datetime import datetime
 from bson import ObjectId
 
 from database import db
-from auth import get_current_user, require_admin
+from auth import get_current_user, require_admin, require_super_admin
+from pydantic import BaseModel
+from typing import Optional
 from models import DropdownOption
 
 router = APIRouter()
@@ -190,3 +192,46 @@ async def initialize_dropdown_settings(user: dict = Depends(require_admin)):
 
     await db.dropdown_settings.insert_one(default_settings)
     return {"message": "Dropdown settings initialized successfully"}
+
+
+# Sender identity printed on full shipment memos for from-lab (HK -> Israel) shipments.
+DEFAULT_RETURN_SENDER = {
+    "company_name": "Astteria (HK) Limited",
+    "address": "Room 4B, 16/F, Cheong K. Building, No. 84-86 Des Voeux Road Central, Hong Kong",
+    "phone": "+852 2526 7780",
+    "email": "grs-il@bashds.com",
+    "logo_url": "https://customer-assets-lxgj4vgw.emergentagent.net/job_777624e9-9d3b-43c3-b65b-05602d9f9f7d/artifacts/df68264501e295fe_Astteria-icon.jpg",
+}
+
+
+class ReturnSenderUpdate(BaseModel):
+    company_name: str
+    address: str
+    phone: Optional[str] = ""
+    email: Optional[str] = ""
+    logo_url: Optional[str] = ""
+
+
+async def _get_return_sender() -> dict:
+    doc = await db.company_settings.find_one({"type": "return_sender"}) or {}
+    return {k: doc.get(k, v) for k, v in DEFAULT_RETURN_SENDER.items()}
+
+
+@router.get("/settings/return-sender")
+async def get_return_sender(user: dict = Depends(require_admin)):
+    return await _get_return_sender()
+
+
+@router.put("/settings/return-sender")
+async def update_return_sender(data: ReturnSenderUpdate, user: dict = Depends(require_super_admin)):
+    values = {k: (getattr(data, k) or "").strip() for k in DEFAULT_RETURN_SENDER}
+    if not values["company_name"] or not values["address"]:
+        raise HTTPException(status_code=400, detail="Company name and address are required")
+    if not values["logo_url"]:
+        values["logo_url"] = DEFAULT_RETURN_SENDER["logo_url"]
+    await db.company_settings.update_one(
+        {"type": "return_sender"},
+        {"$set": {**values, "updated_at": datetime.utcnow()}},
+        upsert=True,
+    )
+    return values

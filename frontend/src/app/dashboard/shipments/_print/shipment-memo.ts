@@ -1,6 +1,7 @@
 // Memo-style printable shipment document (matches Bashari job memo design).
 import type { Shipment, Job, Stone } from '../_types';
 import { openPrintWindow } from '@/lib/sanitize';
+import type { ReturnSender } from '@/lib/api';
 
 const COMPANY = {
   displayName: 'Bashari Lab-Direct',
@@ -53,6 +54,8 @@ interface PrintShipmentOptions {
   preciousTypes?: string[];
   /** Which category document(s) to print; omitted = single unsplit doc. */
   category?: MemoCategory;
+  /** Sender identity used on from-lab (HK → Israel) memos instead of Bashari. */
+  returnSender?: ReturnSender | null;
 }
 
 export type MemoCategory = 'precious' | 'semi' | 'both';
@@ -72,7 +75,7 @@ export function memoCategoriesPresent(jobs: Job[], preciousTypes: string[]): Arr
  * Opens a new window with a polished memo-style Shipment document matching
  * the Bashari brand. Used for printing/signing off on a shipment.
  */
-export function printShipmentMemo({ shipment, jobs, addressBook, preciousTypes = [], category }: PrintShipmentOptions): void {
+export function printShipmentMemo({ shipment, jobs, addressBook, preciousTypes = [], category, returnSender }: PrintShipmentOptions): void {
   const typeLabel = SHIPMENT_TYPE_LABELS[shipment.shipment_type] || shipment.shipment_type;
 
   /** Resolve a stored short address label (e.g. "Israel Office") into two
@@ -162,10 +165,29 @@ export function printShipmentMemo({ shipment, jobs, addressBook, preciousTypes =
     : '<p style="color:#71717a;font-size:12px;">No stones assigned to this shipment.</p>';
   };
 
+  const isOutbound = shipment.shipment_type === 'stones_from_lab'
+    || shipment.shipment_type === 'certificates_from_lab';
+  const useReturnSender = isOutbound && !!returnSender;
+  const sender = useReturnSender
+    ? {
+        displayName: esc(returnSender!.company_name),
+        subLine: esc(returnSender!.address),
+        logoUrl: returnSender!.logo_url || COMPANY.logoUrl,
+        footerTop: `<strong>${esc(returnSender!.company_name)}</strong> · ${esc(returnSender!.address)}`,
+        footerContacts: [returnSender!.phone && `Tel ${esc(returnSender!.phone)}`, esc(returnSender!.email)].filter(Boolean).join(' · '),
+      }
+    : {
+        displayName: COMPANY.displayName,
+        subLine: COMPANY.legalName,
+        logoUrl: COMPANY.logoUrl,
+        footerTop: `<strong>${COMPANY.legalName}</strong> · ${COMPANY.address}`,
+        footerContacts: `${COMPANY.phones.join(' · ')} · ${COMPANY.email} · VAT ${COMPANY.vat}`,
+      };
+
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const absoluteLogo = COMPANY.logoUrl.startsWith('http')
-    ? COMPANY.logoUrl
-    : origin + COMPANY.logoUrl;
+  const absoluteLogo = sender.logoUrl.startsWith('http')
+    ? sender.logoUrl
+    : origin + sender.logoUrl;
 
   // date_sent isn't in our Shipment type strictly; fall back to created_at
   const dateSent = formatDate((shipment as Shipment & { date_sent?: string }).date_sent || shipment.created_at);
@@ -181,8 +203,6 @@ export function printShipmentMemo({ shipment, jobs, addressBook, preciousTypes =
   // the "Shipment Memo Return" label. Inbound (client → lab) keeps the
   // existing "Shipment Memo - Gemstones" label so returning customers
   // don't see a confusing name change on their intake paperwork.
-  const isOutbound = shipment.shipment_type === 'stones_from_lab'
-    || shipment.shipment_type === 'certificates_from_lab';
   const baseTitle = isOutbound ? 'Shipment Memo Return' : 'Shipment Memo – Gemstones';
 
   const isPrecious = (st: Stone) => preciousTypes.includes(st.stone_type);
@@ -202,7 +222,7 @@ export function printShipmentMemo({ shipment, jobs, addressBook, preciousTypes =
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Shipment #${shipment.shipment_number} — ${COMPANY.displayName}</title>
+  <title>Shipment #${shipment.shipment_number} — ${sender.displayName}</title>
   <style>
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 32px 40px; max-width: 960px; margin: 0 auto; color: #141417; line-height: 1.45; }
@@ -262,10 +282,10 @@ export function printShipmentMemo({ shipment, jobs, addressBook, preciousTypes =
 ${nonEmpty.map((doc, i) => `${i > 0 ? '<div class="page-break"></div>' : ''}
   <div class="company-header">
     <div class="company-brand">
-      <img src="${absoluteLogo}" alt="${COMPANY.displayName}" onerror="this.style.display='none'" />
+      <img src="${esc(absoluteLogo)}" alt="${sender.displayName}" onerror="this.style.display='none'" />
       <div class="name-block">
-        <span class="display-name">${COMPANY.displayName}</span>
-        <span class="legal-name">${COMPANY.legalName}</span>
+        <span class="display-name">${sender.displayName}</span>
+        <span class="legal-name">${sender.subLine}</span>
       </div>
     </div>
   </div>
@@ -335,8 +355,8 @@ ${nonEmpty.map((doc, i) => `${i > 0 ? '<div class="page-break"></div>' : ''}
   </div>
 
   <div class="footer">
-    <div><strong>${COMPANY.legalName}</strong> · ${COMPANY.address}</div>
-    <div>${COMPANY.phones.join(' · ')} · ${COMPANY.email} · VAT ${COMPANY.vat}</div>
+    <div>${sender.footerTop}</div>
+    <div>${sender.footerContacts}</div>
     <div style="margin-top:4px;">Printed ${printedAt}</div>
   </div>
 

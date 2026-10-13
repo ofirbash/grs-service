@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-06 — Astteria (HK) branding on from-lab shipment memos
+
+- `GET/PUT /api/settings/return-sender` (`company_settings` doc `type=return_sender`; GET admin, PUT super_admin; defaults = Astteria (HK) Limited details + Astteria icon).
+- Full shipment memo (`shipments/_print/shipment-memo.ts`) uses the return-sender identity (logo, name, address line, footer Tel/email, no VAT, tab title) for `stones_from_lab` / `certificates_from_lab`; to-lab unchanged. Per-job memos unchanged. Sender refreshed each time a shipment dialog opens.
+- Settings → Branches tab: `ReturnSenderCard` (super admin only) with logo upload to Cloudinary `uploads/branding`.
+- Self-tested: curl (GET/PUT/validation), node render check of memo output for all 3 shipment types, desktop + mobile screenshots of the Settings card.
+
+---
+
+
 ## 2026-06 — Expected Verbal Results + Precious / Semi-Precious shipment memos
 
 - Settings: "Turnaround (calendar days)" per service type (defaults Express 8, Normal 30) and a "Precious" checkbox per stone type (defaults Ruby/Sapphire/Emerald). Stored on `pricing_config.service_turnaround_days` / `precious_stone_types`; pruned on save, carried over by service-type rename.
